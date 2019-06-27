@@ -118,17 +118,16 @@ option_list = list(
         metavar = "integer"
     ),
     make_option(
-        c("--PerCell"),
+        c("--Var_against_reference"),
         type = "logical",
         default = F,action = "store_true",
-        help = "Calculate threshold for binarization per cell [default= %default] ",
+        help = "Variability metrics are calculated usign reference RT in addiction to the calculated one [default= %default] ",
         metavar = "logical"
     )
     
 )
 
 opt = parse_args(object = OptionParser(option_list = option_list))
-
 
 #check inputs
 
@@ -144,9 +143,15 @@ if (!'chrSizes' %in% names(opt)) {
     stop("File containing Chromosomes sizes must be provided. See script usage (--help)")
 }
 
+if (opt$Var_against_reference) {
+    if (!'referenceRT' %in% names(opt)) {
+        warning("Reference genome not provided")
+        opt$Var_against_reference=F
+    }
+}
 
 #create directory
-system(paste0('mkdir ./', opt$out))
+system(paste0('mkdir -p ./', opt$out))
 
 #load files
 opt$file=str_split(opt$file,',',simplify = F)[[1]]
@@ -187,7 +192,8 @@ if ('threshold_meanploidy' %in% names(opt)) {
         opt$threshold_meanploidy=rep_len(opt$threshold_meanploidy,length(opt$tracks))
         warning('meanploidy thresholds will be cyclicly recicled for all the samples')
     }
-    opt$threshold_meanploidy=as.numeric(opt$threshold_meanploidy)
+    opt$threshold_meanploidy=tibble(threshold_meanploidy=as.numeric(opt$threshold_meanploidy),
+                                        basename=opt$base_name)
 }
 
 data <- foreach(i=1:length(opt$file),.combine = 'rbind',.packages = 'tidyverse',.verbose = T)%do%{
@@ -212,14 +218,15 @@ all_tracks <-foreach(i=1:length(opt$tracks),.combine = 'rbind',.packages = 'tidy
 } 
 
 if(opt$keepXY) {
-    hg38_chr_size <-
-        read_delim(opt$chrSizes, delim = '\t', col_names = F) %>%
-        filter(!X1 %in% c('chrX', 'chrY'))
+    Chr_Size <-
+        read_delim(opt$chrSizes, delim = '\t', col_names = c('chr','size')) %>%
+        filter(!chr %in% c('chrX', 'chrY'))
 } else{
-    hg38_chr_size <- read_delim(opt$chrSizes, delim = '\t', col_names = F)
+    Chr_Size <- read_delim(opt$chrSizes, delim = '\t', col_names = c('chr','size'))
 }
 if ('referenceRT' %in% names(opt)) {
-    RT_ENCODE <- read_delim(opt$referenceRT, delim = '\t', col_names = F)
+    Reference_RT <- read_delim(opt$referenceRT, delim = '\t', col_names = c('chr','start','end','RT'))%>%
+        mutate(RT=(RT-min(RT))/(max(RT)-min(RT)))
 }
 # calculate the new treshold
 
@@ -241,10 +248,11 @@ if ('threshold_G1G2phase' %in% names(opt)) {
         summarise(median_ploidy_G1_G2_cells=median(mean_ploidy))
 
     data = data %>%
-        inner_join(median_ploidy_G1_G2_cells)%>%
+        inner_join(opt$threshold_meanploidy, by='basename')%>%
+        inner_join(median_ploidy_G1_G2_cells, by='basename')%>%
         filter(
-            mean_ploidy > median_ploidy_G1_G2_cells / opt$threshold_meanploidy ,
-            mean_ploidy < median_ploidy_G1_G2_cells * opt$threshold_meanploidy,
+            mean_ploidy > median_ploidy_G1_G2_cells / threshold_meanploidy ,
+            mean_ploidy < median_ploidy_G1_G2_cells * threshold_meanploidy,
             !ploidy_confidence <= 2
         ) %>%
         mutate(Type = ifelse(
@@ -266,7 +274,7 @@ if ('threshold_G1G2phase' %in% names(opt)) {
         group_by(basename)%>%
         summarise(median_ploidy_G1_G2_cells=median(mean_ploidy))
     
-    data = data %>%
+    data  = data %>%
         inner_join(median_ploidy_G1_G2_cells)%>%
         filter(
             mean_ploidy > median_ploidy_G1_G2_cells / 1.4 ,
@@ -308,7 +316,6 @@ ggsave(p, filename = paste0(opt$out, '/', paste(opt$base_name,collapse = '_'), '
 
 # correct mean ploidy late S phase
 
-
 data = data %>%
     group_by(basename)%>%
     mutate(
@@ -343,12 +350,12 @@ cl <- makeCluster(opt$cores)
 registerDoSNOW(cl)
 resolution = opt$binsSize
 
-bins = foreach(chr = 1:length(hg38_chr_size$X1),
+bins = foreach(chr = 1:length(Chr_Size$chr),
                .combine = 'rbind') %dopar% {
                    bins = seq(from = resolution,
-                              to = hg38_chr_size$X2[chr] ,
+                              to = Chr_Size$size[chr] ,
                               by =  resolution)
-                   bins = data.frame(chr = as.character(hg38_chr_size$X1[chr]),
+                   bins = data.frame(chr = as.character(Chr_Size$chr[chr]),
                                      start = bins - resolution,
                                      end = bins)
                    bins
@@ -476,7 +483,7 @@ write_delim(
 
 if ('referenceRT' %in% names(opt)) {
     # rebin reference RT
-    RT_ENCODE = foreach(
+    Reference_RT = foreach(
         chr = unique(bins$chr),
         .combine = 'rbind',
         .packages = c('dplyr', 'foreach'),
@@ -488,31 +495,31 @@ if ('referenceRT' %in% names(opt)) {
             .combine = 'rbind',
             .packages = 'dplyr'
         ) %do% {
-            track_back = RT_ENCODE %>%
+            track_back = Reference_RT %>%
                 filter(
-                    X1 == chr,
-                    (X2 >= bins_in_chr$start[bin] &
-                         X3 <= bins_in_chr$end[bin]) |
-                        (X2 <= bins_in_chr$start[bin] &
-                             X3 >= bins_in_chr$start[bin]) |
-                        (X2 <= bins_in_chr$end[bin] &
-                             X3 >= bins_in_chr$end[bin])
+                    chr == chr,
+                    (start >= bins_in_chr$start[bin] &
+                         end <= bins_in_chr$end[bin]) |
+                        (start <= bins_in_chr$start[bin] &
+                             end >= bins_in_chr$start[bin]) |
+                        (start <= bins_in_chr$end[bin] &
+                             end >= bins_in_chr$end[bin])
                 ) %>%
                 summarise(
-                    X1 = bins_in_chr$chr[bin],
-                    X2 = bins_in_chr$start[bin],
-                    X3 = bins_in_chr$end[bin],
-                    X4 = median(X4, na.rm = T)
+                    chr = bins_in_chr$chr[bin],
+                    start = bins_in_chr$start[bin],
+                    end = bins_in_chr$end[bin],
+                    RT = median(RT, na.rm = T)
                 )
             track_back %>%
-                filter(!is.na(X4))
+                filter(!is.na(RT))
         }
         bins_chr
     }
     #write output
     
     write_delim(
-        x = RT_ENCODE,
+        x = Reference_RT,
         path = paste0(
             opt$out,
             '/',
@@ -557,32 +564,20 @@ selecte_th = foreach(i = range,
                      .packages = 'tidyverse', .verbose = T) %do% {
                          summary = signal_smoothed %>%
                              mutate(Rep = ifelse(CN_bg >= i, 2, 1),
-                                    Error = (Rep - CN_bg) ^ 2)
-                         if (opt$PerCell){
-                             summary =summary %>%
-                                 group_by(index,basename) 
-                         }else{
-                             summary =summary %>%
-                                 group_by(basename)
-                         }
-                         summary =summary %>%
+                                    Error = (Rep - CN_bg) ^ 2) %>%
+                                 group_by(index,basename)  %>%
                              summarise(summary = sum(Error))
-                         if (opt$PerCell) {
+
                              data.frame(
                                  th = i,
                                  basename=summary$basename,
                                  index = summary$index,
                                  sum_error = summary$summary
                              )
-                         } else {
-                             data.frame(th = i,
-                                        basename=summary$basename,
-                                        sum_error = summary$summary)
-                         }
+                        
                          
                      }
 
-if(opt$PerCell){
     selecte_th = selecte_th %>%
         group_by(index,basename) %>%
         filter(sum_error == min(sum_error)) %>%
@@ -592,24 +587,14 @@ if(opt$PerCell){
     signal_smoothed = signal_smoothed %>%
         inner_join(selecte_th) %>%
         mutate(Rep = ifelse(CN_bg >= th, T, F))
-}else {
-    selecte_th = selecte_th %>%
-        group_by(basename) %>%
-        filter(sum_error == min(sum_error)) %>%
-        summarise(th = min(th))
-    
-    # mark replicated bins
-    signal_smoothed = signal_smoothed %>%
-        inner_join(selecte_th) %>%
-        mutate(Rep = ifelse(CN_bg >= th, T, F))
-}
+
 
 #identify new distribution in the S phase based the ammount of replicated bins
 new_index_list = signal_smoothed %>%
     group_by(index,basename) %>%
-    summarise(BinaryCoverage = sum(Rep)) %>%
+    summarise(perc_replication = mean(Rep)) %>%
     ungroup() %>%
-    arrange(BinaryCoverage) %>%
+    arrange(perc_replication) %>%
     group_by(basename)%>%
     mutate(newIndex = 1:n()) %>%
     select(index, newIndex,basename)
@@ -723,10 +708,10 @@ write_delim(
 if (opt$plot) {
     system(paste0('mkdir ', opt$out, '/regions'))
     if (!'region' %in% names(opt)) {
-        for (i in 1:length(hg38_chr_size$X1)) {
-            region = round(runif(1, min = 1000000, max = hg38_chr_size$X2[i] - 8000000),
+        for (i in 1:length(Chr_Size$chr)) {
+            region = round(runif(1, min = 1000000, max = Chr_Size$size[i] - 8000000),
                            0)
-            Chr = hg38_chr_size$X1[i]
+            Chr = Chr_Size$chr[i]
             Start = region
             End = region + 60000000
             
@@ -803,24 +788,24 @@ if (opt$plot) {
                 facet_wrap(~basename)
             
             if ('referenceRT' %in% names(opt)) {
-                RT_toplot = RT_ENCODE %>%
-                    filter(X1 %in% Chr,
-                           X2 >= Start,
-                           X3 <= End) %>%
+                RT_toplot = Reference_RT %>%
+                    filter(chr %in% Chr,
+                           start >= Start,
+                           end <= End) %>%
                     mutate(
-                        X4 = 1 + X4 / max(X4, na.rm = T),
-                        X2 = ifelse(X2 < Start, Start, X2),
-                        X3 = ifelse(X3 > End , End, X3)
+                        RT = 1 + RT / max(RT, na.rm = T),
+                        start = ifelse(start < Start, Start, start),
+                        end = ifelse(end > End , End, end)
                     )
                 plot = plot +
                     geom_rect(
                         data = RT_toplot,
                         aes(
-                            xmin = X2,
-                            xmax = X3,
+                            xmin = start,
+                            xmax = end,
                             ymin = 0,
                             ymax = 10,
-                            fill = X4
+                            fill = RT
                         ),
                         inherit.aes = F
                     )
@@ -877,11 +862,10 @@ if (opt$plot) {
                         (start <= Start & end >= Start) |
                         (start <= End & end >= End)
                 ) %>%
-                `colnames<-`(names(RT_ENCODE)) %>%
                 mutate(
-                    X4 = X4 + 1,
-                    X2 = ifelse(X2 < Start, Start, X2),
-                    X3 = ifelse(X3 > End , End, X3)
+                    RT = RT + 1,
+                    start = ifelse(start < Start, Start, start),
+                    end = ifelse(end > End , End, end)
                 )
             
             plot = trac_toplot %>%
@@ -898,11 +882,11 @@ if (opt$plot) {
                 geom_rect(
                     data = s50_toplot,
                     aes(
-                        xmin = X2,
-                        xmax = X3,
+                        xmin = start,
+                        xmax = end,
                         ymin = 11,
                         ymax = 20,
-                        fill = X4
+                        fill = RT
                     ),
                     inherit.aes = F
                 ) +
@@ -928,25 +912,25 @@ if (opt$plot) {
                 ) +
                 labs(y = 'S phase progression', fill = "CNV Binary\n") + theme(legend.position = 'top')
             if ('referenceRT' %in% names(opt)) {
-                RT_toplot = RT_ENCODE %>%
-                    filter(X1 %in% Chr,
-                           X2 >= Start,
-                           X3 <= End) %>%
+                RT_toplot = Reference_RT %>%
+                    filter(chr %in% Chr,
+                           start >= Start,
+                           end <= End) %>%
                     mutate(
-                        X4 = 1 + X4 / max(X4, na.rm = T),
-                        X2 = ifelse(X2 < Start, Start, X2),
-                        X3 = ifelse(X3 > End , End, X3)
+                        RT = 1 + RT / max(RT, na.rm = T),
+                        start = ifelse(start < Start, Start, start),
+                        end = ifelse(end > End , End, end)
                     )
                 
                 plot = plot +
                     geom_rect(
                         data = RT_toplot,
                         aes(
-                            xmin = X2,
-                            xmax = X3,
+                            xmin = start,
+                            xmax = end,
                             ymin = 0,
                             ymax = 10,
-                            fill = X4
+                            fill = RT
                         ),
                         inherit.aes = F
                     )
@@ -980,19 +964,16 @@ RTs = rbind(
     s50 %>%
         ungroup() %>%
         select(chr,start,end,RT,basename)%>%
-        `colnames<-`(c('chr','start','end','RT','basename')) %>%
         mutate(RT = RT + 1),
     
-    RT_ENCODE %>%
-        mutate(X4 = 1 + X4 / max(X4, na.rm = T),
-               basename='Reference') %>%
-        `colnames<-`(c('chr','start','end','RT','basename'))
+    Reference_RT %>%
+        mutate(RT = 1 + RT / max(RT, na.rm = T),
+               basename='Reference')
 )
 }else{
     RTs =  s50 %>%
             ungroup() %>%
             select(chr,start,end,RT,basename)%>%
-            `colnames<-`(c('chr','start','end','RT','basename') )%>%
                              mutate(RT = RT + 1)
 }
 pdf(
@@ -1128,10 +1109,9 @@ heatmap.2(
 )
 dev.off()
 
-#calculate variace within groups and basename, general vairance and 
+#calculate variace within groups and basename 
 
-
-variance_pearson_per_group=data_frame()
+variance_pearson_per_group=tibble()
 unique_groups=unique(groups)
 unique_basename=unique(basenames)
 for (h in unique_basename) {
@@ -1160,3 +1140,388 @@ write_delim(variance_pearson_per_group,paste0(
 system(paste0('rm ', opt$out, '/tmp.tsv'))
 system(paste0('rm ', opt$out, '/tmp_bg.tsv'))
 
+# filter out extreme bins
+bins=signal_smoothed%>%
+    group_by(basename)%>%
+    filter(CN_bg < quantile(CN_bg,c(0.01))[[1]] |
+               CN_bg > quantile(CN_bg,c(0.99))[[1]])%>%
+    mutate(coor=paste0(chr,':',start,'-',end))%>%
+    ungroup()%>%
+    select(coor)%>%
+    unique()
+
+signal_smoothed=signal_smoothed%>%
+    filter(!paste0(chr,':',start,'-',end) %in% bins$coor)
+
+
+s50=s50%>%
+    filter(!paste0(chr,':',start,'-',end) %in% bins$coor)%>%
+    group_by(basename)%>%
+    mutate(RT=(RT-min(RT))/(max(RT)-min(RT)))
+
+#joing s50 with relative signals
+signal_smoothed=signal_smoothed%>%
+    inner_join(s50,by = c("basename", "chr", "start", "end"))%>%
+    group_by(basename)%>%
+    mutate(CN_bg=10*(CN_bg-min(CN_bg))/(max(CN_bg)-min(CN_bg)),
+           RT=10*RT)
+
+
+#test multiple time windows
+rt=seq(0,10,0.05)
+
+percentage=function(df,seq){
+    x=df%>%
+        mutate(rep=CN_bg <= seq)%>%
+        group_by(chr,start,end,basename)%>%
+        summarise(percentage=mean(rep),
+                  RT=unique(RT))%>%
+        mutate(time=RT-seq)
+    return(x)
+}
+
+x=lapply(X =rt,FUN = percentage, df=signal_smoothed)
+
+x=do.call('rbind',x)
+
+x=x%>%
+    filter(time > -10,
+           time < 10)
+
+# calculate distance in time per bin
+s50_bin=x%>%
+    mutate(dist=abs(0.5-percentage))%>%
+    group_by(basename,chr,start,end)%>%
+    filter(dist==min(dist))%>%
+    mutate(time50=time)%>%
+    select(-dist,-time,-percentage,-RT)
+
+x=x%>%
+    inner_join(s50_bin, by = c("chr", "start", "end", "basename"))%>%
+    group_by(basename)%>%
+    mutate(time=time-time50,
+           Early=ifelse(RT > median(RT),'Early','Late'))
+
+#calculate tresholds 25% 75% replication keeping in account early and late domains
+t = foreach(
+    basename = unique(x$basename),
+    .combine = 'rbind',
+    .packages = c('tidyverse', 'mgcv','foreach')
+) %do% {
+    temp=foreach(
+        EL = unique(x$Early),
+        .combine = 'rbind',
+        .packages = c('tidyverse', 'mgcv','foreach')
+    ) %do% {
+        T25_75 = function(df, name,EL) {
+            try(library(mgcv))
+            
+            model = gam(formula = percentage ~ s(time), data = df[, c('percentage', 'time')])
+            min = min(df$time)
+            max = max(df$time)
+            data = predict.gam(model, newdata = data.frame(time = seq(min, max, 0.01)))
+            result = data.frame(
+                time = seq(min, max, 0.01),
+                percentage = data,
+                basename = name
+            )
+            t = inner_join(
+                result %>%
+                    mutate(distance = abs(percentage - 0.75)) %>%
+                    group_by(basename) %>%
+                    mutate(min = min(distance)) %>%
+                    filter(distance == min) %>%
+                    select(basename, time) %>%
+                    `colnames<-`(c('basename', 't75')),
+                result %>%
+                    mutate(distance = abs(percentage - 0.25)) %>%
+                    group_by(basename) %>%
+                    mutate(min = min(distance)) %>%
+                    filter(distance == min) %>%
+                    select(basename, time) %>%
+                    `colnames<-`(c('basename', 't25')),
+                by = "basename")%>%
+                mutate(Early=EL)
+            
+            return(t)
+        }
+        
+        t = T25_75(df = x[x$basename == basename & x$Early==EL, ], basename,EL)
+    }
+    temp
+}
+#calculate tresholds 25% 75% replication without keeping in account early and late domains
+
+p=ggplot(x,aes(y=percentage,x=time))+
+    geom_point(alpha=0.2)+
+    stat_smooth(method = 'gam' , formula =  y ~ s(x))+
+    geom_hline(yintercept = c(0.75,0.25),color='yellow' )+
+    geom_vline(data = t, aes(xintercept = t75 ),color='red',inherit.aes = T)+
+    geom_vline(data = t, aes(xintercept = t25 ),color='red',inherit.aes = T)+
+    geom_text(data = t,aes(label=paste('Twidth ~', round((t25-t75),1),'h'),
+                           x= (t25 + (t75-t25)/2 ),y=-0, vjust=1.5), color='black',inherit.aes = T)+
+    facet_grid(Early~basename)+
+    scale_x_reverse()
+
+ggsave(
+    p,
+    filename = paste0(
+        opt$out,
+        '/',
+        paste(opt$base_name,collapse = '_'),
+        '_variability_plot_Early_Late.pdf'
+    )
+)
+
+t = foreach(
+    basename = unique(x$basename),
+    .combine = 'rbind',
+    .packages = c('tidyverse', 'mgcv')
+) %do% {
+    T25_75 = function(df, name) {
+        try(library(mgcv))
+        
+        model = gam(formula = percentage ~ s(time), data = df[, c('percentage', 'time')])
+        min = min(df$time)
+        max = max(df$time)
+        data = predict.gam(model, newdata = data.frame(time = seq(min, max, 0.01)))
+        result = data.frame(
+            time = seq(min, max, 0.01),
+            percentage = data,
+            basename = name
+        )
+        t = inner_join(
+            result %>%
+                mutate(distance = abs(percentage - 0.75)) %>%
+                group_by(basename) %>%
+                mutate(min = min(distance)) %>%
+                filter(distance == min) %>%
+                select(basename, time) %>%
+                `colnames<-`(c('basename', 't75')),
+            result %>%
+                mutate(distance = abs(percentage - 0.25)) %>%
+                group_by(basename) %>%
+                mutate(min = min(distance)) %>%
+                filter(distance == min) %>%
+                select(basename, time) %>%
+                `colnames<-`(c('basename', 't25')),
+            by = "basename")
+        
+        return(t)
+    }
+    
+    t = T25_75(df = x[x$basename == basename, ], basename)
+}
+
+
+
+p=ggplot(x,aes(y=percentage,x=time))+
+    geom_point(alpha=0.2)+
+    stat_smooth(method = 'gam' , formula =  y ~ s(x))+
+    geom_hline(yintercept = c(0.75,0.25),color='yellow' )+
+    geom_vline(data = t, aes(xintercept = t75 ),color='red',inherit.aes = T)+
+    geom_vline(data = t, aes(xintercept = t25 ),color='red',inherit.aes = T)+
+    geom_text(data = t,aes(label=paste('Twidth ~', round((t25-t75),1),'h'),
+                           x= (t25 + (t75-t25)/2 ),y=-0, vjust=1.5), color='black',inherit.aes = T)+
+    facet_grid(~basename)+
+    scale_x_reverse()
+
+ggsave(
+    p,
+    filename = paste0(
+        opt$out,
+        '/',
+        paste(opt$base_name,collapse = '_'),
+        '_variability_plot.pdf'
+    )
+)    
+
+
+if (opt$Var_against_reference) {
+    
+    Reference_RT=Reference_RT%>%
+        filter(!paste0(chr,':',start,'-',end) %in% bins$coor)
+   
+
+#joing s50 with relative signals
+signal_smoothed=signal_smoothed%>%
+    select(-RT)%>%
+    inner_join(Reference_RT,by = c("chr", "start", "end"))%>%
+    group_by(basename)%>%
+    mutate(CN_bg=10*(CN_bg-min(CN_bg))/(max(CN_bg)-min(CN_bg)),
+           RT=10*RT)
+
+
+#test multiple time windows
+rt=seq(0,10,0.05)
+
+percentage=function(df,seq){
+    x=df%>%
+        mutate(rep=CN_bg <= seq)%>%
+        group_by(chr,start,end,basename)%>%
+        summarise(percentage=mean(rep),
+                  RT=unique(RT))%>%
+        mutate(time=RT-seq)
+    return(x)
+}
+
+x=lapply(X =rt,FUN = percentage, df=signal_smoothed)
+
+x=do.call('rbind',x)
+
+x=x%>%
+    filter(time > -10,
+           time < 10)
+
+# calculate distance in time per bin
+RT_ref_bins=x%>%
+    mutate(dist=abs(0.5-percentage))%>%
+    group_by(basename,chr,start,end)%>%
+    filter(dist==min(dist))%>%
+    mutate(time50=time)%>%
+    select(-dist,-time,-percentage,-RT)
+
+x=x%>%
+    inner_join(RT_ref_bins, by = c("chr", "start", "end", "basename"))%>%
+    group_by(basename)%>%
+    mutate(time=time-time50,
+           Early=ifelse(RT > median(RT),'Early','Late'))
+
+#calculate tresholds 25% 75% replication keeping in account early and late domains
+t = foreach(
+    basename = unique(x$basename),
+    .combine = 'rbind',
+    .packages = c('tidyverse', 'mgcv','foreach')
+) %do% {
+    temp=foreach(
+        EL = unique(x$Early),
+        .combine = 'rbind',
+        .packages = c('tidyverse', 'mgcv','foreach')
+    ) %do% {
+        T25_75 = function(df, name,EL) {
+            try(library(mgcv))
+            
+            model = gam(formula = percentage ~ s(time), data = df[, c('percentage', 'time')])
+            min = min(df$time)
+            max = max(df$time)
+            data = predict.gam(model, newdata = data.frame(time = seq(min, max, 0.01)))
+            result = data.frame(
+                time = seq(min, max, 0.01),
+                percentage = data,
+                basename = name
+            )
+            t = inner_join(
+                result %>%
+                    mutate(distance = abs(percentage - 0.75)) %>%
+                    group_by(basename) %>%
+                    mutate(min = min(distance)) %>%
+                    filter(distance == min) %>%
+                    select(basename, time) %>%
+                    `colnames<-`(c('basename', 't75')),
+                result %>%
+                    mutate(distance = abs(percentage - 0.25)) %>%
+                    group_by(basename) %>%
+                    mutate(min = min(distance)) %>%
+                    filter(distance == min) %>%
+                    select(basename, time) %>%
+                    `colnames<-`(c('basename', 't25')),
+                by = "basename")%>%
+                mutate(Early=EL)
+            
+            return(t)
+        }
+        
+        t = T25_75(df = x[x$basename == basename & x$Early==EL, ], basename,EL)
+    }
+    temp
+}
+#calculate tresholds 25% 75% replication without keeping in account early and late domains
+
+p=ggplot(x,aes(y=percentage,x=time))+
+    geom_point(alpha=0.2)+
+    stat_smooth(method = 'gam' , formula =  y ~ s(x))+
+    geom_hline(yintercept = c(0.75,0.25),color='yellow' )+
+    geom_vline(data = t, aes(xintercept = t75 ),color='red',inherit.aes = T)+
+    geom_vline(data = t, aes(xintercept = t25 ),color='red',inherit.aes = T)+
+    geom_text(data = t,aes(label=paste('Twidth ~', round((t25-t75),1),'h'),
+                           x= (t25 + (t75-t25)/2 ),y=-0, vjust=1.5), color='black',inherit.aes = T)+
+    facet_grid(Early~basename)+
+    scale_x_reverse()
+
+ggsave(
+    p,
+    filename = paste0(
+        opt$out,
+        '/',
+        paste(opt$base_name,collapse = '_'),
+        '_variability_plot_Early_Late_ref_RT.pdf'
+    )
+)
+
+t = foreach(
+    basename = unique(x$basename),
+    .combine = 'rbind',
+    .packages = c('tidyverse', 'mgcv')
+) %do% {
+    T25_75 = function(df, name) {
+        try(library(mgcv))
+        
+        model = gam(formula = percentage ~ s(time), data = df[, c('percentage', 'time')])
+        min = min(df$time)
+        max = max(df$time)
+        data = predict.gam(model, newdata = data.frame(time = seq(min, max, 0.01)))
+        result = data.frame(
+            time = seq(min, max, 0.01),
+            percentage = data,
+            basename = name
+        )
+        t = inner_join(
+            result %>%
+                mutate(distance = abs(percentage - 0.75)) %>%
+                group_by(basename) %>%
+                mutate(min = min(distance)) %>%
+                filter(distance == min) %>%
+                select(basename, time) %>%
+                `colnames<-`(c('basename', 't75')),
+            result %>%
+                mutate(distance = abs(percentage - 0.25)) %>%
+                group_by(basename) %>%
+                mutate(min = min(distance)) %>%
+                filter(distance == min) %>%
+                select(basename, time) %>%
+                `colnames<-`(c('basename', 't25')),
+            by = "basename")
+        
+        return(t)
+    }
+    
+    t = T25_75(df = x[x$basename == basename, ], basename)
+}
+
+
+
+p=ggplot(x,aes(y=percentage,x=time))+
+    geom_point(alpha=0.2)+
+    stat_smooth(method = 'gam' , formula =  y ~ s(x))+
+    geom_hline(yintercept = c(0.75,0.25),color='yellow' )+
+    geom_vline(data = t, aes(xintercept = t75 ),color='red',inherit.aes = T)+
+    geom_vline(data = t, aes(xintercept = t25 ),color='red',inherit.aes = T)+
+    geom_text(data = t,aes(label=paste('Twidth ~', round((t25-t75),1),'h'),
+                           x= (t25 + (t75-t25)/2 ),y=-0, vjust=1.5), color='black',inherit.aes = T)+
+    facet_grid(~basename)+
+    scale_x_reverse()
+
+ggsave(
+    p,
+    filename = paste0(
+        opt$out,
+        '/',
+        paste(opt$base_name,collapse = '_'),
+        '_variability_plot_ref_RT.pdf'
+    )
+)
+}
+
+    
+  
+ 
