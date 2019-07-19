@@ -1300,21 +1300,20 @@ signal_smoothed = signal_smoothed %>%
            RT = 10 * RT)
 
 #test multiple time windows
-rt = seq(0, 10, 0.05)
+cl <- makeCluster(opt$cores)
+registerDoSNOW(cl)
 
-percentage = function(df, seq) {
-    x = df %>%
+x = foreach(seq = seq(0, 10, 0.05), .combine = 'rbind',.packages = c('tidyverse')) %dopar%{
+    signal_smoothed %>%
         mutate(rep = CN_bg <= seq) %>%
         group_by(chr, start, end, basename) %>%
         summarise(percentage = mean(rep),
                   RT = unique(RT)) %>%
         mutate(time = RT - seq)
-    return(x)
+    
 }
 
-x = lapply(X = rt, FUN = percentage, df = signal_smoothed)
-
-x = do.call('rbind', x)
+stopCluster(cl)
 
 x = x %>%
     filter(time > -10,
@@ -1334,46 +1333,44 @@ x = x %>%
     mutate(time = time - time50,
            Early = ifelse(RT > median(RT), 'Early', 'Late'))
 
+x%>%
+    write_tsv(paste0(
+        opt$out,
+        '/',
+        paste(opt$base_name, collapse = '_'),
+        '_scRT_variability.tsv'
+    ))
+
 #calculate tresholds 25% 75% replication keeping in account early and late domains
-t = foreach(
+fitted_data = foreach(
     basename = unique(x$basename),
     .combine = 'rbind',
-    .packages = c('tidyverse', 'mgcv', 'foreach')
+    .packages = c('tidyverse', 'foreach')
 ) %do% {
     temp = foreach(
         EL = unique(x$Early),
         .combine = 'rbind',
-        .packages = c('tidyverse', 'mgcv', 'foreach')
+        .packages = c('tidyverse','foreach')
     ) %do% {
         T25_75 = function(df, name, EL) {
-            try(library(mgcv))
-            
-            model = gam(formula = percentage ~ s(time), data = df[, c('percentage', 'time')])
+            model = nls(percentage ~ SSlogis(time, Asym, xmid, scal),
+                        data = df[, c('percentage', 'time')])
             min = min(df$time)
             max = max(df$time)
-            data = predict.gam(model, newdata = data.frame(time = seq(min, max, 0.01)))
+            data = predict(model, newdata = data.frame(time = seq(min, max, 0.01)),type="l")
             result = data.frame(
                 time = seq(min, max, 0.01),
                 percentage = data,
                 basename = name
             )
-            t = inner_join(
-                result %>%
-                    mutate(distance = abs(percentage - 0.75)) %>%
-                    group_by(basename) %>%
-                    mutate(min = min(distance)) %>%
-                    filter(distance == min) %>%
-                    select(basename, time) %>%
-                    `colnames<-`(c('basename', 't75')),
-                result %>%
-                    mutate(distance = abs(percentage - 0.25)) %>%
-                    group_by(basename) %>%
-                    mutate(min = min(distance)) %>%
-                    filter(distance == min) %>%
-                    select(basename, time) %>%
-                    `colnames<-`(c('basename', 't25')),
-                by = "basename"
-            ) %>%
+            t = result %>%
+                mutate(distance75 = abs(percentage - 0.75),
+                       distance25 = abs(percentage - 0.25)) %>%
+                mutate(min75 = min(distance75),
+                       min25=min(distance25),
+                       t75=distance75 == min75,
+                       t25=distance25 == min25) %>%
+                select(basename, time,percentage, t75,t25)  %>%
                 mutate(Early = EL)
             
             return(t)
@@ -1384,24 +1381,29 @@ t = foreach(
     }
     temp
 }
-#calculate tresholds 25% 75% replication without keeping in account early and late domains
 
-p = ggplot(x, aes(y = percentage, x = time)) +
-    geom_point(alpha = 0.2) +
-    stat_smooth(method = 'gam' , formula =  y ~ s(x)) +
+t=fitted_data%>%filter(t75|t25)%>%
+    gather('t','value',t25,t75)%>%
+    filter(value)%>%
+    select(-percentage,-value)%>%
+    spread(t,time)
+
+p = ggplot() +
+    geom_point(data=x, aes(y = percentage, x = time),alpha=0.1,inherit.aes=F)+
+    geom_line(data=fitted_data, aes(y = percentage, x = time), color='blue',inherit.aes=F)+
     geom_hline(yintercept = c(0.75, 0.25), color = 'yellow') +
-    geom_vline(
-        data = t,
-        aes(xintercept = t75),
-        color = 'red',
-        inherit.aes = T
-    ) +
     geom_vline(
         data = t,
         aes(xintercept = t25),
         color = 'red',
-        inherit.aes = T
-    ) +
+        inherit.aes = F
+    )+
+    geom_vline(
+        data = t,
+        aes(xintercept = t75),
+        color = 'red',
+        inherit.aes = F
+    )+
     geom_text(
         data = t,
         aes(
@@ -1411,10 +1413,12 @@ p = ggplot(x, aes(y = percentage, x = time)) +
             vjust = 1.5
         ),
         color = 'black',
-        inherit.aes = T
+        inherit.aes = F
     ) +
     facet_grid(Early ~ basename) +
-    scale_x_reverse()
+    ggplot2::scale_x_reverse()+
+    scale_y_continuous(labels = scales::percent_format())+
+    ylab('Replicated Bins')
 
 ggsave(p,
        filename = paste0(
@@ -1424,65 +1428,60 @@ ggsave(p,
            '_variability_plot_Early_Late.pdf'
        ))
 
-t = foreach(
+#calculate tresholds 25% 75% replication without keeping in account early and late domains
+
+fitted_data = foreach(
     basename = unique(x$basename),
     .combine = 'rbind',
-    .packages = c('tidyverse', 'mgcv')
+    .packages = c('tidyverse')
 ) %do% {
     T25_75 = function(df, name) {
-        try(library(mgcv))
-        
-        model = gam(formula = percentage ~ s(time), data = df[, c('percentage', 'time')])
+        model = nls(percentage ~ SSlogis(time, Asym, xmid, scal),
+                    data = df[, c('percentage', 'time')])
         min = min(df$time)
         max = max(df$time)
-        data = predict.gam(model, newdata = data.frame(time = seq(min, max, 0.01)))
+        data = predict(model, newdata = data.frame(time = seq(min, max, 0.01)),type="l")
         result = data.frame(
             time = seq(min, max, 0.01),
             percentage = data,
             basename = name
         )
-        t = inner_join(
-            result %>%
-                mutate(distance = abs(percentage - 0.75)) %>%
-                group_by(basename) %>%
-                mutate(min = min(distance)) %>%
-                filter(distance == min) %>%
-                select(basename, time) %>%
-                `colnames<-`(c('basename', 't75')),
-            result %>%
-                mutate(distance = abs(percentage - 0.25)) %>%
-                group_by(basename) %>%
-                mutate(min = min(distance)) %>%
-                filter(distance == min) %>%
-                select(basename, time) %>%
-                `colnames<-`(c('basename', 't25')),
-            by = "basename"
-        )
-        
+        t = result %>%
+            mutate(distance75 = abs(percentage - 0.75),
+                   distance25 = abs(percentage - 0.25)) %>%
+            mutate(min75 = min(distance75),
+                   min25=min(distance25),
+                   t75=distance75 == min75,
+                   t25=distance25 == min25) %>%
+            select(basename, time,percentage, t75,t25) 
         return(t)
     }
     
     t = T25_75(df = x[x$basename == basename, ], basename)
 }
 
+t=fitted_data%>%filter(t75|t25)%>%
+    gather('t','value',t25,t75)%>%
+    filter(value)%>%
+    select(-percentage,-value)%>%
+    spread(t,time)
 
-
-p = ggplot(x, aes(y = percentage, x = time)) +
-    geom_point(alpha = 0.2) +
-    stat_smooth(method = 'gam' , formula =  y ~ s(x)) +
+p = ggplot() +
+    geom_point(data=x, aes(y = percentage, x = time),alpha=0.1,inherit.aes=F)+
+    geom_line(data=fitted_data, aes(y = percentage, x = time), color='blue',inherit.aes=F)+
     geom_hline(yintercept = c(0.75, 0.25), color = 'yellow') +
-    geom_vline(
-        data = t,
-        aes(xintercept = t75),
-        color = 'red',
-        inherit.aes = T
-    ) +
     geom_vline(
         data = t,
         aes(xintercept = t25),
         color = 'red',
-        inherit.aes = T
-    ) +
+        inherit.aes = F
+    )+
+    geom_vline(
+        data = t,
+        aes(xintercept = t75),
+        color = 'red',
+        inherit.aes = F
+    )+
     geom_text(
         data = t,
         aes(
@@ -1492,10 +1491,12 @@ p = ggplot(x, aes(y = percentage, x = time)) +
             vjust = 1.5
         ),
         color = 'black',
-        inherit.aes = T
+        inherit.aes = F
     ) +
-    facet_grid(~ basename) +
-    scale_x_reverse()
+    facet_grid( ~ basename) +
+        ggplot2::scale_x_reverse()+
+    scale_y_continuous(labels = scales::percent_format())+
+    ylab('Replicated Bins')
 
 ggsave(p,
        filename = paste0(
@@ -1521,22 +1522,21 @@ if (opt$Var_against_reference) {
     
     
     #test multiple time windows
-    rt = seq(0, 10, 0.05)
+    cl <- makeCluster(opt$cores)
+    registerDoSNOW(cl)
     
-    percentage = function(df, seq) {
-        x = df %>%
+    x = foreach(seq = seq(0, 10, 0.05), .combine = 'rbind',.packages = c('tidyverse')) %do%{
+        signal_smoothed %>%
             mutate(rep = CN_bg <= seq) %>%
             group_by(chr, start, end, basename) %>%
             summarise(percentage = mean(rep),
                       RT = unique(RT)) %>%
             mutate(time = RT - seq)
-        return(x)
+        
     }
     
-    x = lapply(X = rt, FUN = percentage, df = signal_smoothed)
-    
-    x = do.call('rbind', x)
-    
+    stopCluster(cl)
+
     x = x %>%
         filter(time > -10,
                time < 10)
@@ -1555,47 +1555,44 @@ if (opt$Var_against_reference) {
         mutate(time = time - time50,
                Early = ifelse(RT > median(RT), 'Early', 'Late'))
     
+    x%>%
+    write_tsv(paste0(
+        opt$out,
+        '/',
+        paste(opt$base_name, collapse = '_'),
+        '_scRT_variability_on_reference.tsv'
+    ))
+    
     #calculate tresholds 25% 75% replication keeping in account early and late domains
-    t = foreach(
+    fitted_data = foreach(
         basename = unique(x$basename),
         .combine = 'rbind',
-        .packages = c('tidyverse', 'mgcv', 'foreach')
+        .packages = c('tidyverse', 'foreach')
     ) %do% {
         temp = foreach(
             EL = unique(x$Early),
             .combine = 'rbind',
-            .packages = c('tidyverse', 'mgcv', 'foreach')
+            .packages = c('tidyverse','foreach')
         ) %do% {
             T25_75 = function(df, name, EL) {
-                try(library(mgcv))
-                
-                model = gam(formula = percentage ~ s(time),
+                model = nls(percentage ~ SSlogis(time, Asym, xmid, scal),
                             data = df[, c('percentage', 'time')])
                 min = min(df$time)
                 max = max(df$time)
-                data = predict.gam(model, newdata = data.frame(time = seq(min, max, 0.01)))
+                data = predict(model, newdata = data.frame(time = seq(min, max, 0.01)),type="l")
                 result = data.frame(
                     time = seq(min, max, 0.01),
                     percentage = data,
                     basename = name
                 )
-                t = inner_join(
-                    result %>%
-                        mutate(distance = abs(percentage - 0.75)) %>%
-                        group_by(basename) %>%
-                        mutate(min = min(distance)) %>%
-                        filter(distance == min) %>%
-                        select(basename, time) %>%
-                        `colnames<-`(c('basename', 't75')),
-                    result %>%
-                        mutate(distance = abs(percentage - 0.25)) %>%
-                        group_by(basename) %>%
-                        mutate(min = min(distance)) %>%
-                        filter(distance == min) %>%
-                        select(basename, time) %>%
-                        `colnames<-`(c('basename', 't25')),
-                    by = "basename"
-                ) %>%
+                t = result %>%
+                    mutate(distance75 = abs(percentage - 0.75),
+                           distance25 = abs(percentage - 0.25)) %>%
+                    mutate(min75 = min(distance75),
+                           min25=min(distance25),
+                           t75=distance75 == min75,
+                           t25=distance25 == min25) %>%
+                    select(basename, time,percentage, t75,t25)  %>%
                     mutate(Early = EL)
                 
                 return(t)
@@ -1606,24 +1603,29 @@ if (opt$Var_against_reference) {
         }
         temp
     }
-    #calculate tresholds 25% 75% replication without keeping in account early and late domains
     
-    p = ggplot(x, aes(y = percentage, x = time)) +
-        geom_point(alpha = 0.2) +
-        stat_smooth(method = 'gam' , formula =  y ~ s(x)) +
+    t=fitted_data%>%filter(t75|t25)%>%
+        gather('t','value',t25,t75)%>%
+        filter(value)%>%
+        select(-percentage,-value)%>%
+        spread(t,time)
+    
+    p = ggplot() +
+        geom_point(data=x, aes(y = percentage, x = time),alpha=0.1,inherit.aes=F)+
+        geom_line(data=fitted_data, aes(y = percentage, x = time), color='blue',inherit.aes=F)+
         geom_hline(yintercept = c(0.75, 0.25), color = 'yellow') +
-        geom_vline(
-            data = t,
-            aes(xintercept = t75),
-            color = 'red',
-            inherit.aes = T
-        ) +
         geom_vline(
             data = t,
             aes(xintercept = t25),
             color = 'red',
-            inherit.aes = T
-        ) +
+            inherit.aes = F
+        )+
+        geom_vline(
+            data = t,
+            aes(xintercept = t75),
+            color = 'red',
+            inherit.aes = F
+        )+
         geom_text(
             data = t,
             aes(
@@ -1633,10 +1635,12 @@ if (opt$Var_against_reference) {
                 vjust = 1.5
             ),
             color = 'black',
-            inherit.aes = T
+            inherit.aes = F
         ) +
         facet_grid(Early ~ basename) +
-        scale_x_reverse()
+            ggplot2::scale_x_reverse()+
+        scale_y_continuous(labels = scales::percent_format())+
+        ylab('Replicated Bins')
     
     ggsave(p,
            filename = paste0(
@@ -1645,66 +1649,60 @@ if (opt$Var_against_reference) {
                paste(opt$base_name, collapse = '_'),
                '_variability_plot_Early_Late_ref_RT.pdf'
            ))
+    #calculate tresholds 25% 75% replication without keeping in account early and late domains
     
-    t = foreach(
+    fitted_data = foreach(
         basename = unique(x$basename),
         .combine = 'rbind',
-        .packages = c('tidyverse', 'mgcv')
+        .packages = c('tidyverse')
     ) %do% {
         T25_75 = function(df, name) {
-            try(library(mgcv))
-            
-            model = gam(formula = percentage ~ s(time), data = df[, c('percentage', 'time')])
+            model = nls(percentage ~ SSlogis(time, Asym, xmid, scal),
+                        data = df[, c('percentage', 'time')])
             min = min(df$time)
             max = max(df$time)
-            data = predict.gam(model, newdata = data.frame(time = seq(min, max, 0.01)))
+            data = predict(model, newdata = data.frame(time = seq(min, max, 0.01)),type="l")
             result = data.frame(
                 time = seq(min, max, 0.01),
                 percentage = data,
                 basename = name
             )
-            t = inner_join(
-                result %>%
-                    mutate(distance = abs(percentage - 0.75)) %>%
-                    group_by(basename) %>%
-                    mutate(min = min(distance)) %>%
-                    filter(distance == min) %>%
-                    select(basename, time) %>%
-                    `colnames<-`(c('basename', 't75')),
-                result %>%
-                    mutate(distance = abs(percentage - 0.25)) %>%
-                    group_by(basename) %>%
-                    mutate(min = min(distance)) %>%
-                    filter(distance == min) %>%
-                    select(basename, time) %>%
-                    `colnames<-`(c('basename', 't25')),
-                by = "basename"
-            )
-            
+            t = result %>%
+                mutate(distance75 = abs(percentage - 0.75),
+                       distance25 = abs(percentage - 0.25)) %>%
+                mutate(min75 = min(distance75),
+                       min25=min(distance25),
+                       t75=distance75 == min75,
+                       t25=distance25 == min25) %>%
+                select(basename, time,percentage, t75,t25) 
             return(t)
         }
         
         t = T25_75(df = x[x$basename == basename, ], basename)
     }
     
+    t=fitted_data%>%filter(t75|t25)%>%
+        gather('t','value',t25,t75)%>%
+        filter(value)%>%
+        select(-percentage,-value)%>%
+        spread(t,time)
     
-    
-    p = ggplot(x, aes(y = percentage, x = time)) +
-        geom_point(alpha = 0.2) +
-        stat_smooth(method = 'gam' , formula =  y ~ s(x)) +
+    p = ggplot() +
+        geom_point(data=x, aes(y = percentage, x = time),alpha=0.1,inherit.aes=F)+
+        geom_line(data=fitted_data, aes(y = percentage, x = time), color='blue',inherit.aes=F)+
         geom_hline(yintercept = c(0.75, 0.25), color = 'yellow') +
-        geom_vline(
-            data = t,
-            aes(xintercept = t75),
-            color = 'red',
-            inherit.aes = T
-        ) +
         geom_vline(
             data = t,
             aes(xintercept = t25),
             color = 'red',
-            inherit.aes = T
-        ) +
+            inherit.aes = F
+        )+
+        geom_vline(
+            data = t,
+            aes(xintercept = t75),
+            color = 'red',
+            inherit.aes = F
+        )+
         geom_text(
             data = t,
             aes(
@@ -1714,10 +1712,12 @@ if (opt$Var_against_reference) {
                 vjust = 1.5
             ),
             color = 'black',
-            inherit.aes = T
+            inherit.aes = F
         ) +
-        facet_grid(~ basename) +
-        scale_x_reverse()
+        facet_grid( ~ basename) +
+            ggplot2::scale_x_reverse()+
+        scale_y_continuous(labels = scales::percent_format())+
+        ylab('Replicated Bins')
     
     ggsave(p,
            filename = paste0(
