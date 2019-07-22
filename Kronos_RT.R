@@ -31,6 +31,11 @@ if(!require(gplots, quietly = TRUE)){
     library(gplots)
 }
 
+if(!require(matrixStats, quietly = TRUE)){
+    install.packages("matrixStats",quiet = T)
+    library(matrixStats)
+}
+
 if(!require(RColorBrewer, quietly = TRUE)){
     install.packages("RColorBrewer",quiet = T)
     library(RColorBrewer)
@@ -118,8 +123,8 @@ option_list = list(
     make_option(
         c("-k", "--keepXY"),
         type = "logical",
-        default = TRUE,
-        action = "store_false",
+        default = FALSE,
+        action = "store_true",
         help = "base name for files names",
         metavar = "logical"
     ),
@@ -182,11 +187,11 @@ if (opt$Var_against_reference) {
 system(paste0('mkdir -p ./', opt$out))
 
 #load files
-opt$file = str_split(opt$file, ',', simplify = F)[[1]]
+opt$file = str_split(opt$file, ',')[[1]]
 
-opt$tracks = str_split(opt$tracks, ',', simplify = F)[[1]]
+opt$tracks = str_split(opt$tracks, ',')[[1]]
 
-opt$base_name = str_split(opt$base_name, ',', simplify = F)[[1]]
+opt$base_name = str_split(opt$base_name, ',')[[1]]
 
 # check inputs
 if (length(opt$tracks) != length(opt$file)) {
@@ -205,7 +210,7 @@ if (length(opt$base_name) != length(opt$file)) {
 }
 
 if ('threshold_Sphase' %in% names(opt)) {
-    opt$threshold_Sphase = str_split(opt$threshold_Sphase, ',', simplify = F)[[1]]
+    opt$threshold_Sphase = str_split(opt$threshold_Sphase, ',')[[1]]
     if (length(opt$threshold_Sphase) < length(opt$tracks)) {
         opt$threshold_Sphase = rep_len(opt$threshold_Sphase, length(opt$tracks))
         warning('Sphase thresholds will be cyclicly recicled for all the samples')
@@ -215,7 +220,7 @@ if ('threshold_Sphase' %in% names(opt)) {
 }
 
 if ('threshold_G1G2phase' %in% names(opt)) {
-    opt$threshold_G1G2phase = str_split(opt$threshold_G1G2phase, ',', simplify = F)[[1]]
+    opt$threshold_G1G2phase = str_split(opt$threshold_G1G2phase, ',')[[1]]
     if (length(opt$threshold_G1G2phase) < length(opt$tracks)) {
         opt$threshold_G1G2phase = rep_len(opt$threshold_G1G2phase, length(opt$tracks))
         warning('G1G2phase thresholds will be cyclicly recicled for all the samples')
@@ -225,10 +230,10 @@ if ('threshold_G1G2phase' %in% names(opt)) {
 }
 
 if ('threshold_meanploidy' %in% names(opt)) {
-    opt$threshold_meanploidy = str_split(opt$threshold_meanploidy, ',', simplify = F)[[1]]
+    opt$threshold_meanploidy = str_split(opt$threshold_meanploidy, ',')[[1]]
     if (length(opt$threshold_meanploidy) < length(opt$tracks)) {
         opt$threshold_meanploidy = rep_len(opt$threshold_meanploidy, length(opt$tracks))
-        warning('meanploidy thresholds will be cyclicly recicled for all the samples')
+        warning('meanploidy thresholds will be cyclicly recycled for all the samples')
     }
     opt$threshold_meanploidy = tibble(
         threshold_meanploidy = as.numeric(opt$threshold_meanploidy),
@@ -236,7 +241,7 @@ if ('threshold_meanploidy' %in% names(opt)) {
     )
 }
 #load genome sizes
-if (opt$keepXY) {
+if (!opt$keepXY) {
     Chr_Size <-
         read_delim(opt$chrSizes,
                    delim = '\t',
@@ -262,8 +267,7 @@ data <-
     foreach(
         i = 1:length(opt$file),
         .combine = 'rbind',
-        .packages = 'tidyverse',
-        .verbose = T
+        .packages = 'tidyverse'
     ) %do% {
         file = read_csv(opt$file[i]) %>%
             mutate(basename = opt$base_name[i])
@@ -306,6 +310,7 @@ if ('referenceRT' %in% names(opt)) {
 if ('threshold_Sphase' %in% names(opt)) {
     data = data %>%
         mutate(
+            is_noisy=as.logical(is_noisy),
             is_high_dimapd = ifelse(normalized_dimapd > threshold_Sphase, T, F),
             is_noisy = ifelse(is_high_dimapd, T, is_noisy)
         )
@@ -386,8 +391,7 @@ p = data %>%
         )
     ) +
     theme(legend.position = 'top', legend.title = element_blank()) +
-    geom_vline(aes(xintercept = median_ploidy_G1_G2_cells)) + facet_wrap(~
-                                                                             basename) +
+    geom_vline(aes(xintercept = median_ploidy_G1_G2_cells)) + facet_wrap(~basename) +
     xlab('ploidy') + ylab('Variability')
 
 ggsave(p, filename = paste0(opt$out, '/', paste(opt$base_name, collapse = '_'), '_plot.pdf'))
@@ -453,7 +457,7 @@ selected_data = data %>%
     filter(Type == 'S-phase') %>%
     arrange(mean_ploidy_corrected) %>%
     mutate(index = 1:n()) %>%
-    select(
+    dplyr::select(
         index,
         barcode,
         cell_id,
@@ -463,7 +467,6 @@ selected_data = data %>%
         to_add_to_ploidy,
         to_multiply_to_ploidy
     )
-
 # select G1/G2 cells
 G1_G2_cells = data %>%
     filter(Type == 'G1/G2 cells')
@@ -487,31 +490,34 @@ Sphase_tracks = all_tracks %>%
 signal_smoothed = foreach(
     Chr = unique(bins$chr),
     .combine = 'rbind',
-    .packages = c('tidyverse', 'foreach'),
-    .verbose = T
-) %dopar% {
+    .packages = c('tidyverse', 'foreach','matrixStats')
+    ) %dopar% {
     bins_in_chr = bins[bins$chr == Chr,]
     bins_chr = foreach(
         bin = 1:length(bins_in_chr$chr),
         .combine = 'rbind',
-        .packages = 'tidyverse'
+        .packages = c('tidyverse','matrixStats'),
+        .verbose = T
+
     ) %do% {
         track_sign = Sphase_tracks %>%
             filter(
                 `#chrom` == Chr,
                 (start >= bins_in_chr$start[bin] &
                      end <= bins_in_chr$end[bin]) |
-                    (start <= bins_in_chr$start[bin] &
-                         end >= bins_in_chr$start[bin]) |
-                    (start <= bins_in_chr$end[bin] &
-                         end >= bins_in_chr$end[bin])
+                    (start < bins_in_chr$start[bin] &
+                         end > bins_in_chr$start[bin]) |
+                    (start < bins_in_chr$end[bin] &
+                         end > bins_in_chr$end[bin])
             ) %>%
+            mutate(start2=ifelse(start< bins_in_chr$start[bin],bins_in_chr$start[bin],start),
+                   end2=ifelse(end > bins_in_chr$start[bin],bins_in_chr$end[bin],end))%>%
             group_by(index, basename) %>%
             summarise(
                 chr = bins_in_chr$chr[bin],
                 start = bins_in_chr$start[bin],
                 end = bins_in_chr$end[bin],
-                CN = median(copy_number_corrected)
+                CN = weightedMedian(x = copy_number_corrected,w = (end2-start2),na.rm = T)
             )
         
         track_sign
@@ -535,32 +541,35 @@ rm('signal_smoothed')
 backgroud_smoothed = foreach(
     Chr = unique(bins$chr),
     .combine = 'rbind',
-    .packages = c('tidyverse', 'foreach'),
-    .verbose = T
+    .packages = c('tidyverse', 'foreach','matrixStats')
 ) %dopar% {
     bins_in_chr = bins[bins$chr == Chr, ]
     bins_chr = foreach(
         bin = 1:length(bins_in_chr$chr),
         .combine = 'rbind',
-        .packages = 'tidyverse'
+        .packages = c('tidyverse','matrixStats')
     ) %do% {
         track_back = G1_G2_cells_tracks %>%
             filter(
                 `#chrom` == Chr,
                 (start >= bins_in_chr$start[bin] &
                      end <= bins_in_chr$end[bin]) |
-                    (start <= bins_in_chr$start[bin] &
-                         end >= bins_in_chr$start[bin]) |
-                    (start <= bins_in_chr$end[bin] &
-                         end >= bins_in_chr$end[bin])
+                    (start < bins_in_chr$start[bin] &
+                         end > bins_in_chr$start[bin]) |
+                    (start < bins_in_chr$end[bin] &
+                         end > bins_in_chr$end[bin])
             ) %>%
+            mutate(start2=ifelse(start< bins_in_chr$start[bin],bins_in_chr$start[bin],start),
+                   end2=ifelse(end > bins_in_chr$start[bin],bins_in_chr$end[bin],end))%>%
             group_by(id, basename) %>%
             summarise(
                 chr = bins_in_chr$chr[bin],
                 start = bins_in_chr$start[bin],
                 end = bins_in_chr$end[bin],
-                background = median(copy_number)
+                background = weightedMedian(x = copy_number,w = (end2-start2),na.rm = T)
+                
             )
+
         track_back
     }
     bins_chr %>%
@@ -583,35 +592,33 @@ if ('referenceRT' %in% names(opt)) {
     Reference_RT = foreach(
         Chr = unique(bins$chr),
         .combine = 'rbind',
-        .packages = c('dplyr', 'foreach'),
-        .verbose = T
+        .packages = c('tidyverse', 'foreach','matrixStats')
     ) %dopar% {
         bins_in_chr = bins[bins$chr == Chr, ]
         bins_chr = foreach(
             bin = 1:length(bins_in_chr$chr),
             .combine = 'rbind',
-            .packages = 'dplyr'
-        ) %do% {
+            .packages = c('matrixStats','tidyverse')
+            ) %do% {
             track_back = Reference_RT %>%
                 filter(
                     chr == Chr,
-                    (
-                        start >= bins_in_chr$start[bin] &
-                            end <= bins_in_chr$end[bin]
-                    ) |
-                        (
-                            start <= bins_in_chr$start[bin] &
-                                end >= bins_in_chr$start[bin]
-                        ) |
-                        (start <= bins_in_chr$end[bin] &
-                             end >= bins_in_chr$end[bin])
+                    (start >= bins_in_chr$start[bin] &
+                         end <= bins_in_chr$end[bin]) |
+                        (start < bins_in_chr$start[bin] &
+                             end > bins_in_chr$start[bin]) |
+                        (start < bins_in_chr$end[bin] &
+                             end > bins_in_chr$end[bin])
                 ) %>%
+                mutate(start2=ifelse(start < bins_in_chr$start[bin],bins_in_chr$start[bin],start),
+                        end2=ifelse(end > bins_in_chr$start[bin],bins_in_chr$end[bin],end))%>%
                 summarise(
                     chr = bins_in_chr$chr[bin],
                     start = bins_in_chr$start[bin],
                     end = bins_in_chr$end[bin],
-                    RT = median(RT, na.rm = T)
-                )
+                    RT = weightedMedian(x = RT,w = (end2-start2),na.rm = T)
+
+                ) 
             track_back %>%
                 filter(!is.na(RT))
         }
@@ -668,8 +675,7 @@ range = seq(quantile[[1]], quantile[[2]], (quantile[[2]] - quantile[[1]]) /
 selecte_th = foreach(
     i = range,
     .combine = 'rbind',
-    .packages = 'tidyverse',
-    .verbose = T
+    .packages = 'tidyverse'
 ) %do% {
     summary = signal_smoothed %>%
         mutate(Rep = ifelse(CN_bg >= i, 2, 1),
@@ -1211,11 +1217,11 @@ colors_groups = selcol(length(unique(groups)))
 
 color_basebanes = selcol2(length(unique(basename_n)))
 
-pdf(paste0(
+jpeg(paste0(
     opt$out,
     '/',
     paste(opt$base_name, collapse = '_'),
-    '_correlation_plot_per_cell.pdf'
+    '_correlation_plot_per_cell.jpg'
 ))
 
 heatmap.2(
@@ -1395,22 +1401,20 @@ p = ggplot() +
     geom_vline(
         data = t,
         aes(xintercept = t25),
-        color = 'red',
-        inherit.aes = F
+        color = 'red'
     )+
     geom_vline(
         data = t,
         aes(xintercept = t75),
-        color = 'red',
-        inherit.aes = F
+        color = 'red'
     )+
     geom_text(
         data = t,
         aes(
             label = paste('Twidth ~', round((t25 - t75), 1), 'h'),
             x = (t25 + (t75 - t25) / 2),
-            y = -0,
-            vjust = 1.5
+            y = Inf,
+            vjust = 1
         ),
         color = 'black',
         inherit.aes = F
@@ -1426,6 +1430,13 @@ ggsave(p,
            '/',
            paste(opt$base_name, collapse = '_'),
            '_variability_plot_Early_Late.pdf'
+       ))
+ggsave(p,
+       filename = paste0(
+           opt$out,
+           '/',
+           paste(opt$base_name, collapse = '_'),
+           '_variability_plot_Early_Late.jpg'
        ))
 
 #calculate tresholds 25% 75% replication without keeping in account early and late domains
@@ -1473,22 +1484,20 @@ p = ggplot() +
     geom_vline(
         data = t,
         aes(xintercept = t25),
-        color = 'red',
-        inherit.aes = F
+        color = 'red'
     )+
     geom_vline(
         data = t,
         aes(xintercept = t75),
-        color = 'red',
-        inherit.aes = F
+        color = 'red'
     )+
     geom_text(
         data = t,
         aes(
             label = paste('Twidth ~', round((t25 - t75), 1), 'h'),
             x = (t25 + (t75 - t25) / 2),
-            y = -0,
-            vjust = 1.5
+            y = Inf,
+            vjust = 1
         ),
         color = 'black',
         inherit.aes = F
@@ -1506,6 +1515,13 @@ ggsave(p,
            '_variability_plot.pdf'
        ))
 
+ggsave(p,
+       filename = paste0(
+           opt$out,
+           '/',
+           paste(opt$base_name, collapse = '_'),
+           '_variability_plot.jpg'
+       ))
 
 if (opt$Var_against_reference) {
     Reference_RT = Reference_RT %>%
@@ -1617,22 +1633,20 @@ if (opt$Var_against_reference) {
         geom_vline(
             data = t,
             aes(xintercept = t25),
-            color = 'red',
-            inherit.aes = F
+            color = 'red'
         )+
         geom_vline(
             data = t,
             aes(xintercept = t75),
-            color = 'red',
-            inherit.aes = F
+            color = 'red'
         )+
         geom_text(
             data = t,
             aes(
                 label = paste('Twidth ~', round((t25 - t75), 1), 'h'),
                 x = (t25 + (t75 - t25) / 2),
-                y = -0,
-                vjust = 1.5
+                y = Inf,
+                vjust = 1
             ),
             color = 'black',
             inherit.aes = F
@@ -1649,6 +1663,15 @@ if (opt$Var_against_reference) {
                paste(opt$base_name, collapse = '_'),
                '_variability_plot_Early_Late_ref_RT.pdf'
            ))
+
+    ggsave(p,
+           filename = paste0(
+               opt$out,
+               '/',
+               paste(opt$base_name, collapse = '_'),
+               '_variability_plot_Early_Late_ref_RT.jpg'
+           ))
+    
     #calculate tresholds 25% 75% replication without keeping in account early and late domains
     
     fitted_data = foreach(
@@ -1694,22 +1717,20 @@ if (opt$Var_against_reference) {
         geom_vline(
             data = t,
             aes(xintercept = t25),
-            color = 'red',
-            inherit.aes = F
+            color = 'red'
         )+
         geom_vline(
             data = t,
             aes(xintercept = t75),
-            color = 'red',
-            inherit.aes = F
+            color = 'red'
         )+
         geom_text(
             data = t,
             aes(
                 label = paste('Twidth ~', round((t25 - t75), 1), 'h'),
                 x = (t25 + (t75 - t25) / 2),
-                y = -0,
-                vjust = 1.5
+                y = Inf,
+                vjust = 1
             ),
             color = 'black',
             inherit.aes = F
@@ -1726,4 +1747,13 @@ if (opt$Var_against_reference) {
                paste(opt$base_name, collapse = '_'),
                '_variability_plot_ref_RT.pdf'
            ))
+    
+    ggsave(p,
+           filename = paste0(
+               opt$out,
+               '/',
+               paste(opt$base_name, collapse = '_'),
+               '_variability_plot_ref_RT.jpg'
+           ))
+    
 }
