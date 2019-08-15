@@ -1,8 +1,11 @@
 #!/usr/local/bin/Rscript
 
 # this script is meant to select the treshold to select cycling cells
-try(library(tidyverse))
-try(library(optparse))
+
+if (!suppressPackageStartupMessages(require(optparse, quietly = TRUE))) {
+    install.packages("optparse", quiet = T)
+    suppressPackageStartupMessages(library(optparse, quietly = TRUE))
+}
 
 options(stringsAsFactors = FALSE)
 options(warn=1) 
@@ -51,7 +54,21 @@ option_list = list(
 
 opt = parse_args( OptionParser(option_list=option_list))
 
-data<-read_csv(opt$file)
+if (!suppressPackageStartupMessages(require(tidyverse, quietly = TRUE))) {
+    install.packages("tidyverse", quiet = T)
+    suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
+}
+
+#create output directory
+if (str_extract(opt$out,'.$')!='/'){
+    opt$out=paste0(opt$out,'/')
+}
+
+system(paste0('mkdir -p ./', opt$out))
+
+#load data
+data<-read_csv(opt$file,
+               col_types = cols())
 
 if (!'threshold_Sphase' %in% names(opt)){
 
@@ -79,7 +96,7 @@ if (!'threshold_Sphase' %in% names(opt)){
         theme(legend.position = 'top', legend.title = element_blank())
     
     system(paste('mkdir -p', opt$out))
-    ggsave(p, filename = paste0(opt$out, '/', opt$base_name, '_plot.pdf'))
+    suppressMessages( ggsave(p, filename = paste0(opt$out, '/', opt$base_name, '_plot.pdf')))
 
 }else if('threshold_Sphase' %in% names(opt) & 'threshold_G1G2phase' %in% names(opt) ){
     data = data %>%
@@ -122,10 +139,9 @@ if (!'threshold_Sphase' %in% names(opt)){
         ) +
         theme(legend.position = 'top', legend.title = element_blank()) +
         geom_vline(xintercept = median_ploidy_not_noisy)
-    
-    system(paste('mkdir -p', opt$out))
-    ggsave(p,
-           filename = paste0(opt$out, '/', opt$base_name, '_plot_th_', opt$threshold_Sphase,'-',opt$threshold_G1G2phase, '.pdf'))
+
+    suppressMessages(ggsave(p,
+           filename = paste0(opt$out, '/', opt$base_name, '_plot_th_', opt$threshold_Sphase,'-',opt$threshold_G1G2phase, '.pdf')))
 }else{
 
     data = data %>%
@@ -164,8 +180,7 @@ if (!'threshold_Sphase' %in% names(opt)){
         ) +
         theme(legend.position = 'top', legend.title = element_blank()) +
         geom_vline(xintercept = median_ploidy_not_noisy)
-    
-    system(paste('mkdir -p', opt$out))
-    ggsave(p,
-           filename = paste0(opt$out, '/', opt$base_name, '_plot_th_', opt$threshold_Sphase, '.pdf'))
+
+    suppressMessages( ggsave(p,
+           filename = paste0(opt$out, '/', opt$base_name, '_plot_th_', opt$threshold_Sphase, '.pdf')))
 }
