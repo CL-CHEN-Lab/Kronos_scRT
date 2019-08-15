@@ -110,9 +110,9 @@ if (!suppressPackageStartupMessages(require(DescTools, quietly = TRUE))) {
     suppressPackageStartupMessages(library(DescTools, quietly = TRUE))
 }
 
-if (!suppressPackageStartupMessages(require(ParDNAcopy, quietly = TRUE))) {
-    BiocManager::install('ParDNAcopy')
-    suppressPackageStartupMessages(library(ParDNAcopy, quietly = TRUE))
+if (!suppressPackageStartupMessages(require(DNAcopy, quietly = TRUE))) {
+    BiocManager::install('DNAcopy')
+    suppressPackageStartupMessages(library(DNAcopy, quietly = TRUE))
 }
 
 if (!suppressPackageStartupMessages(require(gplots, quietly = TRUE))) {
@@ -293,8 +293,7 @@ system(paste0('for i in ',paste0(opt$output_dir,files[-1],collapse = ' '),"; do 
 system(paste0('rm ',paste0(opt$output_dir,files,collapse = ' ')))
 
 #load data
-data=read_tsv(paste0(opt$output_dir, 'data.tmp'))
-
+data=read_tsv(paste0(opt$output_dir, 'data.tmp'),col_types = cols() )
 #deletefile
 system(paste0('rm ',opt$output_dir, 'data.tmp'))
 
@@ -389,37 +388,46 @@ data=data%>%
     spread(Cell,RPM)%>%
     drop_na()
 
-# create object
-mt<-as.matrix(data[, !names(data) %in% c('chr', 'start', 'end')])
-CNA.object <-
-    CNA(
-        mt,
-        data$chr,
-        data$start,
-        sampleid = names(data[, !names(data) %in% c('chr', 'start', 'end')])
-    ) 
-
-#free memory 
-rm('data')
-rm('mt')
-
-# smooth data
-smoothed.CNA.object <- smooth.CNA(CNA.object)
-
-# free memory
-rm('CNA.object')
-
-# segment 
-segment.smoothed.CNA.object <- parSegment(smoothed.CNA.object,njobs = opt$cores)
+segment.smoothed.CNA.object = foreach(
+    file = names(data)[!names(data) %in% c('chr', 'start', 'end')],
+    .combine = 'rbind',
+    .packages = c('DNAcopy', 'tidyverse')
+) %dopar% {
+    # create object
+    mt <- as.matrix(data[, names(data) %in% file])
+    CNA.object <-
+        CNA(mt,
+            data$chr,
+            data$start,
+            sampleid = file)
+    
+    #free memory
+    rm('mt')
+    
+    # smooth data
+    smoothed.CNA.object <- smooth.CNA(CNA.object)
+    
+    # free memory
+    rm('CNA.object')
+    
+    # segment
+    segment.smoothed.CNA.object <- segment(smoothed.CNA.object)
+    
+    #free memory
+    rm('smoothed.CNA.object')
+    
+    as_tibble(segment.smoothed.CNA.object$output)
+}
 
 #free memory
-rm('smoothed.CNA.object')
+rm('data')
 
-IDs=unique(segment.smoothed.CNA.object$output$ID)
+
+IDs=unique(segment.smoothed.CNA.object$ID)
 cl=makeCluster(opt$cores)
 registerDoSNOW(cl)
 
-MMS=segment.smoothed.CNA.object$output%>%
+MMS=segment.smoothed.CNA.object%>%
     summarise(min=quantile(seg.mean,0.05)[[1]],
               max=quantile(seg.mean,0.95)[[1]],
               step=(max-min)/1000)
@@ -430,7 +438,7 @@ bin_size=bins[1,]%>%
 
 # identify CN based on minimum of the target function
 CNV_correction=foreach(id=IDs,.combine = 'rbind',.packages = c('foreach','tidyverse'))%dopar%{
-    s=segment.smoothed.CNA.object$output%>%
+    s=segment.smoothed.CNA.object%>%
         filter(ID==id)
     
     weitghts=(s$loc.end-s$loc.start)/bin_size
