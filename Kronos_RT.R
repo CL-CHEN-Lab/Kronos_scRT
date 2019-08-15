@@ -1,44 +1,9 @@
-#!/usr/local/bin/Rscript
+#!/usr/local/bin/Rscript --slave
 
-# this script is meant to select the treshold to select cycling cells
-if(!require(tidyverse, quietly = TRUE)){
-    install.packages("tidyverse",quiet = T)
-    library(tidyverse)
-}
-
-if(!require(optparse, quietly = TRUE)){
-    install.packages("optparse",quiet = T)
-    library(optparse)
-}
-
-if(!require(foreach, quietly = TRUE)){
-    install.packages("foreach",quiet = T)
-    library(foreach)
-}
-
-if(!require(doSNOW, quietly = TRUE)){
-    install.packages("doSNOW",quiet = T)
-    library(doSNOW)
-}
-
-if(!require(chunked, quietly = TRUE)){
-    install.packages("chunked",quiet = T)
-    library(chunked)
-}
-
-if(!require(gplots, quietly = TRUE)){
-    install.packages("gplots",quiet = T)
-    library(gplots)
-}
-
-if(!require(matrixStats, quietly = TRUE)){
-    install.packages("matrixStats",quiet = T)
-    library(matrixStats)
-}
-
-if(!require(RColorBrewer, quietly = TRUE)){
-    install.packages("RColorBrewer",quiet = T)
-    library(RColorBrewer)
+#parse input
+if (!suppressPackageStartupMessages(require(optparse, quietly = TRUE))) {
+    install.packages("optparse", quiet = T)
+    suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 }
 
 options(stringsAsFactors = FALSE)
@@ -125,7 +90,7 @@ option_list = list(
         type = "logical",
         default = FALSE,
         action = "store_true",
-        help = "base name for files names",
+        help = "keep XY chromosomes in the analysis",
         metavar = "logical"
     ),
     make_option(
@@ -163,6 +128,42 @@ option_list = list(
 #recover inputs
 opt = parse_args(object = OptionParser(option_list = option_list))
 
+# this script is meant to select the treshold to select cycling cells
+if (!suppressPackageStartupMessages(require(tidyverse, quietly = TRUE))) {
+    install.packages("tidyverse", quiet = T)
+    suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
+}
+
+if (!suppressPackageStartupMessages(require(foreach, quietly = TRUE))) {
+    install.packages("foreach", quiet = T)
+    suppressPackageStartupMessages(library(foreach, quietly = TRUE))
+}
+
+if (!suppressPackageStartupMessages(require(doSNOW, quietly = TRUE))) {
+    install.packages("doSNOW", quiet = T)
+    suppressPackageStartupMessages(library(doSNOW, quietly = TRUE))
+}
+
+if (!suppressPackageStartupMessages(require(chunked, quietly = TRUE))) {
+    install.packages("chunked", quiet = T)
+    suppressPackageStartupMessages(library(chunked, quietly = TRUE))
+}
+
+if (!suppressPackageStartupMessages(require(gplots, quietly = TRUE))) {
+    install.packages("gplots", quiet = T)
+    suppressPackageStartupMessages(library(gplots, quietly = TRUE))
+}
+
+if (!suppressPackageStartupMessages(require(matrixStats, quietly = TRUE))) {
+    install.packages("matrixStats", quiet = T)
+    suppressPackageStartupMessages(library(matrixStats, quietly = TRUE))
+}
+
+if (!suppressPackageStartupMessages(require(RColorBrewer, quietly = TRUE))) {
+    install.packages("RColorBrewer", quiet = T)
+    suppressPackageStartupMessages(library(RColorBrewer, quietly = TRUE))
+}
+
 #check inputs
 if (!'file' %in% names(opt)) {
     stop("Per cell stat file must be provided. See script usage (--help)")
@@ -184,6 +185,9 @@ if (opt$Var_against_reference) {
 }
 
 #create directory
+if (str_extract(opt$out,'.$')!='/'){
+    opt$out=paste0(opt$out,'/')
+}
 system(paste0('mkdir -p ./', opt$out))
 
 #load files
@@ -245,13 +249,15 @@ if (!opt$keepXY) {
     Chr_Size <-
         read_delim(opt$chrSizes,
                    delim = '\t',
-                   col_names = c('chr', 'size')) %>%
+                   col_names = c('chr', 'size'),
+                   col_types = cols()) %>%
         filter(!chr %in% c('chrX', 'chrY'))
 } else{
     Chr_Size <-
         read_delim(opt$chrSizes,
                    delim = '\t',
-                   col_names = c('chr', 'size'))
+                   col_names = c('chr', 'size'),
+                   col_types = cols())
 }
 
 #chr order
@@ -269,7 +275,7 @@ data <-
         .combine = 'rbind',
         .packages = 'tidyverse'
     ) %do% {
-        file = read_csv(opt$file[i]) %>%
+        file = read_csv(opt$file[i],col_types = cols()) %>%
             mutate(basename = opt$base_name[i])
         if ('threshold_Sphase' %in% names(opt)) {
             file = file %>%
@@ -289,11 +295,12 @@ all_tracks <-
         .combine = 'rbind',
         .packages = 'tidyverse'
     ) %do% {
-        read_delim(opt$tracks[i], delim = '\t', skip = 2) %>%
+        read_delim(opt$tracks[i], delim = '\t',col_types = cols()) %>%
             mutate(
                 basename = opt$base_name[i],
-                `#chrom` = factor(x =  `#chrom`, levels = chr_list)
-            )
+                chr = factor(x =  chr, levels = chr_list)
+            )%>%
+            drop_na()
     }
 
 if ('referenceRT' %in% names(opt)) {
@@ -301,7 +308,8 @@ if ('referenceRT' %in% names(opt)) {
         read_delim(
             opt$referenceRT,
             delim = '\t',
-            col_names = c('chr', 'start', 'end', 'RT')
+            col_names = c('chr', 'start', 'end', 'RT'),
+            col_types = cols()
         ) %>%
         mutate(chr = factor(x =  chr, levels = chr_list))
 }
@@ -355,7 +363,7 @@ if ('threshold_G1G2phase' %in% names(opt)) {
         summarise(median_ploidy_G1_G2_cells = median(mean_ploidy))
     
     data  = data %>%
-        inner_join(median_ploidy_G1_G2_cells) %>%
+        inner_join(median_ploidy_G1_G2_cells, by = 'basename') %>%
         filter(
             mean_ploidy > median_ploidy_G1_G2_cells / 1.4 ,
             mean_ploidy < median_ploidy_G1_G2_cells * 1.4,
@@ -394,14 +402,15 @@ p = data %>%
     geom_vline(aes(xintercept = median_ploidy_G1_G2_cells)) + facet_wrap(~basename) +
     xlab('ploidy') + ylab('Variability')
 
-ggsave(p, filename = paste0(opt$out, '/', paste(opt$base_name, collapse = '_'), '_plot.pdf'))
-
+suppressMessages(ggsave(p, filename = paste0(
+    opt$out, '/', paste(opt$base_name, collapse = '_'), '_plot.pdf'
+)))
 # correct mean ploidy late S phase
 data = data %>%
     group_by(basename) %>%
     mutate(
-        to_multiply_to_ploidy = median_ploidy_G1_G2_cells / min(mean_ploidy),
-        to_add_to_ploidy = max(mean_ploidy) - median_ploidy_G1_G2_cells,
+        to_multiply_to_ploidy = median_ploidy_G1_G2_cells / min(mean_ploidy[as.logical(is_noisy)]),
+        to_add_to_ploidy = max(mean_ploidy[as.logical(is_noisy)]) - median_ploidy_G1_G2_cells,
         mean_ploidy_corrected = ifelse(
             as.logical(is_noisy) == T &
                 mean_ploidy < median_ploidy_G1_G2_cells,
@@ -426,13 +435,15 @@ p = data %>%
                                                                              basename) +
     xlab('ploidy') + ylab('Variability')
 
-ggsave(p,
-       filename = paste0(
-           opt$out,
-           '/',
-           paste(opt$base_name, collapse = '_'),
-           '_plot_sphase_corrected.pdf'
-       ))
+suppressMessages(ggsave(
+    p,
+    filename = paste0(
+        opt$out,
+        '/',
+        paste(opt$base_name, collapse = '_'),
+        '_plot_sphase_corrected.pdf'
+    )
+))
 
 #resolution
 cl <- makeCluster(opt$cores)
@@ -445,12 +456,13 @@ bins = foreach(chr = 1:length(Chr_Size$chr),
                               to = Chr_Size$size[chr] ,
                               by =  resolution)
                    bins = data.frame(
-                       chr = as.character(Chr_Size$chr[chr]),
+                       chr =  factor(x =  Chr_Size$chr[chr], levels = chr_list),
                        start = bins - resolution,
                        end = bins
                    )
                    bins
                }
+
 
 #select Sphase cells
 selected_data = data %>%
@@ -459,8 +471,7 @@ selected_data = data %>%
     mutate(index = 1:n()) %>%
     dplyr::select(
         index,
-        barcode,
-        cell_id,
+        Cell,
         mean_ploidy,
         mean_ploidy_corrected,
         basename,
@@ -473,11 +484,11 @@ G1_G2_cells = data %>%
 
 # select tracks of G1/G2 cells
 G1_G2_cells_tracks = all_tracks %>%
-    inner_join(G1_G2_cells, by = c('id' = 'cell_id', 'basename'))
+    inner_join(G1_G2_cells, by = c('Cell', 'basename'))
 
 #select Sphase traks
 Sphase_tracks = all_tracks %>%
-    inner_join(selected_data, by = c('id' = 'cell_id', 'basename')) %>%
+    inner_join(selected_data, by = c('Cell', 'basename')) %>%
     mutate(
         copy_number_corrected = ifelse(
             mean_ploidy == mean_ploidy_corrected,
@@ -502,7 +513,7 @@ signal_smoothed = foreach(
     ) %do% {
         track_sign = Sphase_tracks %>%
             filter(
-                `#chrom` == Chr,
+                chr == Chr,
                 (start >= bins_in_chr$start[bin] &
                      end <= bins_in_chr$end[bin]) |
                     (start < bins_in_chr$start[bin] &
@@ -551,7 +562,7 @@ backgroud_smoothed = foreach(
     ) %do% {
         track_back = G1_G2_cells_tracks %>%
             filter(
-                `#chrom` == Chr,
+                chr == Chr,
                 (start >= bins_in_chr$start[bin] &
                      end <= bins_in_chr$end[bin]) |
                     (start < bins_in_chr$start[bin] &
@@ -561,7 +572,7 @@ backgroud_smoothed = foreach(
             ) %>%
             mutate(start2=ifelse(start< bins_in_chr$start[bin],bins_in_chr$start[bin],start),
                    end2=ifelse(end > bins_in_chr$start[bin],bins_in_chr$end[bin],end))%>%
-            group_by(id, basename) %>%
+            group_by(Cell, basename) %>%
             summarise(
                 chr = bins_in_chr$chr[bin],
                 start = bins_in_chr$start[bin],
@@ -577,15 +588,9 @@ backgroud_smoothed = foreach(
 }
 
 backgroud_smoothed = backgroud_smoothed %>%
+    mutate(chr = factor(x =  chr, levels = chr_list))%>%
     group_by(chr, start, end, basename) %>%
     summarise(background = median(background))
-
-write_delim(
-    x = backgroud_smoothed,
-    path = paste0(opt$out, '/tmp_bg.tsv'),
-    delim = '\t',
-    col_names = T
-)
 
 if ('referenceRT' %in% names(opt)) {
     # rebin reference RT
@@ -626,8 +631,9 @@ if ('referenceRT' %in% names(opt)) {
     }
     
     #resize 0-1
-    Reference_RT = Reference_RT %>%
-        mutate(RT = (RT - min(RT)) / (max(RT) - min(RT)))
+    Reference_RT = Reference_RT  %>%
+        mutate(chr = factor(x =  chr, levels = chr_list),
+               RT = (RT - min(RT)) / (max(RT) - min(RT)))
     
     #write output
     write_delim(
@@ -645,14 +651,14 @@ if ('referenceRT' %in% names(opt)) {
     )
 }
 
-stopCluster(cl)
-
 #merge signal and bg and calculate their ratio
 signal_smoothed = read_table_chunkwise(paste0(opt$out, '/tmp.tsv'),
                                        chunk_size = 100000,
-                                       format = 'table') %>%
+                                       format = 'table')  %>%
+    mutate(chr = factor(x =  chr, levels = chr_list),
+           basename=as.character(basename))%>%
     inner_join(backgroud_smoothed, by = c("chr", "start", "end", "basename")) %>%
-    mutate(CN_bg = CN / background)
+    mutate(CN_bg = log2(CN / background))
 
 signal_smoothed = collect(signal_smoothed)
 
@@ -664,41 +670,48 @@ signal_smoothed = signal_smoothed %>%
 # remouve control track
 rm('backgroud_smoothed')
 
-# exclude extreme values
-quantile = quantile(signal_smoothed$CN_bg, c(0.025, 0.975))
-
-#identify range within looking for a CNV treshold to define replicated and not replicated values
-range = seq(quantile[[1]], quantile[[2]], (quantile[[2]] - quantile[[1]]) /
-                100)
-
 # identify threshold that minimazes the difference of the real data with a binary state (1 or 2)
 selecte_th = foreach(
-    i = range,
+    line = unique(signal_smoothed$basename),
     .combine = 'rbind',
-    .packages = 'tidyverse'
-) %do% {
-    summary = signal_smoothed %>%
-        mutate(Rep = ifelse(CN_bg >= i, 2, 1),
-               Error = (Rep - CN_bg) ^ 2) %>%
-        group_by(index, basename)  %>%
-        summarise(summary = sum(Error))
+    .packages = c('foreach', 'tidyverse')
+) %dopar% {
+    sub_sig=signal_smoothed%>%
+        filter(basename==line)
     
-    data.frame(
-        th = i,
-        basename = summary$basename,
-        index = summary$index,
-        sum_error = summary$summary
-    )
+    #identify range within looking for a CNV treshold to define replicated and not replicated values
+    range = seq(-0.5, 2.5, 0.01)
+    
+    th_temp = foreach(i = range,
+                      .combine = 'rbind',
+                      .packages = 'tidyverse') %do% {
+                          summary = sub_sig %>%
+                              mutate(Rep = ifelse(CN_bg >= i,T, F),
+                                     Error = (Rep - CN_bg) ^ 2) %>%
+                              group_by(index, basename)  %>%
+                              summarise(summary = sum(Error))
+                          
+                          data.frame(
+                              th = i,
+                              basename = summary$basename,
+                              index = summary$index,
+                              sum_error = summary$summary
+                          )
+                      }
+    th_temp
 }
+
 
 selecte_th = selecte_th %>%
     group_by(index, basename) %>%
     filter(sum_error == min(sum_error)) %>%
-    summarise(th = min(th))
+    summarise(th = min(th))%>%
+    ungroup%>%
+    mutate(basename=as.character(basename))
 
 # mark replicated bins
 signal_smoothed = signal_smoothed %>%
-    inner_join(selecte_th) %>%
+    inner_join(selecte_th, by = c("index", "basename")) %>%
     mutate(Rep = ifelse(CN_bg >= th, T, F))
 
 #identify new distribution in the S phase based the ammount of replicated bins
@@ -714,51 +727,13 @@ new_index_list = signal_smoothed %>%
 signal_smoothed = signal_smoothed %>%
     inner_join(new_index_list, by = c('index', 'basename'))
 
-# bin cells in order to have eqully spaced bins with at least 3 cells in each bin
-mean_cn = signal_smoothed %>%
-    group_by(index, basename) %>%
-    summarise(mean_CN = mean(Rep))
+stopCluster(cl)
 
-n = length(mean_cn$index)
-
-while (T) {
-    breaks = seq(min(mean_cn$mean_CN),
-                 max(mean_cn$mean_CN),
-                 (max(mean_cn$mean_CN) - min(mean_cn$mean_CN)) / n)
-    
-    counts = foreach(i = unique(mean_cn$basename), .combine = 'c') %do% {
-        hist(x = mean_cn$mean_CN[mean_cn$basename == i],
-             breaks = breaks,
-             plot = F)$counts
-    }
-    
-    if (!any(counts <= opt$min)) {
-        break
-    } else{
-        n = round(n / 1.1)
-    }
-    if (n < 5) {
-        warning(
-            'it was not possible to equally distribute all the cells of all the samples in the same bins'
-        )
-        break
-    }
-}
-
-mean_cn$group = NA
-
-group = 0
-
-for (i in breaks) {
-    group = group + 1
-    if (!which(breaks == i) == length(breaks)) {
-        mean_cn$group[mean_cn$mean_CN >= i &
-                          mean_cn$mean_CN <= breaks[which(breaks == i) + 1]] = group
-    }
-}
-
+# bin cells in order to have not unballance RT
 signal_smoothed = signal_smoothed %>%
-    inner_join(mean_cn, by = c('index', 'basename'))
+    group_by(index, basename) %>%
+    mutate(mean_CN = mean(Rep),
+           group=round(mean_CN*10))
 
 write_delim(
     x = signal_smoothed,
@@ -780,10 +755,9 @@ plot = signal_smoothed %>%
     summarise(Rep_percentage = mean(Rep)) %>%
     ggplot(aes(Rep_percentage, color = basename)) +
     geom_density() +
-    geom_vline(xintercept = breaks, col = 'grey') +
     scale_x_continuous(labels = scales::percent)
 
-ggsave(
+suppressMessages(ggsave(
     plot,
     filename = paste0(
         opt$out,
@@ -791,7 +765,7 @@ ggsave(
         paste(opt$base_name, collapse = '_'),
         'percentage_of_replicating_cells_and_binning.pdf'
     )
-)
+))
 
 #calculate replication timing normalizing each bin by the number of cells in each bin and then calculating the average of the average
 s50 = signal_smoothed %>%
@@ -927,7 +901,7 @@ if (opt$plot) {
             }
             
             
-            ggsave(
+            suppressMessages(ggsave(
                 plot,
                 filename = paste0(
                     opt$out,
@@ -941,8 +915,7 @@ if (opt$plot) {
                     End,
                     '.pdf'
                 )
-            )
-            
+            ))
         }
         
     } else{
@@ -1055,7 +1028,7 @@ if (opt$plot) {
                 
             }
             plot = plot + facet_wrap(~ basename)
-            ggsave(
+            suppressMessages(ggsave(
                 plot,
                 filename = paste0(
                     opt$out,
@@ -1068,7 +1041,7 @@ if (opt$plot) {
                     '-',
                     End,
                     '.pdf'
-                )
+                ))
             )
         }
     }
@@ -1108,7 +1081,7 @@ RTs %>%
                                                                          sum(..count..))) +
     xlab('RT') + ylab('density')
 
-dev.off()
+invisible(dev.off())
 
 ##### Correlation Calculated RT and reference
 RT_type = unique(RTs$basename)
@@ -1167,11 +1140,12 @@ if (length(RT_type) != 1) {
         key.title = 'Pearson',
         col = color(100)
     )
-    dev.off()
+    invisible( dev.off())
 }
 
 #matrix for the correlation
 mat = signal_smoothed %>%
+    ungroup()%>%
     mutate(group = str_pad(group, 5, pad = '0'),
            index = str_pad(index, 5, pad = '0')) %>%
     unite(index, c(basename, group, index), sep = ' _ ') %>%
@@ -1185,8 +1159,6 @@ mat = signal_smoothed %>%
 
 #correlation
 results = cor(mat, mat)
-
-groups = as.numeric(str_extract(colnames(mat), ' [0-9]{5}'))
 
 basenames = str_extract(colnames(mat), '[a-z|A-Z|0-9]{1,100} ')
 
@@ -1211,11 +1183,7 @@ write.table(
 #prepare color patterns
 selcol <- colorRampPalette(brewer.pal(12, "Set3"))
 
-selcol2 <- colorRampPalette(brewer.pal(9, "Set1"))
-
-colors_groups = selcol(length(unique(groups)))
-
-color_basebanes = selcol2(length(unique(basename_n)))
+color_basebanes = selcol(length(unique(basename_n)))
 
 jpeg(paste0(
     opt$out,
@@ -1234,12 +1202,12 @@ heatmap.2(
     col = color(100),
     density.info =  'density',
     key.title = 'Pearson',
-    RowSideColors = colors_groups[groups],
+    RowSideColors = color_basebanes[as.numeric(basename_n)],
     ColSideColors = color_basebanes[as.numeric(basename_n)],
     labRow = FALSE,
     labCol = FALSE
 )
-dev.off()
+invisible(dev.off())
 
 #calculate variace within groups and basename
 variance_pearson_per_group = tibble()
@@ -1278,7 +1246,6 @@ write_delim(
 
 #remouve tmp file
 system(paste0('rm ', opt$out, '/tmp.tsv'))
-system(paste0('rm ', opt$out, '/tmp_bg.tsv'))
 
 # filter out extreme bins
 bins = signal_smoothed %>%
@@ -1296,11 +1263,12 @@ signal_smoothed = signal_smoothed %>%
 s50 = s50 %>%
     filter(!paste0(chr, ':', start, '-', end) %in% bins$coor) %>%
     group_by(basename) %>%
-    mutate(RT = (RT - min(RT)) / (max(RT) - min(RT)))
+    mutate(RT = (RT - min(RT)) / (max(RT) - min(RT)) ,
+           chr = factor(x =  chr, levels = chr_list))
 
 #joing s50 with relative signals
 signal_smoothed = signal_smoothed %>%
-    inner_join(s50, by = c("basename", "chr", "start", "end")) %>%
+    inner_join(s50, by = c("basename", "chr", "start", "end"))  %>%
     group_by(basename) %>%
     mutate(CN_bg = 10 * (CN_bg - min(CN_bg)) / (max(CN_bg) - min(CN_bg)),
            RT = 10 * RT)
@@ -1424,20 +1392,20 @@ p = ggplot() +
     scale_y_continuous(labels = scales::percent_format())+
     ylab('Replicated Bins')
 
-ggsave(p,
+suppressMessages(ggsave(p,
        filename = paste0(
            opt$out,
            '/',
            paste(opt$base_name, collapse = '_'),
            '_variability_plot_Early_Late.pdf'
-       ))
-ggsave(p,
+       )))
+suppressMessages(ggsave(p,
        filename = paste0(
            opt$out,
            '/',
            paste(opt$base_name, collapse = '_'),
            '_variability_plot_Early_Late.jpg'
-       ))
+       )))
 
 #calculate tresholds 25% 75% replication without keeping in account early and late domains
 
@@ -1507,21 +1475,21 @@ p = ggplot() +
     scale_y_continuous(labels = scales::percent_format())+
     ylab('Replicated Bins')
 
-ggsave(p,
+suppressMessages(ggsave(p,
        filename = paste0(
            opt$out,
            '/',
            paste(opt$base_name, collapse = '_'),
            '_variability_plot.pdf'
-       ))
+       )))
 
-ggsave(p,
+suppressMessages(ggsave(p,
        filename = paste0(
            opt$out,
            '/',
            paste(opt$base_name, collapse = '_'),
            '_variability_plot.jpg'
-       ))
+       )))
 
 if (opt$Var_against_reference) {
     Reference_RT = Reference_RT %>%
@@ -1656,21 +1624,21 @@ if (opt$Var_against_reference) {
         scale_y_continuous(labels = scales::percent_format())+
         ylab('Replicated Bins')
     
-    ggsave(p,
+    suppressMessages(ggsave(p,
            filename = paste0(
                opt$out,
                '/',
                paste(opt$base_name, collapse = '_'),
                '_variability_plot_Early_Late_ref_RT.pdf'
-           ))
+           )))
 
-    ggsave(p,
+    suppressMessages(ggsave(p,
            filename = paste0(
                opt$out,
                '/',
                paste(opt$base_name, collapse = '_'),
                '_variability_plot_Early_Late_ref_RT.jpg'
-           ))
+           )))
     
     #calculate tresholds 25% 75% replication without keeping in account early and late domains
     
@@ -1740,20 +1708,20 @@ if (opt$Var_against_reference) {
         scale_y_continuous(labels = scales::percent_format())+
         ylab('Replicated Bins')
     
-    ggsave(p,
+    suppressMessages(ggsave(p,
            filename = paste0(
                opt$out,
                '/',
                paste(opt$base_name, collapse = '_'),
                '_variability_plot_ref_RT.pdf'
-           ))
+           )))
     
-    ggsave(p,
+    suppressMessages(ggsave(p,
            filename = paste0(
                opt$out,
                '/',
                paste(opt$base_name, collapse = '_'),
                '_variability_plot_ref_RT.jpg'
-           ))
+           )))
     
 }
