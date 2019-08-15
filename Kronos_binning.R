@@ -70,11 +70,17 @@ option_list = list(
         action = 'store',
         help = "Bins size. [default= %default bp]",
         metavar = "integer"
+    ),
+    make_option(
+        c("-d","--dir_indexed_bam"),
+        type = "character",
+        action = 'store',
+        help = "If provided parameters will be automatically estimated form the data.",
+        metavar = "character"
     )
 )
 
 opt = parse_args(OptionParser(option_list = option_list),convert_hyphens_to_underscores = T)
-system(paste0('mkdir -p ', opt$output_dir))
 
 #load needed packages
 if (!suppressPackageStartupMessages(require(BiocManager, quietly = TRUE))){
@@ -115,8 +121,19 @@ if(!suppressPackageStartupMessages(require(Rsamtools, quietly = TRUE))){
     install.packages("Rsamtools",quiet = T)
     suppressPackageStartupMessages( library(Rsamtools))
 }
-
+if (!suppressPackageStartupMessages(require(Rsamtools, quietly = TRUE))) {
+    BiocManager::install('Rsamtools')
+    suppressPackageStartupMessages(library(Rsamtools, quietly = TRUE))
+}
 options(scipen = 9999)
+
+# create output directory
+if (str_extract(opt$output_dir,'.$')!='/'){
+    opt$output_dir=paste0(opt$output_dir,'/')
+}
+
+system(paste0('mkdir -p ', opt$output_dir))
+
 # check imputs 
 if(!"RefGenome" %in% names(opt)){
     stop("Fastq file not provided. See script usage (--help)")
@@ -131,6 +148,29 @@ reference=readDNAStringSet(opt$RefGenome)
 
 cl=makeCluster(opt$cores)
 registerDoSNOW(cl)
+
+if ('dir_indexed_bam' %in% names(opt)){
+#sample 20 files to exstimate parameters
+    list=list.files(opt$dri_indexed_mab,pattern = 'bam$')
+    list=sample(list,ceiling(length(list)/20))
+    parameters=foreach(i=list,.combine = 'rbind',.packages = 'Rsamtools')%dopar%{
+        sapply(scanBam(paste0(opt$dri_indexed_mab,i),param=ScanBamParam(what=c('isize','qwidth')))[[1]],
+                function(x) median(abs(x),na.rm = T))
+    }
+    
+    parameters=as.tibble(parameters)%>%
+        summarise(qwidth=round(median(qwidth)),
+                  isize=round(median(isize)))
+    
+    if(parameters$isize!=0){
+        opt$paired_ends=T
+        opt$insert_size=parameters$isize
+        opt$reads_size=parameters$qwidth
+    }else{
+        opt$reads_size=parameters$qwidth
+    }
+  
+}
 
 genome.Chromsizes = foreach(
     Chr = names(reference),
@@ -408,7 +448,7 @@ if(opt$paired_ends){
     )%>%
         drop_na()
     #parameter used to estiamte mappability th
-    teoretical_reads = opt$bin_size/(2 * opt$reads_size + opt$insert_size)
+    theoretical_reads = opt$bin_size/(2 * opt$reads_size + opt$insert_size)
 
 }else{
     param <- ScanBamParam(what=c('rname','pos','mapq'),
@@ -421,7 +461,7 @@ if(opt$paired_ends){
         `colnames<-`(c('chr', 'pos','read'))
     
     #parameter used to estiamte mappability th
-    teoretical_reads = opt$bin_size/opt$reads_size
+    theoretical_reads = opt$bin_size/opt$reads_size
     
 }
 
@@ -474,14 +514,12 @@ bins = foreach (Chr = genome.Chromsizes$chr,
                 }
 
 bins=bins%>%
-    mutate(mappability=reads/teoretical_reads,
+    mutate(mappability=reads/theoretical_reads,
            mappability_th=ifelse(
                mappability >= 0.8,T,F
            ))%>%
     group_by(chr)%>%
-    mutate(use_for_dmap=lag(mappability_th,1),
-           use_for_dmap=ifelse(is.na(use_for_dmap),F,use_for_dmap) & mappability)%>%
-    select(chr,start,end,mappability,mappability_th,use_for_dmap)
+    select(chr,start,end,mappability,mappability_th)
 
 #delete file
 system(paste0('rm ',opt$output_dir, basename(opt$index), '_simulated_reads.bam*'))
@@ -502,37 +540,9 @@ bins=foreach(i=unique(bins$chr),.combine = 'rbind', .packages =c('Biostrings','t
 
 stopCluster(cl)
 
-#free memory
-rm('reference')
-
-#calculate correction for dimap
-simulated_data=foreach(i=c(1,seq(10,310,20)),.combine = 'rbind',.packages = c('tidyverse','foreach'))%do%{
-        bins%>%
-            group_by(chr,start,end)%>%
-            mutate(reads=paste(rpois(1000,i),collapse = '_'))%>%
-            separate(into = paste0('rep_',1:1000),reads,'_')%>%
-            gather_('Cell','reads',paste0('rep_',1:1000))%>%
-            mutate(reads=as.numeric(reads))%>%
-            arrange(Cell,chr,start)%>%
-            group_by(chr,Cell)%>%
-            mutate(reads_1 = lag(reads, 1))%>%
-            filter(use_for_dmap)%>%
-            group_by(Cell)%>%
-            mutate(mapd = (reads - reads_1)/mean(reads))%>%
-            summarise(mapd = median(abs(mapd) - median(mapd)),
-                      inv_cov=1/(median(reads))
-            )%>%
-            mutate(mean_reads=i)
-}
-
-LM_mapd_coverage = lm(formula = mapd ~ sqrt(inv_cov), data = simulated_data)
-
-# add values for normalization
-bins = bins %>%
-    mutate(m = LM_mapd_coverage$coefficients[['sqrt(inv_cov)']],
-           k = LM_mapd_coverage$coefficients[['(Intercept)']])
+bins=bins %>%
+    mutate(type=ifelse(opt$paired_ends,'PE','SE'))
 
 #write bisns with info
 write_tsv(bins, paste0(opt$output_dir, basename(opt$index), '_bins_',ifelse(opt$paired_ends,'PE','SE'),'.tsv'))
-
 
