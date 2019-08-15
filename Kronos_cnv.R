@@ -143,6 +143,11 @@ if(!"directory" %in% names(opt)){
 # load bins and gc percentage
 bins=read_tsv(opt$bins,col_types = cols())
 
+if(str_extract(opt$directory,'.$')!='/'){
+    opt$directory= paste0(opt$directory,'/')
+}
+
+
 #find bam files
 files=list.files(paste0(opt$directory))
 files=files[files %like% '%.bam']
@@ -388,6 +393,9 @@ data=data%>%
     spread(Cell,RPM)%>%
     drop_na()
 
+cl=makeCluster(opt$cores)
+registerDoSNOW(cl)
+
 segment.smoothed.CNA.object = foreach(
     file = names(data)[!names(data) %in% c('chr', 'start', 'end')],
     .combine = 'rbind',
@@ -424,8 +432,6 @@ rm('data')
 
 
 IDs=unique(segment.smoothed.CNA.object$ID)
-cl=makeCluster(opt$cores)
-registerDoSNOW(cl)
 
 MMS=segment.smoothed.CNA.object%>%
     summarise(min=quantile(seg.mean,0.05)[[1]],
@@ -481,7 +487,7 @@ CNV_correction=foreach(id=IDs,.combine = 'rbind',.packages = c('foreach','tidyve
 limits=median(CNV_correction$mean_ploidy)
 
 CNV_correction=foreach(id=IDs,.combine = 'rbind',.packages = c('foreach','tidyverse'))%dopar%{
-    s=segment.smoothed.CNA.object$output%>%
+    s=segment.smoothed.CNA.object%>%
         filter(ID==id)
 
     possible_factors=foreach(i=seq(MMS$min,MMS$max,MMS$step),.combine = 'rbind')%do%{
@@ -521,7 +527,7 @@ CNV_correction=foreach(id=IDs,.combine = 'rbind',.packages = c('foreach','tidyve
 stopCluster(cl)
 
 # called CNV 
-CNV=segment.smoothed.CNA.object$output%>%
+CNV=segment.smoothed.CNA.object%>%
     inner_join(CNV_correction, by = "ID")%>%
     mutate(CNV=round(seg.mean/X,0))%>%
     dplyr::select(-X,-seg.mean,-num.mark,-ploidy_confidence,-mean_ploidy)%>%
