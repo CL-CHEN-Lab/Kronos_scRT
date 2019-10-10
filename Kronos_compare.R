@@ -191,7 +191,7 @@ percentages = foreach (i = seq(0, 1, 0.01),
                                group_by(basename, type) %>%
                                summarise(counts = n()) %>%
                                inner_join(regions, by = "basename") %>%
-                               mutate(percent = 100 * counts / n) %>%
+                               mutate(percent = counts / n) %>%
                                select(basename, type, percent) %>%
                                mutate(th = i)
                            
@@ -208,7 +208,8 @@ p = percentages %>%
     facet_grid( ~ line) +
     scale_fill_manual(values = c('#1b9e77', '#d95f02', '#7570b3', '#e7298a')) +
     scale_color_manual(values = c('#1b9e77', '#d95f02', '#7570b3', '#e7298a')) +
-    ylab('% of bins changing') + xlab('ΔRT threshold')
+    ylab('% ofchanging bins') + xlab('ΔRT threshold')+
+    scale_y_continuous(labels = scales::percent_format())
 
 suppressMessages(
     ggsave(

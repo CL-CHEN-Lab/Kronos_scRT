@@ -1,4 +1,4 @@
-#!/usr/local/bin/Rscript
+#!/usr/local/bin/Rscript --slave
 
 # this script is meant to select the treshold to select cycling cells
 
@@ -41,13 +41,6 @@ option_list = list(
         c("-G", "--threshold_G1G2phase"),
         type = "double",
         help = "Threshold to identify G1-phase cells. -S has to be selected and has to be bigger than -G",
-        metavar = "double"
-    ),
-    make_option(
-        c("-M", "--threshold_meanploidy"),
-        type = "double",
-        default = 1.5,
-        help = "Threshold to discard cells with ploidy lower and higher than n times the median ploidy of the G1 phase. [default= %default]",
         metavar = "double"
     )
 )
@@ -121,8 +114,8 @@ if (!'threshold_Sphase' %in% names(opt)){
                                                           data$normalized_dimapd < opt$threshold_G1G2phase   ])
     data = data %>%
         filter(
-            mean_ploidy > median_ploidy_not_noisy / opt$threshold_meanploidy ,
-            mean_ploidy < median_ploidy_not_noisy * opt$threshold_meanploidy,
+            mean_ploidy > median_ploidy_not_noisy / 1.3 ,
+            mean_ploidy < median_ploidy_not_noisy * 1.8,
             !ploidy_confidence <= 2
         )
     median_ploidy_not_noisy = median(data$mean_ploidy[data$is_noisy == F&
@@ -163,8 +156,8 @@ if (!'threshold_Sphase' %in% names(opt)){
     median_ploidy_not_noisy = median(data$mean_ploidy[data$is_noisy == F])
     data = data %>%
         filter(
-            mean_ploidy > median_ploidy_not_noisy / 1.4 ,
-            mean_ploidy < median_ploidy_not_noisy * 1.4,
+            mean_ploidy > median_ploidy_not_noisy / 1.5 ,
+            mean_ploidy < median_ploidy_not_noisy * 1.5,
             !ploidy_confidence <= 2
         )
     median_ploidy_not_noisy = median(data$mean_ploidy[data$is_noisy == F])

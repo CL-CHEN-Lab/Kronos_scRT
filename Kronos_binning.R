@@ -1,4 +1,4 @@
-#!/usr/local/bin/Rscript
+#!/usr/local/bin/Rscript --slave
 #parse input
 
 if (!suppressPackageStartupMessages(require(optparse, quietly = TRUE))) {

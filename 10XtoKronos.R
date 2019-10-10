@@ -1,3 +1,5 @@
+#!/usr/local/bin/Rscript --slave
+
 if (!suppressPackageStartupMessages(require(optparse, quietly = TRUE))) {
     install.packages("optparse", quiet = T)
     suppressPackageStartupMessages(library(optparse, quietly = TRUE))
@@ -51,33 +53,35 @@ opt$file = str_split(opt$file, ',')[[1]]
 opt$tracks = str_split(opt$tracks, ',')[[1]]
 if ('file' %in% names(opt)) {
     for (file in opt$file) {
-        read_csv(file) %>%
+        read_csv(file, col_types = cols()) %>%
             select(cell_id,
                    normalized_dimapd,
                    mean_ploidy,
                    ploidy_confidence,
                    is_high_dimapd,
-                   is_noisy) %>%
+                   is_noisy,
+                   effective_reads_per_1Mbp) %>%
             `colnames<-`(c(
                 'Cell',
                 'normalized_dimapd',
                 'mean_ploidy',
                 'ploidy_confidence',
                 'is_high_dimapd',
-                'is_noisy'
+                'is_noisy',
+                'coverage_per_1Mbp'
             )) %>%
             write_csv(paste0(opt$out, '/Kronos_format_', basename(file)))
     }
 }
 if ('tracks' %in% names(opt)) {
     for (tracks in opt$tracks) {
-        read_tsv(tracks, skip = 2) %>%
+        read_tsv(tracks, skip = 2, col_types = cols()) %>%
             select(id, `#chrom`, start, end, copy_number) %>%
             `colnames<-`(c('Cell', 'chr', 'start', 'end', 'copy_number')) %>%
             write_tsv(paste0(opt$out, '/Kronos_format_', basename(tracks)))
     }
 }
 
-if (!('tracks' %in% opt & 'file' %in% opt )){
+if (!('tracks' %in% names(opt) & 'file' %in% names(opt) )){
     stop('No input')
 }

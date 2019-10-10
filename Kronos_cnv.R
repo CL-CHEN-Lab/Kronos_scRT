@@ -1,4 +1,4 @@
-#!/usr/local/bin/Rscript
+#!/usr/local/bin/Rscript --slave
 #parse input
 if (!suppressPackageStartupMessages(require(optparse, quietly = TRUE))) {
     install.packages("optparse", quiet = T)
@@ -450,7 +450,7 @@ CNV_correction=foreach(id=IDs,.combine = 'rbind',.packages = c('foreach','tidyve
     weitghts=(s$loc.end-s$loc.start)/bin_size
     
     possible_factors=foreach(i=seq(MMS$min,MMS$max,MMS$step),.combine = 'rbind')%do%{
-         TargetF=sqrt(sum((s$num.mark*sinpi(s$seg.mean/i)^2)))
+         TargetF=sqrt(sum((weitghts*sinpi(s$seg.mean/i)^2)))
         mean_cn=weighted.mean(round(s$seg.mean/i),weitghts)
         Variability=100*sd(rep(s$seg.mean,weitghts))/weighted.mean(s$seg.mean,weitghts)
         TargetF=tibble(possible_factors=TargetF,
@@ -491,9 +491,9 @@ CNV_correction=foreach(id=IDs,.combine = 'rbind',.packages = c('foreach','tidyve
         filter(ID==id)
 
     possible_factors=foreach(i=seq(MMS$min,MMS$max,MMS$step),.combine = 'rbind')%do%{
-        TargetF=sqrt(sum((s$num.mark*sinpi(s$seg.mean/i)^2)))
-        mean_cn=weighted.mean(round(s$seg.mean/i),s$num.mark)
-        Variability=100*sd(rep(s$seg.mean,s$num.mark))/mean(rep(s$seg.mean,s$num.mark))
+        TargetF=sqrt(sum((weitghts*sinpi(s$seg.mean/i)^2)))
+        mean_cn=weighted.mean(round(s$seg.mean/i),weitghts)
+        Variability=100*sd(rep(s$seg.mean,weitghts))/mean(rep(s$seg.mean,weitghts))
         TargetF=tibble(possible_factors=TargetF,
                        X=i,
                        mean_cn=mean_cn,
@@ -504,8 +504,8 @@ CNV_correction=foreach(id=IDs,.combine = 'rbind',.packages = c('foreach','tidyve
     min=possible_factors$possible_factors[which(diff(sign(diff(possible_factors$possible_factors)))==2)+1]
     possible_factors=possible_factors%>%
         filter(possible_factors %in% min,
-               mean_cn <= limits*1.5,
-               mean_cn >= limits/1.5)
+               mean_cn <= limits*1.8,
+               mean_cn >= limits/1.3)
 
     if(Var < 5){
         selected=possible_factors$X[possible_factors$mean_cn[which(abs(possible_factors$mean_cn-limits)==min(abs(possible_factors$mean_cn-limits)))]]
@@ -514,6 +514,8 @@ CNV_correction=foreach(id=IDs,.combine = 'rbind',.packages = c('foreach','tidyve
     }else{
         selected=min(possible_factors$possible_factors)
         PloConf=nth(possible_factors$possible_factors[base::order(possible_factors$possible_factors,decreasing = T)],n = -2)-selected
+        PloConf=ifelse(is.na(PloConf),-4,
+                       PloConf)
         mean_cn=possible_factors$mean_cn[possible_factors$possible_factors==selected]
         selected=possible_factors$X[possible_factors$possible_factors==selected]
 
@@ -532,8 +534,7 @@ CNV=segment.smoothed.CNA.object%>%
     mutate(CNV=round(seg.mean/X,0))%>%
     dplyr::select(-X,-seg.mean,-num.mark,-ploidy_confidence,-mean_ploidy)%>%
     `colnames<-`(c('Cell','chr', 'start', 'end','copy_number'))
-CNV%>%
-    write_tsv(paste0(opt$output_dir,opt$ExpName,'_cnv_calls.bed'),col_names = T)
+
 
 CNV_correction = CNV_correction %>%
     dplyr::select(-X)
@@ -542,10 +543,12 @@ CNV_correction = CNV_correction %>%
 mapd=mapd%>%
     mutate(Cell=str_replace_all(Cell,'-','.'))%>%
     inner_join(CNV_correction, by=c('Cell'='ID'))%>%
-    mutate(is_noisy=ifelse(is_high_dimapd | ploidy_confidence < 2, T,F))%>%
-    dplyr::select(Cell,normalized_dimapd,mean_ploidy,ploidy_confidence,is_high_dimapd,is_noisy)
+    mutate(is_noisy=ifelse(is_high_dimapd | ploidy_confidence < 2, T,F),
+           coverage_per_1Mbp=coverage)%>%
+    dplyr::select(Cell,normalized_dimapd,mean_ploidy,ploidy_confidence,is_high_dimapd,is_noisy,coverage_per_1Mbp)
 #write file
 mapd%>%
     write_csv(paste0(opt$output_dir,opt$ExpName,'_per_Cell_summary_metrics.cvs'),col_names = T)
 
-
+CNV%>%
+    write_tsv(paste0(opt$output_dir,opt$ExpName,'_cnv_calls.bed'),col_names = T)
