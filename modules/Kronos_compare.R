@@ -1,8 +1,6 @@
 #!/usr/local/bin/Rscript
-if (!suppressPackageStartupMessages(require(optparse, quietly = TRUE))) {
-    install.packages("optparse", quiet = T)
-    suppressPackageStartupMessages(library(optparse))
-}
+suppressPackageStartupMessages(library(optparse))
+
 options(stringsAsFactors = FALSE)
 options(warn = 1)
 option_list = list(
@@ -76,30 +74,11 @@ option_list = list(
 
 opt = parse_args(object = OptionParser(option_list = option_list))
 
-if (!suppressPackageStartupMessages(require(BiocManager, quietly = TRUE))) {
-    install.packages("BiocManager", quiet = T)
-}
-if (!suppressPackageStartupMessages(require(tidyverse, quietly = TRUE))) {
-    install.packages("tidyverse", quiet = T)
-    suppressPackageStartupMessages(library(tidyverse))
-}
-
-if (!suppressPackageStartupMessages(require(foreach, quietly = TRUE))) {
-    install.packages("foreach", quiet = T)
-    suppressPackageStartupMessages(library(foreach))
-}
-if (!suppressPackageStartupMessages(require(Cairo, quietly = TRUE))) {
-    install.packages("Cairo", quiet = T)
-    suppressPackageStartupMessages(library(Cairo))
-}
-if (!suppressPackageStartupMessages(require(scales))) {
-    install.packages("scales", quiet = T)
-    suppressPackageStartupMessages(library(scales))
-}
-if (!suppressPackageStartupMessages(require(GenomicRanges))) {
-    BiocManager::install("GenomicRanges")
-    suppressPackageStartupMessages(library(GenomicRanges))
-}
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(foreach))
+suppressPackageStartupMessages(library(Cairo))
+suppressPackageStartupMessages(library(scales))
+suppressPackageStartupMessages(library(GenomicRanges))
 
 #create output directory
 if (str_extract(opt$out,'.$')!='/'){
