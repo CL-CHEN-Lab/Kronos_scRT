@@ -169,6 +169,42 @@ Run the script
     R Packages:
      - Required packages are installed automatically by the modules
 
+### Session Info
+
+    R version 3.5.2 (2018-12-20)
+    Platform: x86_64-apple-darwin15.6.0 (64-bit)
+    Running under: macOS Mojave 10.14.5
+
+    Matrix products: default
+    BLAS: /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib
+    LAPACK: /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRlapack.dylib
+
+    locale:
+    [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+    attached base packages:
+    [1] stats4    parallel  stats     graphics  grDevices utils     datasets  methods   base     
+
+    other attached packages:
+    [1] MASS_7.3-51.4        DNAcopy_1.56.0       scales_1.0.0         Cairo_1.5-10         BiocManager_1.30.4   Rsamtools_1.34.1    
+    [7] Biostrings_2.50.2    XVector_0.22.0       GenomicRanges_1.34.0 GenomeInfoDb_1.18.2  IRanges_2.16.0       S4Vectors_0.20.1    
+    [13] BiocGenerics_0.28.0  Rbowtie2_1.4.0       DescTools_0.99.28    RColorBrewer_1.1-2   matrixStats_0.54.0   gplots_3.0.1.1      
+    [19] chunked_0.4          doSNOW_1.0.16        snow_0.4-3           iterators_1.0.10     foreach_1.4.4        forcats_0.4.0       
+    [25] stringr_1.4.0        dplyr_0.8.3          purrr_0.3.2          readr_1.3.1          tidyr_0.8.3          tibble_2.1.3        
+    [31] ggplot2_3.2.0        tidyverse_1.2.1      optparse_1.6.2      
+
+    loaded via a namespace (and not attached):
+    [1] httr_1.4.0             jsonlite_1.6           modelr_0.1.4           gtools_3.8.1           assertthat_0.2.1       expm_0.999-4          
+    [7] GenomeInfoDbData_1.2.0 cellranger_1.1.0       yaml_2.2.0             pillar_1.4.2           backports_1.1.4        lattice_0.20-38       
+    [13] glue_1.3.1             rvest_0.3.4            colorspace_1.4-1       Matrix_1.2-17          pkgconfig_2.0.2        broom_0.5.2           
+    [19] haven_2.1.1            zlibbioc_1.28.0        mvtnorm_1.0-11         gdata_2.18.0           getopt_1.20.3          manipulate_1.0.1      
+    [25] BiocParallel_1.16.6    generics_0.0.2         withr_2.1.2            lazyeval_0.2.2         cli_1.1.0              magrittr_1.5          
+    [31] crayon_1.3.4           readxl_1.3.1           nlme_3.1-140           xml2_1.2.0             foreign_0.8-71         tools_3.5.2           
+    [37] hms_0.5.0              munsell_0.5.0          compiler_3.5.2         caTools_1.17.1.2       rlang_0.4.0            grid_3.5.2            
+    [43] RCurl_1.95-4.12        rstudioapi_0.10        bitops_1.0-6           boot_1.3-23            gtable_0.3.0           codetools_0.2-16      
+    [49] R6_2.4.0               lubridate_1.7.4        zeallot_0.1.0          KernSmooth_2.23-15     stringi_1.4.3          Rcpp_1.0.1            
+    [55] vctrs_0.2.0            tidyselect_0.2.5      
+
 ### Authors
 
 Please contact the authors for any further questions:
