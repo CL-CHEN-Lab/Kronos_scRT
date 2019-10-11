@@ -46,8 +46,8 @@ Article 3 - ACCEPTANCE
 
 3.1 The Licensee shall be deemed as having accepted the terms and conditions of this Agreement upon the occurrence of the first of the following events:
 
-    (i) loading the Software by any or all means, notably, by downloading from a remote server, or by loading from a physical medium;
-    (ii) the first time the Licensee exercises any of the rights granted hereunder.
+(i) loading the Software by any or all means, notably, by downloading from a remote server, or by loading from a physical medium;
+(ii) the first time the Licensee exercises any of the rights granted hereunder.
 
 3.2 One copy of the Agreement, containing a notice relating to the characteristics of the Software, to the limited warranty, and to the fact that its use is restricted to experienced users has been provided to the Licensee prior to its acceptance as set forth in Article 3.1 hereinabove, and the Licensee hereby acknowledges that it has read and understood it.
 Article 4 - EFFECTIVE DATE AND TERM
@@ -66,11 +66,11 @@ Besides, if the Licensor owns or comes to own one or more patents protecting all
 
 The Licensee is authorized to use the Software, without any limitation as to its fields of application, with it being hereinafter specified that this comprises:
 
-    permanent or temporary reproduction of all or part of the Software by any or all means and in any or all form.
+permanent or temporary reproduction of all or part of the Software by any or all means and in any or all form.
 
-    loading, displaying, running, or storing the Software on any or all medium.
+loading, displaying, running, or storing the Software on any or all medium.
 
-    entitlement to observe, study or test its operation so as to determine the ideas and principles behind any or all constituent elements of said Software. This shall apply when the Licensee carries out any or all loading, displaying, running, transmission or storage operation as regards the Software, that it is entitled to carry out hereunder.
+entitlement to observe, study or test its operation so as to determine the ideas and principles behind any or all constituent elements of said Software. This shall apply when the Licensee carries out any or all loading, displaying, running, transmission or storage operation as regards the Software, that it is entitled to carry out hereunder.
 
 5.2 ENTITLEMENT TO MAKE CONTRIBUTIONS
 
@@ -86,9 +86,9 @@ The Licensee is further authorized to distribute copies of the modified or unmod
 
 The Licensee is authorized to distribute true copies of the Software in Source Code or Object Code form, provided that said distribution complies with all the provisions of the Agreement and is accompanied by:
 
-    a copy of the Agreement,
+a copy of the Agreement,
 
-    a notice relating to the limitation of both the Licensor's warranty and liability as set forth in Articles 8 and 9,
+a notice relating to the limitation of both the Licensor's warranty and liability as set forth in Articles 8 and 9,
 
 and that, in the event that only the Object Code of the Software is redistributed, the Licensee allows effective access to the full Source Code of the Software for a period of at least three years from the distribution of the Software, it being understood that the additional acquisition cost of the Source Code shall not exceed the cost of the data transfer.
 5.3.2 DISTRIBUTION OF MODIFIED SOFTWARE
@@ -97,13 +97,13 @@ When the Licensee makes a Contribution to the Software, the terms and conditions
 
 The Licensee is authorized to distribute the Modified Software, in source code or object code form, provided that said distribution complies with all the provisions of the Agreement and is accompanied by:
 
-    a copy of the Agreement,
+a copy of the Agreement,
 
-    a notice relating to the limitation of both the Licensor's warranty and liability as set forth in Articles 8 and 9,
+a notice relating to the limitation of both the Licensor's warranty and liability as set forth in Articles 8 and 9,
 
 and, in the event that only the object code of the Modified Software is redistributed,
 
-    a note stating the conditions of effective access to the full source code of the Modified Software for a period of at least three years from the distribution of the Modified Software, it being understood that the additional acquisition cost of the source code shall not exceed the cost of the data transfer.
+a note stating the conditions of effective access to the full source code of the Modified Software for a period of at least three years from the distribution of the Modified Software, it being understood that the additional acquisition cost of the source code shall not exceed the cost of the data transfer.
 
 5.3.3 DISTRIBUTION OF EXTERNAL MODULES
 
