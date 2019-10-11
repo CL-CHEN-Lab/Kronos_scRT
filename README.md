@@ -165,24 +165,24 @@ Run the script
      - picard
     
     R Packages:required packages are installed automatically by the modules
-    - BiocManager
-    - Biostrings
-    - Cairo
-    - chunked
-    - DescTools
-    - DNAcopy
-    - doSNOW
-    - foreach
-    - GenomicRanges
-    - gplots
-    - MASS
-    - matrixStats
-    - optparse
-    - Rbowtie2
-    - RColorBrewer
-    - Rsamtools
-    - scales
-    - tidyverse
+     - BiocManager
+     - Biostrings
+     - Cairo
+     - chunked
+     - DescTools
+     - DNAcopy
+     - doSNOW
+     - foreach
+     - GenomicRanges
+     - gplots
+     - MASS
+     - matrixStats
+     - optparse
+     - Rbowtie2
+     - RColorBrewer
+     - Rsamtools
+     - scales
+     - tidyverse
 
 ### Session Info
 
