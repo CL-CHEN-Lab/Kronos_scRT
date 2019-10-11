@@ -145,11 +145,6 @@ if(opt$path_to_picard==''){
     stop('picard was not found, please provide path.')
 }
 
-opt$path_to_trim_galore='/anaconda3/bin/trim_galore'
-opt$path_to_cutadapt='/anaconda3/bin/cutadapt'
-opt$path_to_java='/Users/sgnan/.jenv/shims/java'
-opt$path_to_picard='/usr/local/bin/picard.jar'
-opt$index='~/alliners_compilers/bowtie2/Hg38'
 #create output directories
 system(
     paste0(

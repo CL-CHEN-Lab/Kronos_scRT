@@ -1,0 +1,73 @@
+#!/bin/bash
+
+if [ "$1" == "10xtoKronos" ];then
+    if test "$#" -ne 2 ; then
+        echo Usage: Kronos 10xtoKronos [options]
+        Rscript ./10XtoKronos.R -h | grep -v 10XtoKronos
+    else
+        Rscript 10XtoKronos.R "${@:2}"
+    fi
+    
+elif  [ "$1" == "binning" ];then
+    if test "$#" -ne 2 ; then
+        echo Usage: Kronos binning [options]
+        Rscript ./Kronos_binning.R -h | grep -v Kronos_binning
+    else
+       Rscript ./Kronos_binning.R "${@:2}"
+    fi
+    
+    
+elif [ "$1" == "RT" ];then
+    if test "$#" -ne 2 ; then
+        echo Usage: Kronos RT [options]
+        Rscript ./Kronos_RT.R -h | grep -v Kronos_RT
+    else
+       Rscript ./Kronos_RT.R "${@:2}"
+    fi
+
+elif [ "$1" == "CNV" ];then
+    if test "$#" -ne 2 ; then
+        echo Usage: Kronos CNV [options]
+        Rscript ./Kronos_cnv.R -h | grep -v Kronos_cnv
+    else
+       Rscript ./Kronos_cnv.R "${@:2}"
+    fi
+
+elif [ "$1" == "diagnostic" ];then
+    if test "$#" -ne 2 ; then
+        echo Usage: Kronos diagnostic [options]
+        Rscript ./Kronos_diagnostic.R -h | grep -v Kronos_diagnostic
+    else
+       Rscript ./Kronos_diagnostic.R "${@:2}"
+    fi
+
+elif [ "$1" == "fastqtoBAM" ];then
+    if test "$#" -ne 2 ; then
+        echo Usage: Kronos fastqtoBAM [options]
+        Rscript ./Kronos_fastqtoBAM.R -h | grep -v Kronos_fastqtoBAM
+    else
+       Rscript ./Kronos_fastqtoBAM.R "${@:2}"
+    fi
+
+elif [ "$1" == "compare" ];then
+    if test "$#" -ne 2 ; then
+        echo Usage: Kronos compare [options]
+        Rscript ./Kronos_compare.R -h | grep -v Kronos_compare
+    else
+       Rscript ./Kronos_compare.R "${@:2}"
+    fi
+else
+
+echo -e "\nProgram: Kronos (Tools for the single cell analysis of the replication timing program)\n
+Usage: Kronos <command> [options]\n
+commands:\n
+\t fastqtoBAM \t Trims and maps reads onto there a reference genome
+\t binning    \t Calculates mappability and gc content for bins to be used with Kronos CNV
+\t CNV        \t Calculates copy number variation 
+\t 10xtoKronos\t Converts 10X genomics files in a format that Kronos can use
+\t diagnostic \t Plotting tools to identify appropriate tresholds for Kronos RT
+\t RT         \t Calculates scReplication profiles and scRT
+\t compare    \t Compares results from multiple experiments
+"
+
+fi
