@@ -61,7 +61,7 @@ else
 echo -e "\nProgram: Kronos (Tools for the single cell analysis of the replication timing program)\n
 Usage: Kronos <command> [options]\n
 commands:\n
-\t fastqtoBAM \t Trims and maps reads onto there a reference genome
+\t fastqtoBAM \t Trims and maps reads
 \t binning    \t Calculates mappability and gc content for bins to be used with Kronos CNV
 \t CNV        \t Calculates copy number variation 
 \t 10xtoKronos\t Converts 10X genomics files in a format that Kronos can use

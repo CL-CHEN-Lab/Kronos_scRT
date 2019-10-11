@@ -41,13 +41,124 @@ Run the script
         
     commands:
 
-    fastqtoBAM      Trims and maps reads onto there a reference genome
+    fastqtoBAM      Trims and maps reads
     binning         Calculates mappability and gc content for bins to be used with Kronos CNV
     CNV             Calculates copy number variation 
     10xtoKronos     Converts 10X genomics files in a format that Kronos can use
     diagnostic      Plotting tools to identify appropriate tresholds for Kronos RT
     RT              Calculates scReplication profiles and scRT
     compare         Compares results from multiple experiments
+
+-- fastqtoBAM module
+
+    ./Kronos fastqtoBAM [options]
+    
+    Options:
+    --one=CHARACTER                                     Fastq files
+    --two=CHARACTER                                     Fastq files (for paired ends)
+    -b CHARACTER, --sam_file_basename=CHARACTER         Sam file name
+    -i CHARACTER, --index=CHARACTER                     Bowtie 2 index
+    -c INTEGER, --cores=INTEGER                         Number of cores to use. [default= 3]
+    -o CHARACTER, --output_dir=CHARACTER                Output folder. [default= output/]
+    --path_to_trim_galore=CHARACTER                     Path to trim_galore
+    --path_to_cutadapt=CHARACTER                        Path to cutadapt
+    --path_to_java=CHARACTER                            Path to java
+    --path_to_picard=CHARACTER                          Path to picard
+    -h, --help                                          Show this help message and exit
+
+-- binning module
+
+    ./Kronos binning [options]
+
+    Options:
+    -R CHARACTER, --RefGenome=CHARACTER                 Fasta file of genome of interst
+    -c INTEGER, --cores=INTEGER                         Number of cores to use. [default= 3]
+    -s INTEGER, --reads_size=INTEGER                    Lengh of the simulated reads. [default= 40 bp]
+    -o CHARACTER, --output_dir=CHARACTER                Output folder. [default= output/]
+    -i CHARACTER, --index=CHARACTER                     Bowtie 2 index
+    --paired_ends                                       Generates paired ends reads [default: FALSE]
+    --insert_size=INTEGER                               Insert size if paired end option is used. [default: 200]
+    --bin_size=INTEGER                                  Bins size. [default= 20000 bp]
+    -d CHARACTER, --dir_indexed_bam=CHARACTER           If provided parameters will be automatically estimated form the data.
+    -h, --help                                          Show this help message and exit
+    
+-- CNV module
+
+    ./Kronos CNV [options]
+
+    Options:
+    -D CHARACTER, --directory=CHARACTER                 Single cell Bamfiles directory
+    -B CHARACTER, --bins=CHARACTER                      File with bins produced by Kronos binning
+    -X, --keep_X                                        Keep X chromosomes. If active n of X chromosomes has to be provided, by default it will assume 1 X chromosomes if Kee_Y is not selected or 2 if it is not. Correct number can be passed using --number_of_X. [default= FALSE]
+    --number_of_X=INTEGER                               Number of X chromosomes 
+    -Y, --keep_Y                                        Keep Y chromosome [default= FALSE]
+    -m DOUBLE, --min_n_reads=DOUBLE                     Min n of reads to keep a cell in the analysis [default= 2e+05]
+    -c INTEGER, --cores=INTEGER                         Number of cores to use. [default= 3]
+    -o CHARACTER, --output_dir=CHARACTER                Output folder. [default= output/]
+    -e CHARACTER, --ExpName=CHARACTER                   Experiment name. [default= Exp]
+    -h, --help                                          Show this help message and exit
+
+-- 10xtoKronos module
+
+    ./Kronos 10xtoKronos [options]
+
+    Options:
+    -F CHARACTER, --file=CHARACTER                      Per cell stat file , if multiple files are provided they have to be separated by a comma
+    -T CHARACTER, --tracks=CHARACTER                    Tracks file,  if multiple files are provided they have to be separated by a comma
+    -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
+    -h, --help                                          Show this help message and exit
+
+-- diagnostic module
+
+    ./Kronos diagnostic [options]
+
+    Options:
+    -f CHARACTER, --file=CHARACTER                      Dataset file name
+    -o CHARACTER, --out=CHARACTER                       Output directory [default= ./output]
+    -b CHARACTER, --base_name=CHARACTER                 Base name for files names [default= exp]
+    -S DOUBLE, --threshold_Sphase=DOUBLE                Threshold to identify S-phase cells
+    -G DOUBLE, --threshold_G1G2phase=DOUBLE             Threshold to identify G1-phase cells. -S has to be selected and has to be bigger than -G
+    -h, --help                                          Show this help message and exit
+
+-- RT module
+
+    ./Kronos RT [options]
+
+    Options:
+    -F CHARACTER, --file=CHARACTER                      Per cell stat file , if multiple files are provided they have to be separated by a comma
+    -T CHARACTER, --tracks=CHARACTER                    Tracks file,  if multiple files are provided they have to be separated by a comma
+    -R CHARACTER, --referenceRT=CHARACTER               Reference RT min=Late, max=Early, only one reference is allowed
+    -C CHARACTER, --chrSizes=CHARACTER                  Chromosome size file
+    -r CHARACTER, --region=CHARACTER                    Region to plot  chr:start-end (multiple regins can be separated by a comma)
+    -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
+    -b CHARACTER, --base_name=CHARACTER                 Base name for files names [default= exp]
+    -g CHARACTER, --groups=CHARACTER                    Groping names of multiple basenames [default= base_name]
+    -S DOUBLE, --threshold_Sphase=DOUBLE                Threshold to identify S-phase cells
+    -G DOUBLE, --threshold_G1G2phase=DOUBLE             Threshold to identify G1-phase cells. -S has to be selected and has to be bigger than -G
+    -B INTEGER, --binsSize=INTEGER                      RT resolution [default= 500000] 
+    -k, --keepXY                                        Keep XY chromosomes in the analysis
+    -c INTEGER, --cores=INTEGER                         Numbers of parallel jobs to run [default= 3] 
+    -p, --plot                                          If selected prints some rondome regins, if -r is selected those regins are use to print RT [default= FALSE] 
+    --Var_against_reference                             Variability metrics are calculated usign reference RT in addiction to the calculated one [default= FALSE] 
+    --min_correlation=DOUBLE                            Minimum correlation value between one cell and its best correlating cell for this cell to not be discarded [default= 0.25] 
+    -h, --help                                          Show this help message and exit
+
+-- compare module
+
+    ./Kronos compare [options]
+
+    Options:
+    -S CHARACTER, --S50s=CHARACTER                      RT files with same binning
+    -R CHARACTER, --referenceRT=CHARACTER               Reference RT min=Late, max=Early, only one reference is allowed
+    -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
+    -k, --keepXY                                        keeps XY chr in the analysis
+    --Reference=CHARACTER                               Base name to use as a reference, if not provided the first basename in the S50 file will be used or , if provided , the reference RT even if this option is selected
+    -D DOUBLE, --deltaRT_threshold=DOUBLE               DeltaRT threshold to define changes
+    -n INTEGER, --n_regions=INTEGER                     number of regions to plot
+    -r CHARACTER, --region=CHARACTER                    Region to plot  chr:start-end (multiple regins can be separated by a comma)
+    -f CHARACTER, --basename_filter=CHARACTER           Filter out unwanted samples for RT files
+    -h, --help                                          Show this help message and exit
+
 
 ### Authors
 
