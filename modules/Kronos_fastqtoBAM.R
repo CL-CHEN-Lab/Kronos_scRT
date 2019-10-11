@@ -1,10 +1,7 @@
 #!/usr/local/bin/Rscript --slave
 #parse input
 
-if (!suppressPackageStartupMessages(require(optparse, quietly = TRUE))) {
-    install.packages("optparse", quiet = T)
-    suppressPackageStartupMessages(library(optparse, quietly = TRUE))
-}
+suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
 options(stringsAsFactors = FALSE)
 
@@ -89,25 +86,11 @@ option_list = list(
 opt = parse_args(OptionParser(option_list = option_list),convert_hyphens_to_underscores = T)
 
 #load needed packages
-if (!suppressPackageStartupMessages(require(tidyverse, quietly = TRUE))) {
-    install.packages("tidyverse", quiet = T)
-    suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
-}
+suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
+suppressPackageStartupMessages(library(DescTools, quietly = TRUE))
+suppressPackageStartupMessages( library(Rbowtie2, quietly = TRUE))
+suppressPackageStartupMessages( library(Rsamtools, quietly = TRUE))
 
-if (!suppressPackageStartupMessages(require(DescTools, quietly = TRUE))) {
-    install.packages("DescTools", quiet = T)
-    suppressPackageStartupMessages(library(DescTools, quietly = TRUE))
-}
-
-if(!suppressPackageStartupMessages(require(Rbowtie2, quietly = TRUE))){
-    BiocManager::install('Rbowtie2',quiet = T)
-    suppressPackageStartupMessages( library(Rbowtie2, quietly = TRUE))
-}
-
-if(!suppressPackageStartupMessages(require(Rsamtools, quietly = TRUE))){
-    install.packages("Rsamtools",quiet = T)
-    suppressPackageStartupMessages( library(Rsamtools))
-}
 options(scipen = 9999)
 
 
@@ -129,7 +112,7 @@ if(opt$path_to_trim_galore==''){
 opt$path_to_cutadapt=Sys.which(opt$path_to_cutadapt)
 
 if(opt$path_to_cutadapt==''){
-    stop('cutadapt was not found, please provide path.')
+    stop('cutadapt was not found, please provide path')
 }
 
 opt$path_to_java=Sys.which(opt$path_to_java)
