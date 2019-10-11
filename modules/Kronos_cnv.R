@@ -1,9 +1,7 @@
 #!/usr/local/bin/Rscript --slave
 #parse input
-if (!suppressPackageStartupMessages(require(optparse, quietly = TRUE))) {
-    install.packages("optparse", quiet = T)
-    suppressPackageStartupMessages(library(optparse, quietly = TRUE))
-}
+suppressPackageStartupMessages(library(optparse, quietly = TRUE))
+
 options(stringsAsFactors = FALSE)
 
 option_list = list(
@@ -81,49 +79,14 @@ opt = parse_args(OptionParser(option_list = option_list),
                  convert_hyphens_to_underscores = T)
 
 #load needed packages
-if (!suppressPackageStartupMessages(require(BiocManager, quietly = TRUE))) {
-    install.packages("BiocManager", quiet = T)
-}
-
-if (!suppressPackageStartupMessages(require(tidyverse, quietly = TRUE))) {
-    install.packages("tidyverse", quiet = T)
-    suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
-}
-
-if (!suppressPackageStartupMessages(require(foreach, quietly = TRUE))) {
-    install.packages("foreach", quiet = T)
-    suppressPackageStartupMessages(library(foreach, quietly = TRUE))
-}
-
-if (!suppressPackageStartupMessages(require(doSNOW, quietly = TRUE))) {
-    install.packages("doSNOW", quiet = T)
-    suppressPackageStartupMessages(library(doSNOW, quietly = TRUE))
-}
-
-if (!suppressPackageStartupMessages(require(Rsamtools, quietly = TRUE))) {
-    BiocManager::install('Rsamtools')
-    suppressPackageStartupMessages(library(Rsamtools, quietly = TRUE))
-}
-
-if (!suppressPackageStartupMessages(require(DescTools, quietly = TRUE))) {
-    install.packages("DescTools", quiet = T)
-    suppressPackageStartupMessages(library(DescTools, quietly = TRUE))
-}
-
-if (!suppressPackageStartupMessages(require(DNAcopy, quietly = TRUE))) {
-    BiocManager::install('DNAcopy')
-    suppressPackageStartupMessages(library(DNAcopy, quietly = TRUE))
-}
-
-if (!suppressPackageStartupMessages(require(gplots, quietly = TRUE))) {
-    install.packages("gplots", quiet = T)
-    suppressPackageStartupMessages(library(gplots, quietly = TRUE))
-}
-
-if (!suppressPackageStartupMessages(require(MASS, quietly = TRUE))) {
-    install.packages("MASS", quiet = T)
-    suppressPackageStartupMessages(library(MASS, quietly = TRUE))
-}
+suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
+suppressPackageStartupMessages(library(foreach, quietly = TRUE))
+suppressPackageStartupMessages(library(doSNOW, quietly = TRUE))
+suppressPackageStartupMessages(library(Rsamtools, quietly = TRUE))
+suppressPackageStartupMessages(library(DescTools, quietly = TRUE))
+suppressPackageStartupMessages(library(DNAcopy, quietly = TRUE))
+suppressPackageStartupMessages(library(gplots, quietly = TRUE))
+suppressPackageStartupMessages(library(MASS, quietly = TRUE))
 
 if (str_extract(opt$output_dir,'.$')!='/'){
     opt$output_dir=paste0(opt$output_dir,'/')
