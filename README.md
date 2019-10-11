@@ -33,7 +33,7 @@ First download the repository in the location of your choice, either with git cl
 
 Make sure to make the main script Kronos executable :
 
-        chmod +X Kronos
+     chmod +X Kronos
 
 Run the script
     
