@@ -29,7 +29,7 @@ Dileep, Vishnu, and David M. Gilbert, ‘Single-Cell Replication Profiling to Me
 
 ### Run script
 
-First download the repository in the location of your choice, either with git clone git@github.com:CL-CHEN-Lab/Kronos_scRT.git or by clicking on 'Clone or Download' -> 'Download ZIP' and unzip.
+First download the repository in the location of your choice, either with git clone https://github.com/CL-CHEN-Lab/Kronos_scRT.git or by clicking on 'Clone or Download' -> 'Download ZIP' and unzip.
 
 Make sure to make the main script Kronos executable :
 
