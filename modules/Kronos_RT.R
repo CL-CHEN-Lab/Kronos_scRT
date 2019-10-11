@@ -1,9 +1,6 @@
 #!/usr/local/bin/Rscript --slave
 #parse input
-if (!suppressPackageStartupMessages(require(optparse, quietly = TRUE))) {
-    install.packages("optparse", quiet = T)
-    suppressPackageStartupMessages(library(optparse, quietly = TRUE))
-}
+suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
 options(stringsAsFactors = FALSE)
 options(warn = 1)
@@ -126,41 +123,14 @@ option_list = list(
 #recover inputs
 opt = parse_args(object = OptionParser(option_list = option_list))
 
-# this script is meant to select the treshold to select cycling cells
-if (!suppressPackageStartupMessages(require(tidyverse, quietly = TRUE))) {
-    install.packages("tidyverse", quiet = T)
-    suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
-}
-
-if (!suppressPackageStartupMessages(require(foreach, quietly = TRUE))) {
-    install.packages("foreach", quiet = T)
-    suppressPackageStartupMessages(library(foreach, quietly = TRUE))
-}
-
-if (!suppressPackageStartupMessages(require(doSNOW, quietly = TRUE))) {
-    install.packages("doSNOW", quiet = T)
-    suppressPackageStartupMessages(library(doSNOW, quietly = TRUE))
-}
-
-if (!suppressPackageStartupMessages(require(chunked, quietly = TRUE))) {
-    install.packages("chunked", quiet = T)
-    suppressPackageStartupMessages(library(chunked, quietly = TRUE))
-}
-
-if (!suppressPackageStartupMessages(require(gplots, quietly = TRUE))) {
-    install.packages("gplots", quiet = T)
-    suppressPackageStartupMessages(library(gplots, quietly = TRUE))
-}
-
-if (!suppressPackageStartupMessages(require(matrixStats, quietly = TRUE))) {
-    install.packages("matrixStats", quiet = T)
-    suppressPackageStartupMessages(library(matrixStats, quietly = TRUE))
-}
-
-if (!suppressPackageStartupMessages(require(RColorBrewer, quietly = TRUE))) {
-    install.packages("RColorBrewer", quiet = T)
-    suppressPackageStartupMessages(library(RColorBrewer, quietly = TRUE))
-}
+#load libraries
+suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
+suppressPackageStartupMessages(library(foreach, quietly = TRUE))
+suppressPackageStartupMessages(library(doSNOW, quietly = TRUE))
+suppressPackageStartupMessages(library(chunked, quietly = TRUE))
+suppressPackageStartupMessages(library(gplots, quietly = TRUE))
+suppressPackageStartupMessages(library(matrixStats, quietly = TRUE))
+suppressPackageStartupMessages(library(RColorBrewer, quietly = TRUE))
 
 #check inputs
 if (!'file' %in% names(opt)) {
