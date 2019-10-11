@@ -1,9 +1,7 @@
 #!/usr/local/bin/Rscript --slave
 
-if (!suppressPackageStartupMessages(require(optparse, quietly = TRUE))) {
-    install.packages("optparse", quiet = T)
-    suppressPackageStartupMessages(library(optparse, quietly = TRUE))
-}
+
+suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
 options(stringsAsFactors = FALSE)
 options(warn = 1)
@@ -34,10 +32,8 @@ option_list = list(
 
 #recover inputs
 opt = parse_args(object = OptionParser(option_list = option_list))
-if (!suppressPackageStartupMessages(require(tidyverse, quietly = TRUE))) {
-    install.packages("tidyverse", quiet = T)
-    suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
-}
+
+suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
 
 #create directory
 
