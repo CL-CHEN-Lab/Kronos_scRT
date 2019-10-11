@@ -164,8 +164,7 @@ Run the script
      - trim_galore
      - picard
     
-    R Packages:required packages are installed automatically by the modules
-     - BiocManager
+    R Packages:
      - Biostrings
      - Cairo
      - chunked
