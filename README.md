@@ -161,10 +161,8 @@ Run the script
 
 ### Requirements
     Programs:
-        cutadapt
-        trim_galore
-        java
-        picard
+     - trim_galore
+     - picard
     
     R Packages:
      - Required packages are installed automatically by the modules
