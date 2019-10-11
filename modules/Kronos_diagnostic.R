@@ -2,10 +2,7 @@
 
 # this script is meant to select the treshold to select cycling cells
 
-if (!suppressPackageStartupMessages(require(optparse, quietly = TRUE))) {
-    install.packages("optparse", quiet = T)
-    suppressPackageStartupMessages(library(optparse, quietly = TRUE))
-}
+suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
 options(stringsAsFactors = FALSE)
 options(warn=1) 
@@ -47,10 +44,7 @@ option_list = list(
 
 opt = parse_args( OptionParser(option_list=option_list))
 
-if (!suppressPackageStartupMessages(require(tidyverse, quietly = TRUE))) {
-    install.packages("tidyverse", quiet = T)
-    suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
-}
+suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
 
 #create output directory
 if (str_extract(opt$out,'.$')!='/'){
