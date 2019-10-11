@@ -29,7 +29,7 @@ option_list = list(
         type = "integer",
         default = 40,
         action = 'store',
-        help = "lengh of the simulated reads. [default= %default bp]",
+        help = "Lengh of the simulated reads. [default= %default bp]",
         metavar = "integer"
     ),
     make_option(
@@ -37,21 +37,21 @@ option_list = list(
         type = "character",
         default = 'output/',
         action = 'store',
-        help = "output folder. [default= %default]",
+        help = "Output folder. [default= %default]",
         metavar = "character"
     ),
     make_option(
         c("-i", "--index"),
         type = "character",
         action = 'store',
-        help = "bowtie 2 index",
+        help = "Bowtie 2 index",
         metavar = "character"
     ),
     make_option(
         c( "--paired_ends"),
         type = "logical",
         action = 'store_true',
-        help = "generates paired ends reads [default: %default]",
+        help = "Generates paired ends reads [default: %default]",
         metavar = "logical",
         default = F
     ),
@@ -59,7 +59,7 @@ option_list = list(
         c( "--insert_size"),
         type = "integer",
         action = 'store',
-        help = " insert size if paired end option is used. [default: %default]",
+        help = "Insert size if paired end option is used. [default: %default]",
         metavar = "integer",
         default = '200'
     ),

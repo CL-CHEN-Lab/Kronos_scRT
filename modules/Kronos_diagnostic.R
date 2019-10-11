@@ -14,21 +14,21 @@ option_list = list(
         c("-f", "--file"),
         type = "character",
         default = NULL,
-        help = "dataset file name",
+        help = "Dataset file name",
         metavar = "character"
     ),
     make_option(
         c("-o", "--out"),
         type = "character",
         default = "./output",
-        help = "output directory [default= %default]",
+        help = "Output directory [default= %default]",
         metavar = "character"
     ),
     make_option(
         c("-b", "--base_name"),
         type = "character",
         default = "exp",
-        help = "base name for files names [default= %default]",
+        help = "Base name for files names [default= %default]",
         metavar = "character"
     ),
     make_option(

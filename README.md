@@ -132,13 +132,13 @@ Run the script
     -r CHARACTER, --region=CHARACTER                    Region to plot  chr:start-end (multiple regins can be separated by a comma)
     -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
     -b CHARACTER, --base_name=CHARACTER                 Base name for files names [default= exp]
-    -g CHARACTER, --groups=CHARACTER                    Groping names of multiple basenames [default= base_name]
+    -g CHARACTER, --groups=CHARACTER                    Grouping names of multiple basenames [default= base_name]
     -S DOUBLE, --threshold_Sphase=DOUBLE                Threshold to identify S-phase cells
     -G DOUBLE, --threshold_G1G2phase=DOUBLE             Threshold to identify G1-phase cells. -S has to be selected and has to be bigger than -G
     -B INTEGER, --binsSize=INTEGER                      RT resolution [default= 500000] 
     -k, --keepXY                                        Keep XY chromosomes in the analysis
     -c INTEGER, --cores=INTEGER                         Numbers of parallel jobs to run [default= 3] 
-    -p, --plot                                          If selected prints some rondome regins, if -r is selected those regins are use to print RT [default= FALSE] 
+    -p, --plot                                          If selected prints some randome regins, if -r is selected those regins are use to print RT [default= FALSE] 
     --Var_against_reference                             Variability metrics are calculated usign reference RT in addiction to the calculated one [default= FALSE] 
     --min_correlation=DOUBLE                            Minimum correlation value between one cell and its best correlating cell for this cell to not be discarded [default= 0.25] 
     -h, --help                                          Show this help message and exit
@@ -159,6 +159,15 @@ Run the script
     -f CHARACTER, --basename_filter=CHARACTER           Filter out unwanted samples for RT files
     -h, --help                                          Show this help message and exit
 
+### Requirements
+    Programs:
+        cutadapt
+        trim_galore
+        java
+        picard
+    
+    R Packages:
+     - Required packages are installed automatically by the modules
 
 ### Authors
 

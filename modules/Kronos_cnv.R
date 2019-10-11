@@ -11,7 +11,7 @@ option_list = list(
         c("-D", "--directory"),
         type = "character",
         default = NULL,
-        help = "single cell Bamfiles directory",
+        help = "Single cell Bamfiles directory",
         metavar = "character"
     ),
     make_option(
@@ -32,7 +32,7 @@ option_list = list(
     make_option(
         c("--number_of_X"),
         type = "integer",
-        help = "number of X chromosomes ",
+        help = "Number of X chromosomes ",
         metavar = "integer"
     ),
     make_option(
@@ -48,7 +48,7 @@ option_list = list(
         type = "double",
         default = 200000,
         action = 'store',
-        help = "min n of reads to keep a cell in the analysis [default= %default]",
+        help = "Min n of reads to keep a cell in the analysis [default= %default]",
         metavar = "double"
     ),
     make_option(
@@ -64,7 +64,7 @@ option_list = list(
         type = "character",
         default = 'output/',
         action = 'store',
-        help = "output folder. [default= %default]",
+        help = "Output folder. [default= %default]",
         metavar = "character"
     ),
     make_option(

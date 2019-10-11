@@ -48,20 +48,20 @@ option_list = list(
         c("-o", "--out"),
         type = "character",
         default = "output",
-        help = "output directory [default= %default]",
+        help = "Output directory [default= %default]",
         metavar = "character"
     ),
     make_option(
         c("-b", "--base_name"),
         type = "character",
         default = "exp",
-        help = "base name for files names [default= %default]",
+        help = "Base name for files names [default= %default]",
         metavar = "character"
     ),
     make_option(
         c("-g", "--groups"),
         type = "character",
-        help = "groping names of multiple basenames [default= base_name]",
+        help = "Grouping names of multiple basenames [default= base_name]",
         metavar = "character"
     ),
     make_option(
@@ -95,7 +95,7 @@ option_list = list(
         c("-c", "--cores"),
         type = "integer",
         default = 3,
-        help = "numbers of parallel jobs to run [default= %default] ",
+        help = "Numbers of parallel jobs to run [default= %default] ",
         metavar = "integer"
     ),
     make_option(
@@ -103,7 +103,7 @@ option_list = list(
         type = "logical",
         default = F,
         action = "store_true",
-        help = "if selected prints some rondome regins, if -r is selected those regins are use to print RT [default= %default] ",
+        help = "If selected prints some randome regins, if -r is selected those regins are use to print RT [default= %default] ",
         metavar = "logical"
     ),
     make_option(
@@ -118,7 +118,7 @@ option_list = list(
         c("--min_correlation"),
         type = "double",
         default = 0.25,
-        help = "minimum correlation value between one cell and its best correlating cell for this cell to not be discarded [default= %default] ",
+        help = "Minimum correlation value between one cell and its best correlating cell for this cell to not be discarded [default= %default] ",
         metavar = "double"
     )
 )

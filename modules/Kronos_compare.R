@@ -24,7 +24,7 @@ option_list = list(
         c("-o", "--out"),
         type = "character",
         default = "output",
-        help = "output directory [default= %default]",
+        help = "Output directory [default= %default]",
         metavar = "character"
     ),
     make_option(
@@ -32,14 +32,14 @@ option_list = list(
         type = "logical",
         default = FALSE,
         action = "store_true",
-        help = "keeps XY chr in the analysis",
+        help = "Keeps XY chr in the analysis",
         metavar = "logical"
     ),
     make_option(
         c("--Reference"),
         type = "character",
         action = "store",
-        help = "base name to use as a reference, if not provided the first basename in the S50 file will be used or , if provided , the reference RT even if this option is selected",
+        help = "Base name to use as a reference, if not provided the first basename in the S50 file will be used or , if provided , the reference RT even if this option is selected",
         metavar = "character"
     ),
     make_option(
@@ -47,7 +47,7 @@ option_list = list(
         type = "double",
         default = 0.1,
         action = "store",
-        help = "detalRT threshold to define changes",
+        help = "DeltaRT threshold to define changes",
         metavar = "double"
     ),
     make_option(
@@ -55,7 +55,7 @@ option_list = list(
         type = "integer",
         action = "store",
         default = 10,
-        help = "number of regions to plot",
+        help = "Number of regions to plot",
         metavar = "integer"
     ),
     make_option(
@@ -69,7 +69,7 @@ option_list = list(
         c("-f", "--basename_filter"),
         type = "character",
         default = NULL,
-        help = "filter out unwanted samples for RT files",
+        help = "Filter out unwanted samples for RT files",
         metavar = "character"
     )
 )

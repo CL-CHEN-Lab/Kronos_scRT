@@ -13,26 +13,26 @@ option_list = list(
         c("-1", "--one"),
         type = "character",
         default = NULL,
-        help = "fastq files",
+        help = "Fastq files",
         metavar = "character"
     ),make_option(
         c("-2", "--two"),
         type = "character",
         default = NULL,
-        help = "fastq files (for paired ends)",
+        help = "Fastq files (for paired ends)",
         metavar = "character"
     ),make_option(
         c("-b", "--sam_file_basename"),
         type = "character",
         default = NULL,
-        help = "sam file name",
+        help = "Sam file name",
         metavar = "character"
     ),
     make_option(
         c("-i", "--index"),
         type = "character",
         action = 'store',
-        help = "bowtie 2 index",
+        help = "Bowtie 2 index",
         metavar = "character"
     ),
     make_option(
@@ -48,7 +48,7 @@ option_list = list(
         type = "character",
         default = 'output/',
         action = 'store',
-        help = "output folder. [default= %default]",
+        help = "Output folder. [default= %default]",
         metavar = "character"
     ),
     make_option(

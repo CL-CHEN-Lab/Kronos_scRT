@@ -27,7 +27,7 @@ option_list = list(
         c("-o", "--out"),
         type = "character",
         default = "output",
-        help = "output directory [default= %default]",
+        help = "Output directory [default= %default]",
         metavar = "character"
     )
 )
