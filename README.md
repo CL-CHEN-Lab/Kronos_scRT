@@ -27,4 +27,34 @@ Dileep, Vishnu, and David M. Gilbert, ‘Single-Cell Replication Profiling to Me
 ### Kronos: pipeline
 ![](https://github.com/CL-CHEN-Lab/Kronos_scRT/blob/master/img/schema.jpg)
 
+### Run script
+
+First download the repository in the location of your choice, either with git clone git@github.com:CL-CHEN-Lab/Kronos_scRT.git or by clicking on 'Clone or Download' -> 'Download ZIP' and unzip.
+
+Make sure to make the main script Kronos executable :
+
+        chmod +X Kronos
+
+Run the script
+    
+    ./Kronos <command> [options]
+        
+    commands:
+
+    fastqtoBAM      Trims and maps reads onto there a reference genome
+    binning         Calculates mappability and gc content for bins to be used with Kronos CNV
+    CNV             Calculates copy number variation 
+    10xtoKronos     Converts 10X genomics files in a format that Kronos can use
+    diagnostic      Plotting tools to identify appropriate tresholds for Kronos RT
+    RT              Calculates scReplication profiles and scRT
+    compare         Compares results from multiple experiments
+
+### Authors
+
+Please contact the authors for any further questions:
+
+Stefano Gnan stefano.gnan@curie.fr
+
+Chunlong Chen chunlong.chen@curie.fr
+
 
