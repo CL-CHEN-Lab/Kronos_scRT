@@ -121,10 +121,7 @@ if(!suppressPackageStartupMessages(require(Rsamtools, quietly = TRUE))){
     install.packages("Rsamtools",quiet = T)
     suppressPackageStartupMessages( library(Rsamtools))
 }
-if (!suppressPackageStartupMessages(require(Rsamtools, quietly = TRUE))) {
-    BiocManager::install('Rsamtools')
-    suppressPackageStartupMessages(library(Rsamtools, quietly = TRUE))
-}
+
 options(scipen = 9999)
 
 # create output directory
