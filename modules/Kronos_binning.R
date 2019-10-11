@@ -1,10 +1,6 @@
 #!/usr/local/bin/Rscript --slave
 #parse input
-
-if (!suppressPackageStartupMessages(require(optparse, quietly = TRUE))) {
-    install.packages("optparse", quiet = T)
-    suppressPackageStartupMessages(library(optparse, quietly = TRUE))
-}
+suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
 options(stringsAsFactors = FALSE)
 
@@ -83,44 +79,14 @@ option_list = list(
 opt = parse_args(OptionParser(option_list = option_list),convert_hyphens_to_underscores = T)
 
 #load needed packages
-if (!suppressPackageStartupMessages(require(BiocManager, quietly = TRUE))){
-    install.packages("BiocManager",quiet = T)
-}
 
-if (!suppressPackageStartupMessages(require(tidyverse, quietly = TRUE))) {
-    install.packages("tidyverse", quiet = T)
-    suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
-}
-
-if(!suppressPackageStartupMessages(require(DescTools, quietly = TRUE))){
-    install.packages("DescTools",quiet = T)
-    suppressPackageStartupMessages(library(DescTools, quietly = TRUE ))
-}
-
-if(!suppressPackageStartupMessages(require(foreach, quietly = TRUE))){
-    install.packages("foreach",quiet = T)
-    suppressPackageStartupMessages(library(foreach, quietly = TRUE))
-}
-
-if(!suppressPackageStartupMessages(require(doSNOW, quietly = TRUE))){
-    install.packages("doSNOW",quiet = T)
-    suppressPackageStartupMessages( library(doSNOW, quietly = TRUE))
-}
-
-if(!suppressPackageStartupMessages(require(Biostrings, quietly = TRUE))){
-    BiocManager::install('Biostrings')
-    suppressPackageStartupMessages( library(Biostrings, quietly = TRUE))
-}
-
-if(!suppressPackageStartupMessages(require(Rbowtie2, quietly = TRUE))){
-    BiocManager::install('Rbowtie2')
-    suppressPackageStartupMessages( library(Rbowtie2, quietly = TRUE))
-}
-
-if(!suppressPackageStartupMessages(require(Rsamtools, quietly = TRUE))){
-    install.packages("Rsamtools",quiet = T)
-    suppressPackageStartupMessages( library(Rsamtools))
-}
+suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
+suppressPackageStartupMessages(library(DescTools, quietly = TRUE ))
+suppressPackageStartupMessages(library(foreach, quietly = TRUE))
+suppressPackageStartupMessages( library(doSNOW, quietly = TRUE))
+suppressPackageStartupMessages( library(Biostrings, quietly = TRUE))
+suppressPackageStartupMessages( library(Rbowtie2, quietly = TRUE))
+suppressPackageStartupMessages( library(Rsamtools))
 
 options(scipen = 9999)
 
