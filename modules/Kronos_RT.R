@@ -294,8 +294,7 @@ if ('referenceRT' %in% names(opt)) {
 #filter out cells with coverage_per_1Mbp lower than 100 and bigger than 1500
 
 data=data%>%
-    filter(coverage_per_1Mbp >= 100,
-           coverage_per_1Mbp <= 1500)
+    filter(coverage_per_1Mbp >= 350)
 
 CB=data%>%
     dplyr::select(Cell,basename)
@@ -330,7 +329,7 @@ if ('threshold_G1G2phase' %in% names(opt)) {
         inner_join(median_ploidy_G1_G2_cells, by = 'basename') %>%
         filter(
             mean_ploidy > median_ploidy_G1_G2_cells / 1.50 ,
-            mean_ploidy < median_ploidy_G1_G2_cells * 1.80,
+            mean_ploidy < median_ploidy_G1_G2_cells * 2,
             !ploidy_confidence <= 2
         ) %>%
         mutate(Type = ifelse(
@@ -355,7 +354,7 @@ if ('threshold_G1G2phase' %in% names(opt)) {
         inner_join(median_ploidy_G1_G2_cells, by = 'basename') %>%
         filter(
             mean_ploidy > median_ploidy_G1_G2_cells / 1.5 ,
-            mean_ploidy < median_ploidy_G1_G2_cells * 1.5,
+            mean_ploidy < median_ploidy_G1_G2_cells * 2,
             !ploidy_confidence <= 2
         ) %>%
         mutate(Type = ifelse(

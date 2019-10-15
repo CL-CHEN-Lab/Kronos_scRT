@@ -108,8 +108,8 @@ if (!'threshold_Sphase' %in% names(opt)){
                                                           data$normalized_dimapd < opt$threshold_G1G2phase   ])
     data = data %>%
         filter(
-            mean_ploidy > median_ploidy_not_noisy / 1.3 ,
-            mean_ploidy < median_ploidy_not_noisy * 1.8,
+            mean_ploidy > median_ploidy_not_noisy / 1.5 ,
+            mean_ploidy < median_ploidy_not_noisy * 2,
             !ploidy_confidence <= 2
         )
     median_ploidy_not_noisy = median(data$mean_ploidy[data$is_noisy == F&
@@ -151,7 +151,7 @@ if (!'threshold_Sphase' %in% names(opt)){
     data = data %>%
         filter(
             mean_ploidy > median_ploidy_not_noisy / 1.5 ,
-            mean_ploidy < median_ploidy_not_noisy * 1.5,
+            mean_ploidy < median_ploidy_not_noisy *2,
             !ploidy_confidence <= 2
         )
     median_ploidy_not_noisy = median(data$mean_ploidy[data$is_noisy == F])

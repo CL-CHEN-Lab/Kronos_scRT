@@ -295,7 +295,7 @@ data_500Kb=data%>%
 
 coverage=data_500Kb%>%
     group_by(Cell)%>%
-    summarise(coverage=1000000*sum(reads)/genom_size)
+    summarise(coverage=2000000*sum(reads)/genom_size)
 
 
 #calculate normalized_MAPD and mapd
