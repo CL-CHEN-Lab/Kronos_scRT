@@ -1,60 +1,61 @@
 #!/bin/bash
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 if [ "$1" == "10xtoKronos" ];then
-    if test "$#" -ne 2 ; then
+    if test "$#" == 1 ; then
         echo Usage: Kronos 10xtoKronos [options]
-        Rscript modules/10XtoKronos.R -h | grep -v 10XtoKronos
+        Rscript $DIR/modules/10XtoKronos.R -h | grep -v 10XtoKronos
     else
-        Rscript modules/10XtoKronos.R "${@:2}"
+        Rscript $DIR/modules/10XtoKronos.R "${@:2}"
     fi
     
 elif  [ "$1" == "binning" ];then
-    if test "$#" -ne 2 ; then
+    if test "$#" == 1 ; then
         echo Usage: Kronos binning [options]
-        Rscript modules/Kronos_binning.R -h | grep -v Kronos_binning
+        Rscript $DIR/modules/Kronos_binning.R -h | grep -v Kronos_binning
     else
-       Rscript modules/Kronos_binning.R "${@:2}"
+       Rscript $DIR/modules/Kronos_binning.R "${@:2}"
     fi
     
     
 elif [ "$1" == "RT" ];then
-    if test "$#" -ne 2 ; then
+    if test "$#" == 1 ; then
         echo Usage: Kronos RT [options]
-        Rscript modules/Kronos_RT.R -h | grep -v Kronos_RT
+        Rscript $DIR/modules/Kronos_RT.R -h | grep -v Kronos_RT
     else
-       Rscript modules/Kronos_RT.R "${@:2}"
+       Rscript $DIR/modules/Kronos_RT.R "${@:2}"
     fi
 
 elif [ "$1" == "CNV" ];then
-    if test "$#" -ne 2 ; then
+    if test "$#" == 1 ; then
         echo Usage: Kronos CNV [options]
-        Rscript modules/Kronos_cnv.R -h | grep -v Kronos_cnv
+        Rscript $DIR/modules/Kronos_cnv.R -h | grep -v Kronos_cnv
     else
-       Rscript modules/Kronos_cnv.R "${@:2}"
+       Rscript $DIR/modules/Kronos_cnv.R "${@:2}"
     fi
 
 elif [ "$1" == "diagnostic" ];then
-    if test "$#" -ne 2 ; then
+    if test "$#" == 1 ; then
         echo Usage: Kronos diagnostic [options]
-        Rscript modules/Kronos_diagnostic.R -h | grep -v Kronos_diagnostic
+        Rscript $DIR/modules/Kronos_diagnostic.R -h | grep -v Kronos_diagnostic
     else
-       Rscript modules/Kronos_diagnostic.R "${@:2}"
+       Rscript $DIR/modules/Kronos_diagnostic.R "${@:2}"
     fi
 
 elif [ "$1" == "fastqtoBAM" ];then
-    if test "$#" -ne 2 ; then
+    if test "$#" == 1 ; then
         echo Usage: Kronos fastqtoBAM [options]
-        Rscript modules/Kronos_fastqtoBAM.R -h | grep -v Kronos_fastqtoBAM
+        Rscript $DIR/modules/Kronos_fastqtoBAM.R -h | grep -v Kronos_fastqtoBAM
     else
-       Rscript modules/Kronos_fastqtoBAM.R "${@:2}"
+       Rscript $DIR/modules/Kronos_fastqtoBAM.R "${@:2}"
     fi
 
 elif [ "$1" == "compare" ];then
-    if test "$#" -ne 2 ; then
+    if test "$#" == 1 ; then
         echo Usage: Kronos compare [options]
-        Rscript modules/Kronos_compare.R -h | grep -v Kronos_compare
+        Rscript $DIR/modules/Kronos_compare.R -h | grep -v Kronos_compare
     else
-       Rscript modules/Kronos_compare.R "${@:2}"
+       Rscript $DIR/modules/Kronos_compare.R "${@:2}"
     fi
 else
 
