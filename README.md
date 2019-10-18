@@ -21,7 +21,7 @@ Kronos offers a series of diagnostic plots. The main program delivers immediatel
 ![](https://github.com/CL-CHEN-Lab/Kronos_scRT/blob/master/img/3.png)
 
 
-### Reference:
+### References:
 1 - Dileep, V. & Gilbert, D. M. Single-cell replication profiling to measure stochastic variation in mammalian replication timing. Nat. Commun. 9, 427 (2018).
 
 2 - Takahashi, S. et al. Genome-wide stability of the DNA replication program in single mammalian cells. Nat. Genet. 51, 529–540 (2019).
