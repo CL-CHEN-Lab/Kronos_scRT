@@ -350,9 +350,10 @@ while(T) {
 data=data%>%
     filter(mappability_th)%>%
     group_by(Cell)%>%
-    dplyr::select(chr,start,end,gc_corrected_reads,Cell)%>%
+    mutate(RPM=1000000*gc_corrected_reads/sum(gc_corrected_reads,na.rm = T))%>%
+    dplyr::select(chr,start,end,RPM,Cell)%>%
     ungroup()%>%
-    spread(Cell,gc_corrected_reads)%>%
+    spread(Cell,RPM)%>%
     drop_na()
 
 cl=makeCluster(opt$cores)
