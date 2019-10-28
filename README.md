@@ -89,7 +89,7 @@ Run the script
     Options:
     -D CHARACTER, --directory=CHARACTER                 Single cell Bamfiles directory
     -B CHARACTER, --bins=CHARACTER                      File with bins produced by Kronos binning
-    -X, --keep_X                                        Keep X chromosomes. If active n of X chromosomes has to be provided, by default it will assume 1 X chromosomes if Kee_Y is not selected or 2 if it is not. Correct number can be passed using --number_of_X. [default= FALSE]
+    -X, --keep_X                                        Keep X chromosomes [default= FALSE]
     --number_of_X=INTEGER                               Number of X chromosomes 
     -Y, --keep_Y                                        Keep Y chromosome [default= FALSE]
     -m DOUBLE, --min_n_reads=DOUBLE                     Min n of reads to keep a cell in the analysis [default= 2e+05]

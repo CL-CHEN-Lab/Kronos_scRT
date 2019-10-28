@@ -235,6 +235,9 @@ data <-
                    group=opt$groups[i]), by=c('basename','group'))
     }
 
+#filter data with too little reads per megabase (0.75milion reads for a diploid human genome)
+data=data%>%filter(coverage_per_1Mbp >= RPM_TH)
+
 #load tracks
 all_tracks <-
     foreach(
@@ -250,6 +253,15 @@ all_tracks <-
             )%>%
             drop_na()
     }
+
+# remove tracks not in use
+CB=data%>%
+    dplyr::select(Cell,basename)
+
+all_tracks=all_tracks%>%
+    inner_join(CB, by = c("Cell", "basename"))
+
+rm('CB')
 
 if ('referenceRT' %in% names(opt)) {
     Reference_RT <-
@@ -667,7 +679,7 @@ plot = signal_smoothed %>%
     geom_density(aes(y=..scaled..)) +
     scale_x_continuous(labels = scales::percent)+
     xlab('Percentage of the genome that has been replicated')+
-    ylab('density')
+    ylab('density')+coord_cartesian(xlim = c(0,1))
 
 suppressMessages(ggsave(
     plot,
@@ -675,7 +687,7 @@ suppressMessages(ggsave(
         opt$out,
         '/',
         paste(opt$base_name, collapse = '_'),
-        'percentage_of_replicating_cells.pdf'
+        '_percentage_of_replicating_cells.pdf'
     )
 ))
 
@@ -813,7 +825,7 @@ plot=rep_percentage%>%
     geom_density(aes(y=..scaled..)) +
     scale_x_continuous(labels = scales::percent)+
     xlab('Percentage of the genome that has been replicated')+
-    ylab('density')
+    ylab('density')+coord_cartesian(xlim = c(0,1))
 
 suppressMessages(ggsave(plot = plot,
         filename = paste0(

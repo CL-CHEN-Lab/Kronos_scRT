@@ -99,9 +99,16 @@ if (!'threshold_Sphase' %in% names(opt)){
             )
         )) 
     
-    median_ploidy_not_noisy = median(data$mean_ploidy[data$is_noisy == F])
+    median_ploidy_not_noisy = median(data%>%
+                                         filter(is_noisy == F)%>%pull(mean_ploidy))
     
-    p = data%>%
+    data=data%>%
+        filter(coverage_per_1Mbp >= 140*median_ploidy_not_noisy,
+               ploidy_confidence > 2,
+                mean_ploidy > median_ploidy_not_noisy / 1.5 ,
+                mean_ploidy < median_ploidy_not_noisy * 2
+                   )
+     p =data%>%
         ggplot(aes(mean_ploidy, normalized_dimapd, color = Type)) +
         geom_point(alpha = 0.3) +
         scale_color_manual(
@@ -143,14 +150,14 @@ if (!'threshold_Sphase' %in% names(opt)){
             )
         )
     
-    median_ploidy_not_noisy = median(data$mean_ploidy[data$is_noisy == F &
-                                                          data$normalized_dimapd < opt$threshold_G1G2phase   ])
+    median_ploidy_not_noisy = median(data%>%filter(is_noisy == F)%>%pull(mean_ploidy))
     data = data %>%
-        filter(
+        filter(coverage_per_1Mbp >= 140*median_ploidy_not_noisy,
             mean_ploidy > median_ploidy_not_noisy / 1.5 ,
             mean_ploidy < median_ploidy_not_noisy * 2,
             !ploidy_confidence <= 2
         )
+    
     median_ploidy_not_noisy = median(data$mean_ploidy[data$is_noisy == F &
                                                           data$normalized_dimapd < opt$threshold_G1G2phase])
     p = data %>%
@@ -295,6 +302,7 @@ tibble(
     threshold_Sphase= opt$threshold_Sphase,
     threshold_G1G2phase = opt$threshold_G1G2phase,
     Sphase_first_part=distributions$A,
-    Sphase_second_part=distributions$B
+    Sphase_second_part=distributions$B,
+    RPM_TH=round(112*median_ploidy_not_noisy)
 )%>%
     write_tsv(paste0(opt$out,opt$base_name, '_settings.txt'))
