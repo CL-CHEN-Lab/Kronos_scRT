@@ -171,7 +171,6 @@ Run the script
     R Packages:
      - Biostrings
      - Cairo
-     - chunked
      - DescTools
      - DNAcopy
      - doSNOW

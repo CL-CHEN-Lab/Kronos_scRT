@@ -125,6 +125,8 @@ suppressPackageStartupMessages(library(chunked, quietly = TRUE))
 suppressPackageStartupMessages(library(gplots, quietly = TRUE))
 suppressPackageStartupMessages(library(matrixStats, quietly = TRUE))
 suppressPackageStartupMessages(library(RColorBrewer, quietly = TRUE))
+suppressPackageStartupMessages(library(GenomicRanges, quietly = TRUE))
+
 
 #check inputs
 if (!'file' %in% names(opt)) {
@@ -134,15 +136,17 @@ if (!'file' %in% names(opt)) {
 if (!'tracks' %in% names(opt)) {
     stop("File containing cells CNV must be provided. See script usage (--help)")
 }
+
 if (!'settings_file' %in% names(opt)) {
     stop("File containing settings sizes must be provided. See script usage (--help)")
 }
+
 if (!'chrSizes' %in% names(opt)) {
     stop("File containing Chromosomes sizes must be provided. See script usage (--help)")
 }
 
 if (!'groups' %in% names(opt)) {
-    opt$groups=opt$base_name
+    opt$groups = opt$base_name
 }
 
 if (opt$Var_against_reference) {
@@ -153,15 +157,16 @@ if (opt$Var_against_reference) {
 }
 
 #create directory
-if (str_extract(opt$out,'.$')!='/'){
-    opt$out=paste0(opt$out,'/')
+if (str_extract(opt$out, '.$') != '/') {
+    opt$out = paste0(opt$out, '/')
 }
+
 system(paste0('mkdir -p ./', opt$out))
 
 #load files
 opt$file = str_split(opt$file, ',')[[1]]
 
-opt$settings_file= str_split(opt$settings_file, ',')[[1]]
+opt$settings_file = str_split(opt$settings_file, ',')[[1]]
 
 opt$tracks = str_split(opt$tracks, ',')[[1]]
 
@@ -199,17 +204,21 @@ if (length(opt$groups) != length(opt$file)) {
 #load genome sizes
 if (!opt$keepXY) {
     Chr_Size <-
-        read_delim(opt$chrSizes,
-                   delim = '\t',
-                   col_names = c('chr', 'size'),
-                   col_types = cols()) %>%
+        read_delim(
+            opt$chrSizes,
+            delim = '\t',
+            col_names = c('chr', 'size'),
+            col_types = cols()
+        ) %>%
         filter(!chr %in% c('chrX', 'chrY'))
 } else{
     Chr_Size <-
-        read_delim(opt$chrSizes,
-                   delim = '\t',
-                   col_names = c('chr', 'size'),
-                   col_types = cols())
+        read_delim(
+            opt$chrSizes,
+            delim = '\t',
+            col_names = c('chr', 'size'),
+            col_types = cols()
+        )
 }
 
 #chr order
@@ -227,16 +236,23 @@ data <-
         .combine = 'rbind',
         .packages = 'tidyverse'
     ) %do% {
-       inner_join(read_csv(opt$file[i],col_types = cols()) %>%
-            mutate(basename = opt$base_name[i],
-                   group=opt$groups[i]),
-        read_tsv(opt$settings_file[i],col_types = cols()) %>%
-            mutate(basename = opt$base_name[i],
-                   group=opt$groups[i]), by=c('basename','group'))
+        inner_join(
+            read_csv(opt$file[i], col_types = cols()) %>%
+                mutate(
+                    basename = opt$base_name[i],
+                    group = opt$groups[i]
+                ),
+            read_tsv(opt$settings_file[i], col_types = cols()) %>%
+                mutate(
+                    basename = opt$base_name[i],
+                    group = opt$groups[i]
+                ),
+            by = c('basename', 'group')
+        )
     }
 
 #filter data with too little reads per megabase (0.75milion reads for a diploid human genome)
-data=data%>%filter(coverage_per_1Mbp >= RPM_TH)
+data = data %>% filter(coverage_per_1Mbp >= RPM_TH)
 
 #load tracks
 all_tracks <-
@@ -245,20 +261,20 @@ all_tracks <-
         .combine = 'rbind',
         .packages = 'tidyverse'
     ) %do% {
-        read_delim(opt$tracks[i], delim = '\t',col_types = cols()) %>%
+        read_delim(opt$tracks[i], delim = '\t', col_types = cols()) %>%
             mutate(
                 basename = opt$base_name[i],
-                group=opt$groups[i],
+                group = opt$groups[i],
                 chr = factor(x =  chr, levels = chr_list)
-            )%>%
+            ) %>%
             drop_na()
     }
 
 # remove tracks not in use
-CB=data%>%
-    dplyr::select(Cell,basename)
+CB = data %>%
+    dplyr::select(Cell, basename)
 
-all_tracks=all_tracks%>%
+all_tracks = all_tracks %>%
     inner_join(CB, by = c("Cell", "basename"))
 
 rm('CB')
@@ -276,49 +292,56 @@ if ('referenceRT' %in% names(opt)) {
 
 # calculate the new is_high_dimapd
 data = data %>%
-        mutate(
-            is_noisy=as.logical(is_noisy),
-            is_high_dimapd = ifelse(is.na(threshold_Sphase),is_high_dimapd,
-                                    ifelse(normalized_dimapd > threshold_Sphase, T, F)),
-            is_noisy = ifelse(is_high_dimapd, T, is_noisy)
-        )
+    mutate(
+        is_noisy = as.logical(is_noisy),
+        is_high_dimapd = ifelse(
+            is.na(threshold_Sphase),
+            is_high_dimapd,
+            ifelse(normalized_dimapd > threshold_Sphase, T, F)
+        ),
+        is_noisy = ifelse(is_high_dimapd, T, is_noisy)
+    )
 
 median_ploidy_G1_G2_cells = data %>%
-        filter(ifelse(is.na(threshold_G1G2phase),is_noisy == F,is_noisy == F &
-                   normalized_dimapd < threshold_G1G2phase)) %>%
-        group_by(basename) %>%
-        summarise(median_ploidy_G1_G2_cells = median(mean_ploidy))
-    
+    filter(ifelse(
+        is.na(threshold_G1G2phase),
+        is_noisy == F,
+        is_noisy == F &
+            normalized_dimapd < threshold_G1G2phase
+    )) %>%
+    group_by(basename) %>%
+    summarise(median_ploidy_G1_G2_cells = median(mean_ploidy))
+
 data = data %>%
-        inner_join(median_ploidy_G1_G2_cells, by = 'basename') %>%
-        filter(
-            mean_ploidy > median_ploidy_G1_G2_cells / 1.50 ,
-            mean_ploidy < median_ploidy_G1_G2_cells * 2,
-            !ploidy_confidence <= 2
-        ) %>%
-        mutate(Type = ifelse(
-            as.logical(is_high_dimapd) == T &
-                as.logical(is_noisy) == T,
-            'S-phase',
-            ifelse( 
-                ifelse(is.na(threshold_G1G2phase),
-                       as.logical(is_high_dimapd) == F &
-                           as.logical(is_noisy) == F,
+    inner_join(median_ploidy_G1_G2_cells, by = 'basename') %>%
+    filter(
+        mean_ploidy > median_ploidy_G1_G2_cells / 1.50 ,
+        mean_ploidy < median_ploidy_G1_G2_cells * 2,
+        !ploidy_confidence <= 2
+    ) %>%
+    mutate(Type = ifelse(
+        as.logical(is_high_dimapd) == T &
+            as.logical(is_noisy) == T,
+        'S-phase',
+        ifelse(
+            ifelse(
+                is.na(threshold_G1G2phase),
+                as.logical(is_high_dimapd) == F &
+                    as.logical(is_noisy) == F,
                 as.logical(is_high_dimapd) == F &
                     as.logical(is_noisy) == F &
-                    normalized_dimapd < threshold_G1G2phase),
-                'G1/G2 cells',
-                'unknown cells'
-            )
-        ))
+                    normalized_dimapd < threshold_G1G2phase
+            ),
+            'G1/G2 cells',
+            'unknown cells'
+        )
+    ))
 
 #plot Variability vs ploidy
 p = data %>%
-    ggplot(aes(
-        mean_ploidy,
-        normalized_dimapd,
-        color = Type
-    )) +
+    ggplot(aes(mean_ploidy,
+               normalized_dimapd,
+               color = Type)) +
     geom_point(alpha = 0.3) +
     scale_color_manual(
         values = c(
@@ -328,7 +351,8 @@ p = data %>%
         )
     ) +
     theme(legend.position = 'top', legend.title = element_blank()) +
-    geom_vline(aes(xintercept = median_ploidy_G1_G2_cells)) + facet_wrap(group~basename,scales = 'free') +
+    geom_vline(aes(xintercept = median_ploidy_G1_G2_cells)) + facet_wrap(group ~
+                                                                             basename, scales = 'free') +
     xlab('Ploidy') + ylab('Variability')
 
 suppressMessages(ggsave(p, filename = paste0(
@@ -363,7 +387,8 @@ p = data %>%
         )
     ) +
     theme(legend.position = 'top', legend.title = element_blank()) +
-    geom_vline(aes(xintercept = median_ploidy_G1_G2_cells)) + facet_wrap(group~basename, scales = 'free') +
+    geom_vline(aes(xintercept = median_ploidy_G1_G2_cells)) + facet_wrap(group ~
+                                                                             basename, scales = 'free') +
     xlab('Ploidy') + ylab('Variability')
 
 suppressMessages(ggsave(
@@ -394,36 +419,54 @@ bins = foreach(chr = 1:length(Chr_Size$chr),
                    bins
                }
 
+bins = bins %>%
+    makeGRangesFromDataFrame(
+        seqnames.field  = 'chr',
+        start.field = 'start' ,
+        end.field = 'end'
+    )
+
+
 #select Sphase cells
 selected_data = data %>%
     filter(Type == 'S-phase') %>%
     arrange(mean_ploidy_corrected) %>%
     mutate(index = 1:n()) %>%
-    dplyr::select(
-        index,
-        Cell,
-        mean_ploidy,
-        mean_ploidy_corrected,
-        basename,
-        group
-    )
+    dplyr::select(index,
+                  Cell,
+                  mean_ploidy,
+                  mean_ploidy_corrected,
+                  basename,
+                  group)
 # select G1/G2 cells
 G1_G2_cells = data %>%
     filter(Type == 'G1/G2 cells')
 
 # select tracks of G1/G2 cells
 G1_G2_cells_tracks = all_tracks %>%
-    inner_join(G1_G2_cells, by = c('Cell', 'basename','group'))
+    inner_join(G1_G2_cells, by = c('Cell', 'basename', 'group')) %>%
+    makeGRangesFromDataFrame(
+        seqnames.field  = 'chr',
+        start.field = 'start' ,
+        end.field = 'end',
+        keep.extra.columns = T
+    )
 
 #select Sphase traks
 Sphase_tracks = all_tracks %>%
-    inner_join(selected_data, by = c('Cell', 'basename','group')) %>%
+    inner_join(selected_data, by = c('Cell', 'basename', 'group')) %>%
     mutate(
         copy_number_corrected = ifelse(
             mean_ploidy == mean_ploidy_corrected,
             copy_number,
-            copy_number * mean_ploidy_corrected/mean_ploidy
+            copy_number * mean_ploidy_corrected / mean_ploidy
         )
+    ) %>%
+    makeGRangesFromDataFrame(
+        seqnames.field  = 'chr',
+        start.field = 'start' ,
+        end.field = 'end',
+        keep.extra.columns = T
     )
 
 #free some memory
@@ -431,144 +474,73 @@ rm('data')
 rm('all_tracks')
 
 #calculate median CNV across a bin for S cells
-signal_smoothed = foreach(
-    Chr = unique(bins$chr),
-    .combine = 'rbind',
-    .packages = c('tidyverse', 'foreach','matrixStats')
-    ) %dopar% {
-    bins_in_chr = bins[bins$chr == Chr,]
-    bins_chr = foreach(
-        bin = 1:length(bins_in_chr$chr),
-        .combine = 'rbind',
-        .packages = c('tidyverse','matrixStats'),
-        .verbose = T
 
-    ) %do% {
-        track_sign = Sphase_tracks %>%
-            filter(
-                chr == Chr,
-                (start >= bins_in_chr$start[bin] &
-                     end <= bins_in_chr$end[bin]) |
-                    (start < bins_in_chr$start[bin] &
-                         end > bins_in_chr$start[bin]) |
-                    (start < bins_in_chr$end[bin] &
-                         end > bins_in_chr$end[bin])
-            ) %>%
-            mutate(start2=ifelse(start< bins_in_chr$start[bin],bins_in_chr$start[bin],start),
-                   end2=ifelse(end > bins_in_chr$start[bin],bins_in_chr$end[bin],end))%>%
-            group_by(index, basename,group) %>%
-            summarise(
-                chr = bins_in_chr$chr[bin],
-                start = bins_in_chr$start[bin],
-                end = bins_in_chr$end[bin],
-                CN = weightedMedian(x = copy_number_corrected,w = (end2-start2),na.rm = T)
-            )
-        
-        track_sign
-        
-    }
-    bins_chr %>%
-        drop_na()
-}
 
-write_delim(
-    x = signal_smoothed,
-    path = paste0(opt$out, '/tmp.tsv'),
-    delim = '\t',
-    col_names = T
-)
+hits = findOverlaps(bins, Sphase_tracks)
+
+overlaps <-
+    pintersect(Sphase_tracks[subjectHits(hits)], bins[queryHits(hits)])
+
+signal_smoothed = cbind(
+    as_tibble(bins[queryHits(hits)]) %>% dplyr::select(seqnames, start, end) %>%
+        `colnames<-`(c('chr', 'start', 'end')),
+    as_tibble(overlaps) %>% dplyr::select(-seqnames, -start, -end)
+) %>%
+    group_by(index, basename, group, chr, start, end) %>%
+    summarise(CN = weightedMedian(x = copy_number_corrected, w =
+                                      width, na.rm = T))
 
 #free memory
 rm('Sphase_tracks')
-rm('signal_smoothed')
+rm('hits')
+rm('overlaps')
 
 #calculate median CNV across a bin across all the G1/G2 cells
-backgroud_smoothed = foreach(
-    Chr = unique(bins$chr),
-    .combine = 'rbind',
-    .packages = c('tidyverse', 'foreach','matrixStats')
-) %dopar% {
-    bins_in_chr = bins[bins$chr == Chr, ]
-    bins_chr = foreach(
-        bin = 1:length(bins_in_chr$chr),
-        .combine = 'rbind',
-        .packages = c('tidyverse','matrixStats')
-    ) %do% {
-        track_back = G1_G2_cells_tracks %>%
-            filter(
-                chr == Chr,
-                (start >= bins_in_chr$start[bin] &
-                     end <= bins_in_chr$end[bin]) |
-                    (start < bins_in_chr$start[bin] &
-                         end > bins_in_chr$start[bin]) |
-                    (start < bins_in_chr$end[bin] &
-                         end > bins_in_chr$end[bin])
-            ) %>%
-            mutate(start2=ifelse(start< bins_in_chr$start[bin],bins_in_chr$start[bin],start),
-                   end2=ifelse(end > bins_in_chr$start[bin],bins_in_chr$end[bin],end))%>%
-            group_by(Cell, basename,group) %>%
-            summarise(
-                chr = bins_in_chr$chr[bin],
-                start = bins_in_chr$start[bin],
-                end = bins_in_chr$end[bin],
-                background = weightedMedian(x = copy_number,w = (end2-start2),na.rm = T)
-                
-            )
+hits = findOverlaps(bins, G1_G2_cells_tracks)
 
-        track_back
-    }
-    bins_chr %>%
-        drop_na()
-}
+overlaps <-
+    pintersect(G1_G2_cells_tracks[subjectHits(hits)], bins[queryHits(hits)])
 
-backgroud_smoothed = backgroud_smoothed %>%
-    mutate(chr = factor(x =  chr, levels = chr_list))%>%
-    group_by(chr, start, end, basename, group) %>%
-    summarise(background = median(background))
+backgroud_smoothed = cbind(
+    as_tibble(bins[queryHits(hits)]) %>% dplyr::select(seqnames, start, end) %>%
+        `colnames<-`(c('chr', 'start', 'end')),
+    as_tibble(overlaps) %>% dplyr::select(-seqnames, -start, -end)
+) %>%
+    group_by(basename, group, chr, start, end) %>%
+    summarise(background = weightedMedian(x = copy_number, w =
+                                              width, na.rm = T))
+
 
 #free some space
 rm('G1_G2_cells_tracks')
+rm('hits')
+rm('overlaps')
 
 if ('referenceRT' %in% names(opt)) {
     # rebin reference RT
-    Reference_RT = foreach(
-        Chr = unique(bins$chr),
-        .combine = 'rbind',
-        .packages = c('tidyverse', 'foreach','matrixStats')
-    ) %dopar% {
-        bins_in_chr = bins[bins$chr == Chr, ]
-        bins_chr = foreach(
-            bin = 1:length(bins_in_chr$chr),
-            .combine = 'rbind',
-            .packages = c('matrixStats','tidyverse')
-            ) %do% {
-            track_back = Reference_RT %>%
-                filter(
-                    chr == Chr,
-                    (start >= bins_in_chr$start[bin] &
-                         end <= bins_in_chr$end[bin]) |
-                        (start < bins_in_chr$start[bin] &
-                             end > bins_in_chr$start[bin]) |
-                        (start < bins_in_chr$end[bin] &
-                             end > bins_in_chr$end[bin])
-                ) %>%
-                mutate(start2=ifelse(start < bins_in_chr$start[bin],bins_in_chr$start[bin],start),
-                        end2=ifelse(end > bins_in_chr$start[bin],bins_in_chr$end[bin],end))%>%
-                summarise(
-                    chr = bins_in_chr$chr[bin],
-                    start = bins_in_chr$start[bin],
-                    end = bins_in_chr$end[bin],
-                    RT = weightedMedian(x = RT,w = (end2-start2),na.rm = T)
-
-                ) 
-            track_back %>%
-                filter(!is.na(RT))
-        }
-        bins_chr
-    }
+    Reference_RT = Reference_RT %>%
+        drop_na() %>%
+        makeGRangesFromDataFrame(
+            seqnames.field = 'chr',
+            start.field = 'start',
+            end.field = 'end',
+            keep.extra.columns = T
+        )
     
-    #resize 0-1
-    Reference_RT = Reference_RT  %>%
+    hits = findOverlaps(bins, Reference_RT)
+    
+    overlaps <-
+        pintersect(Reference_RT[subjectHits(hits)], bins[queryHits(hits)])
+    
+    Reference_RT = cbind(
+        as_tibble(bins[queryHits(hits)]) %>% dplyr::select(seqnames, start, end) %>%
+            `colnames<-`(c('chr', 'start', 'end')),
+        as_tibble(overlaps) %>% dplyr::select(-seqnames, -start, -end)
+    ) %>%
+        group_by(chr, start, end) %>%
+        summarise(RT = weightedMedian(x = RT, w =
+                                          width, na.rm = T)) %>%
+        ungroup() %>%
         mutate(chr = factor(x =  chr, levels = chr_list),
                RT = (RT - min(RT)) / (max(RT) - min(RT)))
     
@@ -586,23 +558,23 @@ if ('referenceRT' %in% names(opt)) {
         delim = '\t',
         col_names = T
     )
+    
+    rm('hits')
+    rm('overlaps')
+    
+    
 }
 
 #merge signal and bg and calculate their ratio
-signal_smoothed = read_table_chunkwise(paste0(opt$out, '/tmp.tsv'),
-                                       chunk_size = 100000,
-                                       format = 'table')  %>%
-    mutate(chr = factor(x =  chr, levels = chr_list),
-           basename=as.character(basename))%>%
-    inner_join(backgroud_smoothed, by = c("chr", "start", "end", "basename",'group')) %>%
-    mutate(CN_bg = log2(CN / background))
-
-signal_smoothed = collect(signal_smoothed)
-
 signal_smoothed = signal_smoothed %>%
+    ungroup() %>%
+    mutate(chr = factor(x =  chr, levels = chr_list),
+           basename = as.character(basename)) %>%
+    inner_join(backgroud_smoothed,
+               by = c("chr", "start", "end", "basename", 'group')) %>%
+    mutate(CN_bg = log2(CN / background)) %>%
     drop_na() %>%
-    filter(is.finite(CN_bg)) %>%
-    mutate(chr = factor(x = chr, levels = chr_list))
+    filter(is.finite(CN_bg))
 
 # remouve control track
 rm('backgroud_smoothed')
@@ -613,8 +585,8 @@ selecte_th = foreach(
     .combine = 'rbind',
     .packages = c('foreach', 'tidyverse')
 ) %dopar% {
-    sub_sig=signal_smoothed%>%
-        filter(basename==line)
+    sub_sig = signal_smoothed %>%
+        filter(basename == line)
     
     #identify range within looking for a CNV treshold to define replicated and not replicated values
     range = seq(0, 1, 0.01)
@@ -623,9 +595,9 @@ selecte_th = foreach(
                       .combine = 'rbind',
                       .packages = 'tidyverse') %do% {
                           summary = sub_sig %>%
-                              mutate(Rep = ifelse(CN_bg >= i,T, F),
+                              mutate(Rep = ifelse(CN_bg >= i, T, F),
                                      Error = (Rep - CN_bg) ^ 2) %>%
-                              group_by(index, basename,group)  %>%
+                              group_by(index, basename, group)  %>%
                               summarise(summary = sum(Error))
                           
                           data.frame(
@@ -641,9 +613,9 @@ selecte_th = foreach(
 selecte_th = selecte_th %>%
     group_by(index, basename) %>%
     filter(sum_error == min(sum_error)) %>%
-    summarise(th = min(th))%>%
-    ungroup%>%
-    mutate(basename=as.character(basename))
+    summarise(th = min(th)) %>%
+    ungroup %>%
+    mutate(basename = as.character(basename))
 
 # mark replicated bins
 signal_smoothed = signal_smoothed %>%
@@ -652,16 +624,16 @@ signal_smoothed = signal_smoothed %>%
 
 #identify new distribution in the S phase based the ammount of replicated bins
 new_index_list = signal_smoothed %>%
-    group_by(index,basename, group) %>%
+    group_by(index, basename, group) %>%
     summarise(perc_replication = mean(Rep)) %>%
     ungroup() %>%
     arrange(perc_replication) %>%
     group_by(group) %>%
     mutate(newIndex = 1:n()) %>%
-    dplyr::select(index,basename, newIndex,group)
+    dplyr::select(index, basename, newIndex, group)
 
 signal_smoothed = signal_smoothed %>%
-    inner_join(new_index_list, by = c('index','basename','group'))
+    inner_join(new_index_list, by = c('index', 'basename', 'group'))
 
 stopCluster(cl)
 
@@ -669,17 +641,17 @@ stopCluster(cl)
 signal_smoothed = signal_smoothed %>%
     group_by(index, group) %>%
     mutate(mean_CN = mean(Rep),
-           groups=ceiling(mean_CN*10))
+           groups = ceiling(mean_CN * 10))
 
 #plor profile binning
 plot = signal_smoothed %>%
     group_by(index, group) %>%
-    summarise(Rep_percentage = mean(Rep))%>%
+    summarise(Rep_percentage = mean(Rep)) %>%
     ggplot(aes(Rep_percentage, color = group)) +
-    geom_density(aes(y=..scaled..)) +
-    scale_x_continuous(labels = scales::percent)+
-    xlab('Percentage of the genome that has been replicated')+
-    ylab('density')+coord_cartesian(xlim = c(0,1))
+    geom_density(aes(y = ..scaled..)) +
+    scale_x_continuous(labels = scales::percent) +
+    xlab('Percentage of the genome that has been replicated') +
+    ylab('density') + coord_cartesian(xlim = c(0, 1))
 
 suppressMessages(ggsave(
     plot,
@@ -693,11 +665,11 @@ suppressMessages(ggsave(
 
 #matrix for the correlation
 signal_smoothed = signal_smoothed %>%
-    ungroup()%>%
-    arrange(group, newIndex)%>%
+    ungroup() %>%
+    arrange(group, newIndex) %>%
     unite(index, c(group, newIndex), sep = ' _ ') %>%
-    mutate(index=factor(index,levels = unique(index)))
-mat = signal_smoothed%>%
+    mutate(index = factor(index, levels = unique(index)))
+mat = signal_smoothed %>%
     unite(pos, c(chr, start), sep = ':') %>%
     mutate(Rep = as.numeric(Rep)) %>%
     dplyr::select(pos, index, Rep) %>%
@@ -709,7 +681,7 @@ mat = signal_smoothed%>%
 #correlation
 results = cor(mat, mat)
 basenames = str_extract(colnames(mat), '[a-z|A-Z|0-9]{1,100} ')
-Index=colnames(mat)
+Index = colnames(mat)
 basename_n = basenames
 
 for (i in 1:length(unique(basename_n))) {
@@ -757,20 +729,21 @@ heatmap.2(
     labRow = FALSE,
     labCol = FALSE
 )
+
 invisible(dev.off())
 
-#filter cells that do not correlate 
+#filter cells that do not correlate
 
-to_keep=foreach(i=1:length(unique(basename_n)))%do%{
-    sub_mat=results[basename_n==i,basename_n==i]
-    diag(sub_mat)=0
-    !rowQuantiles(x = sub_mat,probs = 0.95)<= opt$min_correlation
+to_keep = foreach(i = 1:length(unique(basename_n))) %do% {
+    sub_mat = results[basename_n == i, basename_n == i]
+    diag(sub_mat) = 0
+    ! rowQuantiles(x = sub_mat, probs = 0.95) <= opt$min_correlation
 }
 
-to_keep=unlist(to_keep)
-results=results[to_keep,to_keep]
-basename_n=basename_n[to_keep]
-Index=Index[to_keep]
+to_keep = unlist(to_keep)
+results = results[to_keep, to_keep]
+basename_n = basename_n[to_keep]
+Index = Index[to_keep]
 
 write.table(
     results,
@@ -812,28 +785,29 @@ heatmap.2(
 invisible(dev.off())
 
 #filter out samples that don't correlate ans save
-signal_smoothed=signal_smoothed %>%
-    filter(index %in% Index)%>%
-    separate(index,c('basename','index'))
+signal_smoothed = signal_smoothed %>%
+    filter(index %in% Index) %>%
+    separate(index, c('basename', 'index'))
 
-rep_percentage=signal_smoothed%>%
-    group_by(basename,index)%>%
+rep_percentage = signal_smoothed %>%
+    group_by(basename, index) %>%
     summarise(Rep_percentage = mean(Rep))
 
-plot=rep_percentage%>%
+plot = rep_percentage %>%
     ggplot(aes(Rep_percentage, color = basename)) +
-    geom_density(aes(y=..scaled..)) +
-    scale_x_continuous(labels = scales::percent)+
-    xlab('Percentage of the genome that has been replicated')+
-    ylab('density')+coord_cartesian(xlim = c(0,1))
+    geom_density(aes(y = ..scaled..)) +
+    scale_x_continuous(labels = scales::percent) +
+    xlab('Percentage of the genome that has been replicated') +
+    ylab('density') + coord_cartesian(xlim = c(0, 1))
 
-suppressMessages(ggsave(plot = plot,
-        filename = paste0(
-            opt$out,
-            paste(opt$base_name, collapse = '_'),
-            'percentage_of_replicating_cells_after_filtering.pdf'
-        )
-    ))
+suppressMessages(ggsave(
+    plot = plot,
+    filename = paste0(
+        opt$out,
+        paste(opt$base_name, collapse = '_'),
+        'percentage_of_replicating_cells_after_filtering.pdf'
+    )
+))
 
 new_index_list = rep_percentage %>%
     ungroup() %>%
@@ -843,8 +817,8 @@ new_index_list = rep_percentage %>%
     dplyr::select(index, newIndex, basename)
 
 signal_smoothed = signal_smoothed %>%
-    ungroup()%>%
-    inner_join(new_index_list, by = c('index', 'basename'))%>%
+    ungroup() %>%
+    inner_join(new_index_list, by = c('index', 'basename')) %>%
     dplyr::select(-index)
 
 
@@ -926,14 +900,16 @@ if (opt$plot) {
                 )
             
             plot =  ggplot() +
-                geom_rect(data=track_toplot,
+                geom_rect(
+                    data = track_toplot,
                     aes(
                         xmin = start,
                         xmax = end,
                         ymin = -newIndex,
                         ymax = -newIndex - 1,
-                        fill = as.numeric(Rep) 
-                    ))+ geom_rect(
+                        fill = as.numeric(Rep)
+                    )
+                ) + geom_rect(
                     data = s50_toplot,
                     aes(
                         xmin = start,
@@ -953,8 +929,10 @@ if (opt$plot) {
                         paste(x / 1000000, 'Mb', sep = ' ')
                 ) +
                 labs(y = 'S phase progression', fill = "Replication Timing\nBinary Replication Profile\n") +
-                theme(legend.position = 'top',
-                      axis.text.x = element_text(angle = 45, hjust = 1))
+                theme(
+                    legend.position = 'top',
+                    axis.text.x = element_text(angle = 45, hjust = 1)
+                )
             
             if ('referenceRT' %in% names(opt)) {
                 RT_toplot = Reference_RT %>%
@@ -980,30 +958,28 @@ if (opt$plot) {
                     ) +
                     scale_y_discrete(
                         limits = c(60, 20, -seq(
-                            20, max(track_toplot$newIndex), round((max(
-                                track_toplot$newIndex
-                            ) - 20) / 20)
+                            20, max(track_toplot$newIndex), round((
+                                max(track_toplot$newIndex) - 20
+                            ) / 20)
                         )),
-                        labels = c('referenceRT','RT',  seq(
-                            20, max(track_toplot$newIndex), round((max(
-                                track_toplot$newIndex
-                            ) - 20) / 20)
+                        labels = c('referenceRT', 'RT',  seq(
+                            20, max(track_toplot$newIndex), round((
+                                max(track_toplot$newIndex) - 20
+                            ) / 20)
                         ))
-                    ) 
-            }else{
-                plot = plot+
-                    scale_y_discrete(
-                        limits = c(20, -seq(
-                            20, max(track_toplot$newIndex), round((max(
-                                track_toplot$newIndex
-                            ) - 20) / 20)
-                        )),
-                        labels = c('RT',  seq(
-                            20, max(track_toplot$newIndex), round((max(
-                                track_toplot$newIndex
-                            ) - 20) / 20)
-                        ))
-                    ) 
+                    )
+            } else{
+                plot = plot +
+                    scale_y_discrete(limits = c(20, -seq(
+                        20, max(track_toplot$newIndex), round((
+                            max(track_toplot$newIndex) - 20
+                        ) / 20)
+                    )),
+                    labels = c('RT',  seq(
+                        20, max(track_toplot$newIndex), round((
+                            max(track_toplot$newIndex) - 20
+                        ) / 20)
+                    )))
             }
             
             suppressMessages(ggsave(
@@ -1021,8 +997,8 @@ if (opt$plot) {
                     '.pdf'
                 )
             ))
-        
-        } 
+            
+        }
     } else{
         #reshape regins
         opt$region = data.frame(coord = str_split(opt$region, pattern = ',')[[1]]) %>%
@@ -1062,24 +1038,26 @@ if (opt$plot) {
                 )
             
             plot =  ggplot() +
-                geom_rect(data=track_toplot,
-                          aes(
-                              xmin = start,
-                              xmax = end,
-                              ymin = -newIndex,
-                              ymax = -newIndex - 1,
-                              fill = as.numeric(Rep) 
-                          ))+ geom_rect(
-                              data = s50_toplot,
-                              aes(
-                                  xmin = start,
-                                  xmax = end,
-                                  ymin = 0,
-                                  ymax = 40,
-                                  fill = RT
-                              ),
-                              inherit.aes = F
-                          ) +
+                geom_rect(
+                    data = track_toplot,
+                    aes(
+                        xmin = start,
+                        xmax = end,
+                        ymin = -newIndex,
+                        ymax = -newIndex - 1,
+                        fill = as.numeric(Rep)
+                    )
+                ) + geom_rect(
+                    data = s50_toplot,
+                    aes(
+                        xmin = start,
+                        xmax = end,
+                        ymin = 0,
+                        ymax = 40,
+                        fill = RT
+                    ),
+                    inherit.aes = F
+                ) +
                 facet_grid(chr ~ basename, scale = 'free') +
                 scale_fill_gradient(low = 'blue',
                                     high = 'red',
@@ -1089,8 +1067,10 @@ if (opt$plot) {
                         paste(x / 1000000, 'Mb', sep = ' ')
                 ) +
                 labs(y = 'S phase progression', fill = "RT") +
-                theme(legend.position = 'top',
-                      axis.text.x = element_text(angle = 45, hjust = 1))
+                theme(
+                    legend.position = 'top',
+                    axis.text.x = element_text(angle = 45, hjust = 1)
+                )
             
             
             if ('referenceRT' %in% names(opt)) {
@@ -1117,32 +1097,30 @@ if (opt$plot) {
                     ) +
                     scale_y_discrete(
                         limits = c(60, 20, -seq(
-                            20, max(track_toplot$newIndex), round((max(
-                                track_toplot$newIndex
-                            ) - 20) / 20)
+                            20, max(track_toplot$newIndex), round((
+                                max(track_toplot$newIndex) - 20
+                            ) / 20)
                         )),
-                        labels = c('RT reference','RT',  seq(
-                            20, max(track_toplot$newIndex), round((max(
-                                track_toplot$newIndex
-                            ) - 20) / 20)
+                        labels = c('RT reference', 'RT',  seq(
+                            20, max(track_toplot$newIndex), round((
+                                max(track_toplot$newIndex) - 20
+                            ) / 20)
                         ))
-                    ) 
-            }else{
-                plot = plot+
-                    scale_y_discrete(
-                        limits = c(20, -seq(
-                            20, max(track_toplot$newIndex), round((max(
-                                track_toplot$newIndex
-                            ) - 20) / 20)
-                        )),
-                        labels = c('RT',  seq(
-                            20, max(track_toplot$newIndex), round((max(
-                                track_toplot$newIndex
-                            ) - 20) / 20)
-                        ))
-                    ) 
+                    )
+            } else{
+                plot = plot +
+                    scale_y_discrete(limits = c(20, -seq(
+                        20, max(track_toplot$newIndex), round((
+                            max(track_toplot$newIndex) - 20
+                        ) / 20)
+                    )),
+                    labels = c('RT',  seq(
+                        20, max(track_toplot$newIndex), round((
+                            max(track_toplot$newIndex) - 20
+                        ) / 20)
+                    )))
             }
-            plot = plot + facet_wrap(~ basename)
+            plot = plot + facet_wrap( ~ basename)
             suppressMessages(ggsave(
                 plot,
                 filename = paste0(
@@ -1156,8 +1134,8 @@ if (opt$plot) {
                     '-',
                     End,
                     '.pdf'
-                ))
-            )
+                )
+            ))
         }
     }
 }
@@ -1177,7 +1155,7 @@ if ('referenceRT' %in% names(opt)) {
     RTs =  s50 %>%
         ungroup() %>%
         select(chr, start, end, RT, basename) %>%
-        mutate(RT = RT )
+        mutate(RT = RT)
 }
 
 pdf(
@@ -1254,7 +1232,7 @@ if (length(RT_type) != 1) {
         key.title = 'Pearson',
         col = color(100)
     )
-    invisible( dev.off())
+    invisible(dev.off())
 }
 
 #remouve tmp file
@@ -1290,7 +1268,11 @@ signal_smoothed = signal_smoothed %>%
 cl <- makeCluster(opt$cores)
 registerDoSNOW(cl)
 
-x = foreach(seq = seq(0, 10, 0.05), .combine = 'rbind',.packages = c('tidyverse')) %dopar%{
+x = foreach(
+    seq = seq(0, 10, 0.05),
+    .combine = 'rbind',
+    .packages = c('tidyverse')
+) %dopar% {
     signal_smoothed %>%
         mutate(rep = CN_bg <= seq) %>%
         group_by(chr, start, end, basename) %>%
@@ -1311,19 +1293,42 @@ s50_bin = x %>%
     mutate(dist = abs(0.5 - percentage)) %>%
     group_by(basename, chr, start, end) %>%
     filter(dist == min(dist)) %>%
-    mutate(time50 = time) %>%
+    mutate(time50 = median(time)) %>%
     dplyr::select(-dist, -time, -percentage, -RT)
 
 x = x %>%
     inner_join(s50_bin, by = c("chr", "start", "end", "basename")) %>%
     group_by(basename) %>%
-    mutate(time = time - time50,
-           Cat_RT = ifelse(RT > median(RT), 'Early', 'Late'))
+    mutate(
+        time = time - time50,
+        Cat_RT = ifelse(RT < 2, '5 - Very Late',
+                        ifelse(
+                            RT >= 2 & RT < 4, '4 - Late',
+                            ifelse(
+                                RT >= 4 & RT < 6,
+                                '3 - Mid',
+                                ifelse(RT >= 6 &
+                                           RT < 8, '2 - Early',
+                                       '1 - Very Early')
+                            )
+                        )),
+        Cat_RT = factor(
+            Cat_RT,
+            levels = c(
+                'All',
+                '1 - Very Early',
+                '2 - Early',
+                '3 - Mid',
+                '4 - Late',
+                '5 - Very Late'
+            )
+        )
+    )
 
-x=rbind(x,x%>%
-            mutate(Cat_RT='All'))
+x = rbind(x, x %>%
+              mutate(Cat_RT = 'All'))
 
-x%>%
+x %>%
     write_tsv(paste0(
         opt$out,
         '/',
@@ -1340,58 +1345,74 @@ fitted_data = foreach(
     temp = foreach(
         EL = unique(x$Cat_RT),
         .combine = 'rbind',
-        .packages = c('tidyverse','foreach')
+        .packages = c('tidyverse', 'foreach')
     ) %do% {
         T25_75 = function(df, name, EL) {
             model = nls(percentage ~ SSlogis(time, Asym, xmid, scal),
                         data = df[, c('percentage', 'time')])
             min = min(df$time)
             max = max(df$time)
-            data = predict(model, newdata = data.frame(time = seq(min, max, 0.01)),type="l")
+            data = predict(model,
+                           newdata = data.frame(time = seq(min, max, 0.01)),
+                           type = "l")
             result = data.frame(
                 time = seq(min, max, 0.01),
                 percentage = data,
                 basename = name
             )
             t = result %>%
-                mutate(distance75 = abs(percentage - 0.75),
-                       distance25 = abs(percentage - 0.25)) %>%
-                mutate(min75 = min(distance75),
-                       min25=min(distance25),
-                       t75=distance75 == min75,
-                       t25=distance25 == min25) %>%
-                dplyr::select(basename, time,percentage, t75,t25)  %>%
+                mutate(
+                    distance75 = abs(percentage - 0.75),
+                    distance25 = abs(percentage - 0.25)
+                ) %>%
+                mutate(
+                    min75 = min(distance75),
+                    min25 = min(distance25),
+                    t75 = distance75 == min75,
+                    t25 = distance25 == min25
+                ) %>%
+                dplyr::select(basename, time, percentage, t75, t25)  %>%
                 mutate(Cat_RT = EL)
             
             return(t)
         }
         
         t = T25_75(df = x[x$basename == basename &
-                              x$Cat_RT == EL, ], basename, EL)
+                              x$Cat_RT == EL,], basename, EL)
     }
     temp
 }
 
-t=fitted_data%>%filter(t75|t25)%>%
-    gather('t','value',t25,t75)%>%
-    filter(value)%>%
-    dplyr::select(-percentage,-value)%>%
-    spread(t,time)
+t = fitted_data %>% filter(t75 | t25) %>%
+    gather('t', 'value', t25, t75) %>%
+    filter(value) %>%
+    dplyr::select(-percentage, -value) %>%
+    spread(t, time)
 
 p = ggplot() +
-    stat_density_2d(data=x,geom = "polygon", aes(alpha = ..level.., fill = basename,y = percentage, x = time))+
-    geom_line(data=fitted_data, aes(y = percentage, x = time), color='blue',inherit.aes=F)+
+    stat_density_2d(
+        data = x,
+        geom = "polygon",
+        aes(
+            alpha = ..level..,
+            fill = basename,
+            y = percentage,
+            x = time
+        )
+    ) +
+    geom_line(
+        data = fitted_data,
+        aes(y = percentage, x = time),
+        color = 'blue',
+        inherit.aes = F
+    ) +
     geom_hline(yintercept = c(0.75, 0.25), color = 'yellow') +
-    geom_vline(
-        data = t,
-        aes(xintercept = t25),
-        color = 'red'
-    )+
-    geom_vline(
-        data = t,
-        aes(xintercept = t75),
-        color = 'red'
-    )+
+    geom_vline(data = t,
+               aes(xintercept = t25),
+               color = 'red') +
+    geom_vline(data = t,
+               aes(xintercept = t75),
+               color = 'red') +
     geom_text(
         data = t,
         aes(
@@ -1404,8 +1425,8 @@ p = ggplot() +
         inherit.aes = F
     ) +
     facet_grid(basename ~ Cat_RT) +
-    ggplot2::scale_x_reverse()+
-    scale_y_continuous(labels = scales::percent_format())+
+    ggplot2::scale_x_reverse() +
+    scale_y_continuous(labels = scales::percent_format()) +
     ylab('Replicated Bins')
 
 suppressMessages(ggsave(p,
@@ -1442,7 +1463,11 @@ if (opt$Var_against_reference) {
     cl <- makeCluster(opt$cores)
     registerDoSNOW(cl)
     
-    x = foreach(seq = seq(0, 10, 0.05), .combine = 'rbind',.packages = c('tidyverse')) %do%{
+    x = foreach(
+        seq = seq(0, 10, 0.05),
+        .combine = 'rbind',
+        .packages = c('tidyverse')
+    ) %do% {
         signal_smoothed %>%
             mutate(rep = CN_bg <= seq) %>%
             group_by(chr, start, end, basename) %>%
@@ -1463,7 +1488,7 @@ if (opt$Var_against_reference) {
         mutate(dist = abs(0.5 - percentage)) %>%
         group_by(basename, chr, start, end) %>%
         filter(dist == min(dist)) %>%
-        mutate(time50 = time) %>%
+        mutate(time50 = median(time)) %>%
         dplyr::select(-dist, -time, -percentage, -RT)
     
     x = x %>%
@@ -1471,9 +1496,9 @@ if (opt$Var_against_reference) {
         group_by(basename) %>%
         mutate(time = time - time50,
                Cat_RT = ifelse(RT > median(RT), 'Early', 'Late'))
-    x=rbind(x,x%>%
-                mutate(Cat_RT='All'))
-    x%>%
+    x = rbind(x, x %>%
+                  mutate(Cat_RT = 'All'))
+    x %>%
         write_tsv(paste0(
             opt$out,
             '/',
@@ -1490,58 +1515,74 @@ if (opt$Var_against_reference) {
         temp = foreach(
             EL = unique(x$Cat_RT),
             .combine = 'rbind',
-            .packages = c('tidyverse','foreach')
+            .packages = c('tidyverse', 'foreach')
         ) %do% {
             T25_75 = function(df, name, EL) {
                 model = nls(percentage ~ SSlogis(time, Asym, xmid, scal),
                             data = df[, c('percentage', 'time')])
                 min = min(df$time)
                 max = max(df$time)
-                data = predict(model, newdata = data.frame(time = seq(min, max, 0.01)),type="l")
+                data = predict(model,
+                               newdata = data.frame(time = seq(min, max, 0.01)),
+                               type = "l")
                 result = data.frame(
                     time = seq(min, max, 0.01),
                     percentage = data,
                     basename = name
                 )
                 t = result %>%
-                    mutate(distance75 = abs(percentage - 0.75),
-                           distance25 = abs(percentage - 0.25)) %>%
-                    mutate(min75 = min(distance75),
-                           min25=min(distance25),
-                           t75=distance75 == min75,
-                           t25=distance25 == min25) %>%
-                    dplyr::select(basename, time,percentage, t75,t25)  %>%
+                    mutate(
+                        distance75 = abs(percentage - 0.75),
+                        distance25 = abs(percentage - 0.25)
+                    ) %>%
+                    mutate(
+                        min75 = min(distance75),
+                        min25 = min(distance25),
+                        t75 = distance75 == min75,
+                        t25 = distance25 == min25
+                    ) %>%
+                    dplyr::select(basename, time, percentage, t75, t25)  %>%
                     mutate(Cat_RT = EL)
                 
                 return(t)
             }
             
             t = T25_75(df = x[x$basename == basename &
-                                  x$Cat_RT == EL, ], basename, EL)
+                                  x$Cat_RT == EL,], basename, EL)
         }
         temp
     }
     
-    t=fitted_data%>%filter(t75|t25)%>%
-        gather('t','value',t25,t75)%>%
-        filter(value)%>%
-        dplyr::select(-percentage,-value)%>%
-        spread(t,time)
+    t = fitted_data %>% filter(t75 | t25) %>%
+        gather('t', 'value', t25, t75) %>%
+        filter(value) %>%
+        dplyr::select(-percentage, -value) %>%
+        spread(t, time)
     
     p = ggplot() +
-        stat_density_2d(data=x,geom = "polygon", aes(alpha = ..level.., fill = basename,y = percentage, x = time))+
-        geom_line(data=fitted_data, aes(y = percentage, x = time), color='blue',inherit.aes=F)+
+        stat_density_2d(
+            data = x,
+            geom = "polygon",
+            aes(
+                alpha = ..level..,
+                fill = basename,
+                y = percentage,
+                x = time
+            )
+        ) +
+        geom_line(
+            data = fitted_data,
+            aes(y = percentage, x = time),
+            color = 'blue',
+            inherit.aes = F
+        ) +
         geom_hline(yintercept = c(0.75, 0.25), color = 'yellow') +
-        geom_vline(
-            data = t,
-            aes(xintercept = t25),
-            color = 'red'
-        )+
-        geom_vline(
-            data = t,
-            aes(xintercept = t75),
-            color = 'red'
-        )+
+        geom_vline(data = t,
+                   aes(xintercept = t25),
+                   color = 'red') +
+        geom_vline(data = t,
+                   aes(xintercept = t75),
+                   color = 'red') +
         geom_text(
             data = t,
             aes(
@@ -1553,27 +1594,30 @@ if (opt$Var_against_reference) {
             color = 'black',
             inherit.aes = F
         ) +
-        facet_grid(basename~Cat_RT) +
-        ggplot2::scale_x_reverse()+
-        scale_y_continuous(labels = scales::percent_format())+
+        facet_grid(basename ~ Cat_RT) +
+        ggplot2::scale_x_reverse() +
+        scale_y_continuous(labels = scales::percent_format()) +
         ylab('Percentage of cells')
     
-    suppressMessages(ggsave(p,
-                            filename = paste0(
-                                opt$out,
-                                '/',
-                                paste(opt$base_name, collapse = '_'),
-                                '_variability_plot_Early_Late_ref_RT.pdf'
-                            )))
+    suppressMessages(ggsave(
+        p,
+        filename = paste0(
+            opt$out,
+            '/',
+            paste(opt$base_name, collapse = '_'),
+            '_variability_plot_Early_Late_ref_RT.pdf'
+        )
+    ))
     
-    suppressMessages(ggsave(p,
-                            filename = paste0(
-                                opt$out,
-                                '/',
-                                paste(opt$base_name, collapse = '_'),
-                                '_variability_plot_Early_Late_ref_RT.jpg'
-                            )))
+    suppressMessages(ggsave(
+        p,
+        filename = paste0(
+            opt$out,
+            '/',
+            paste(opt$base_name, collapse = '_'),
+            '_variability_plot_Early_Late_ref_RT.jpg'
+        )
+    ))
     
 }
 print('done')
-
