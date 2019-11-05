@@ -50,12 +50,20 @@ elif [ "$1" == "fastqtoBAM" ];then
        Rscript $DIR/modules/Kronos_fastqtoBAM.R "${@:2}"
     fi
 
-elif [ "$1" == "compare" ];then
-    if test "$#" == 1 ; then
-        echo Usage: Kronos compare [options]
-        Rscript $DIR/modules/Kronos_compare.R -h | grep -v Kronos_compare
+elif [ "$1" == "compare" ] && [ "$2" == "RT" ];then
+    if test "$#" == 2 ; then
+        echo Usage: Kronos compare RT [options]
+        Rscript $DIR/modules/Kronos_compare_RT.R -h | grep -v Kronos_compare
     else
-       Rscript $DIR/modules/Kronos_compare.R "${@:2}"
+       Rscript $DIR/modules/Kronos_compare_RT.R "${@:3}"
+    fi
+
+elif [ "$1" == "compare" ] && [ "$2" == "TW" ];then
+    if test "$#" == 2 ; then
+        echo Usage: Kronos compare TW [options]
+        Rscript $DIR/modules/Kronos_compare_TW.R -h | grep -v Kronos_compare
+    else
+       Rscript $DIR/modules/Kronos_compare_TW.R "${@:3}"
     fi
 else
 
@@ -68,7 +76,9 @@ commands:\n
 \t 10xtoKronos\t Converts 10X genomics files in a format that Kronos can use
 \t diagnostic \t Plotting tools to identify appropriate tresholds for Kronos RT
 \t RT         \t Calculates scReplication profiles and scRT
-\t compare    \t Compares results from multiple experiments
+\t compare RT    \t Compares RT results from multiple experiments
+\t compare TW \t Compares variability from multiple experiments and/or over multiple regions
+
 "
 
 fi

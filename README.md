@@ -49,7 +49,8 @@ Run the script
     10xtoKronos     Converts 10X genomics files in a format that Kronos can use
     diagnostic      Plotting tools to identify appropriate tresholds for Kronos RT
     RT              Calculates scReplication profiles and scRT
-    compare         Compares results from multiple experiments
+    compare RT      Compares RT results from multiple experiments
+    compare TW      Compares variability from multiple experiments and/or over multiple regions
 
 -- fastqtoBAM module
 
@@ -147,7 +148,7 @@ Run the script
     --min_correlation=DOUBLE                            Minimum correlation value between one cell and its best correlating cell for this cell to not be discarded [default= 0.25] 
     -h, --help                                          Show this help message and exit
 
--- compare module
+-- compare  RT module
 
     ./Kronos compare [options]
 
@@ -161,6 +162,19 @@ Run the script
     -n INTEGER, --n_regions=INTEGER                     number of regions to plot
     -r CHARACTER, --region=CHARACTER                    Region to plot  chr:start-end (multiple regins can be separated by a comma)
     -f CHARACTER, --basename_filter=CHARACTER           Filter out unwanted samples for RT files
+    -h, --help                                          Show this help message and exit
+
+-- compare  TW module
+
+    ./Kronos compare TW [options]
+
+    Options:
+    -F CHARACTER, --file=CHARACTER                      Variability file produced by Kronos RT, if multiple files are provided they have to be separated by a comma
+    -R CHARACTER, --regions=CHARACTER                   Genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header.
+    -b, --both_annotations                              Plot Twidth divided by both annotations
+    -r CHARACTER, --regions2=CHARACTER                  Second genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header. If option b is activated it substiutes the RT division.
+    -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
+    -c INTEGER, --cores=INTEGER                         Numbers of parallel jobs to run [default= 3] 
     -h, --help                                          Show this help message and exit
 
 ### Requirements
@@ -205,11 +219,11 @@ Run the script
 
     other attached packages:
     [1] scales_1.0.0         Cairo_1.5-10         Rbowtie2_1.4.0       RColorBrewer_1.1-2   colorRamps_2.3       matrixStats_0.54.0  
-    [7] chunked_0.4          optparse_1.6.2       LaplacesDemon_16.1.1 modes_0.7.0          MASS_7.3-51.4        gplots_3.0.1.1      
-    [13] DNAcopy_1.56.0       DescTools_0.99.28    Rsamtools_1.34.1     Biostrings_2.50.2    XVector_0.22.0       GenomicRanges_1.34.0
-    [19] GenomeInfoDb_1.18.2  IRanges_2.16.0       S4Vectors_0.20.1     BiocGenerics_0.28.0  doSNOW_1.0.16        snow_0.4-3          
-    [25] iterators_1.0.10     foreach_1.4.4        forcats_0.4.0        stringr_1.4.0        dplyr_0.8.3          purrr_0.3.2         
-    [31] readr_1.3.1          tidyr_0.8.3          tibble_2.1.3         ggplot2_3.2.0        tidyverse_1.2.1      BiocManager_1.30.4  
+    [7]  optparse_1.6.2       LaplacesDemon_16.1.1 modes_0.7.0          MASS_7.3-51.4        gplots_3.0.1.1      DNAcopy_1.56.0
+    [13] DescTools_0.99.28    Rsamtools_1.34.1     Biostrings_2.50.2    XVector_0.22.0       GenomicRanges_1.34.0 GenomeInfoDb_1.18.2
+    [19] IRanges_2.16.0       S4Vectors_0.20.1     BiocGenerics_0.28.0  doSNOW_1.0.16        snow_0.4-3          iterators_1.0.10
+    [25] foreach_1.4.4        forcats_0.4.0        stringr_1.4.0        dplyr_0.8.3          purrr_0.3.2         readr_1.3.1
+    [31] tidyr_0.8.3          tibble_2.1.3         ggplot2_3.2.0        tidyverse_1.2.1      BiocManager_1.30.4  
 
     loaded via a namespace (and not attached):
     [1] nlme_3.1-140           bitops_1.0-6           lubridate_1.7.4        httr_1.4.0             tools_3.5.2            backports_1.1.4       
