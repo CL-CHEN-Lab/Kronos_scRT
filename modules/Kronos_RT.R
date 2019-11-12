@@ -1235,9 +1235,6 @@ if (length(RT_type) != 1) {
     invisible(dev.off())
 }
 
-#remouve tmp file
-system(paste0('rm ', opt$out, 'tmp.tsv'))
-
 # filter out extreme bins
 bins = signal_smoothed %>%
     group_by(basename) %>%
@@ -1301,17 +1298,12 @@ x = x %>%
     group_by(basename) %>%
     mutate(
         time = time - time50,
-        Cat_RT = ifelse(RT < 2, '5 - Very Late',
-                        ifelse(
-                            RT >= 2 & RT < 4, '4 - Late',
-                            ifelse(
-                                RT >= 4 & RT < 6,
-                                '3 - Mid',
-                                ifelse(RT >= 6 &
-                                           RT < 8, '2 - Early',
-                                       '1 - Very Early')
-                            )
-                        )),
+        Cat_RT = case_when(
+           RT < 2 ~ '5 - Very Late',
+           RT >= 2 & RT < 4 ~ '4 - Late',
+           RT >= 4 & RT < 6 ~ '3 - Mid',
+           RT >= 6 & RT < 8 ~ '2 - Early',
+           RT >= 8 ~ '1 - Very Early'),
         Cat_RT = factor(
             Cat_RT,
             levels = c(
@@ -1494,8 +1486,26 @@ if (opt$Var_against_reference) {
     x = x %>%
         inner_join(RT_ref_bins, by = c("chr", "start", "end", "basename")) %>%
         group_by(basename) %>%
-        mutate(time = time - time50,
-               Cat_RT = ifelse(RT > median(RT), 'Early', 'Late'))
+        mutate(
+            time = time - time50,
+            Cat_RT = case_when(
+                RT < 2 ~ '5 - Very Late',
+                RT >= 2 & RT < 4 ~ '4 - Late',
+                RT >= 4 & RT < 6 ~ '3 - Mid',
+                RT >= 6 & RT < 8 ~ '2 - Early',
+                RT >= 8 ~ '1 - Very Early'),
+            Cat_RT = factor(
+                Cat_RT,
+                levels = c(
+                    'All',
+                    '1 - Very Early',
+                    '2 - Early',
+                    '3 - Mid',
+                    '4 - Late',
+                    '5 - Very Late'
+                )
+            )
+        )
     x = rbind(x, x %>%
                   mutate(Cat_RT = 'All'))
     x %>%
