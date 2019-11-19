@@ -241,13 +241,15 @@ files = foreach (file = files,
                                          FP ,
                                          SP) %>%
                                  group_by(chr, bin) %>%
-                                 summarise(reads = sum(read))
+                                 summarise(reads = sum(read)) %>%
+                                 ungroup()
                              
                          } else{
                              sam = rbind(FP ,
                                          SP) %>%
                                  group_by(chr, bin) %>%
-                                 summarise(reads = sum(read))
+                                 summarise(reads = sum(read)) %>%
+                                 ungroup()
                          }
                      } else if (type == 'SE') {
                          param <- ScanBamParam(
