@@ -81,7 +81,6 @@ opt = parse_args(OptionParser(option_list = option_list),convert_hyphens_to_unde
 #load needed packages
 
 suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
-suppressPackageStartupMessages(library(DescTools, quietly = TRUE ))
 suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 suppressPackageStartupMessages( library(doSNOW, quietly = TRUE))
 suppressPackageStartupMessages( library(Biostrings, quietly = TRUE))

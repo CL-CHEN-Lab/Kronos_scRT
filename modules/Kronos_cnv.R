@@ -77,7 +77,6 @@ suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
 suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 suppressPackageStartupMessages(library(doSNOW, quietly = TRUE))
 suppressPackageStartupMessages(library(Rsamtools, quietly = TRUE))
-suppressPackageStartupMessages(library(DescTools, quietly = TRUE))
 suppressPackageStartupMessages(library(DNAcopy, quietly = TRUE))
 suppressPackageStartupMessages(library(gplots, quietly = TRUE))
 suppressPackageStartupMessages(library(MASS, quietly = TRUE))
@@ -107,7 +106,7 @@ if (str_extract(opt$directory, '.$') != '/') {
 
 #find bam files
 files = list.files(paste0(opt$directory))
-files = files[files %like% '%.bam']
+files = files[str_detect(files,'.bam')]
 
 #chr info
 genome.Chromsizes <-  bins %>%
@@ -116,24 +115,24 @@ genome.Chromsizes <-  bins %>%
 
 
 if (opt$keep_X & opt$keep_Y) {
-    chromosome = genome.Chromsizes$chr[genome.Chromsizes$chr %like% 'chr[0-9XY]{1,2}']
-    genome_size = sum(genome.Chromsizes$size[genome.Chromsizes$chr  %like% 'chr[0-9]{1,2}'])
-    genome_size = genome_size + genome.Chromsizes$size[genome.Chromsizes$chr  %like% 'chrX']
-    genome_size = genome_size + genome.Chromsizes$size[genome.Chromsizes$chr  %like% 'chrY']
+    chromosome = genome.Chromsizes$chr[str_detect(genome.Chromsizes$chr,'chr[0-9XY]{1,2}')]
+    genome_size = sum(genome.Chromsizes$size[str_detect(genome.Chromsizes$chr,'chr[0-9]{1,2}')])
+    genome_size = genome_size + genome.Chromsizes$size[str_detect(genome.Chromsizes$chr,'chrX')]
+    genome_size = genome_size + genome.Chromsizes$size[str_detect(genome.Chromsizes$chr,'chrY')]
     bins = bins[bins$chr %in% chromosome, ]
 } else if (!opt$keep_X & opt$keep_Y) {
-    chromosome = genome.Chromsizes$chr[genome.Chromsizes$chr %like% 'chr[0-9Y]{1,2}']
-    genome_size = sum(genome.Chromsizes$size[genome.Chromsizes$chr  %like% 'chr[0-9]{1,2}'])
-    genome_size = genome_size + genome.Chromsizes$size[genome.Chromsizes$chr  %like% 'chrY']
+    chromosome = genome.Chromsizes$chr[str_detect(genome.Chromsizes$chr,'chr[0-9Y]{1,2}')]
+    genome_size = sum(genome.Chromsizes$size[str_detect(genome.Chromsizes$chr,'chr[0-9]{1,2}')])
+    genome_size = genome_size + genome.Chromsizes$size[str_detect(genome.Chromsizes$chr,'chrY')]
     bins = bins[bins$chr %in% chromosome, ]
 } else if (opt$keep_X & !opt$keep_Y) {
-    chromosome = genome.Chromsizes$chr[genome.Chromsizes$chr %like% 'chr[0-9X]{1,2}']
-    genome_size = sum(genome.Chromsizes$size[genome.Chromsizes$chr  %like% 'chr[0-9]{1,2}'])
-    genome_size = genome_size + genome.Chromsizes$size[genome.Chromsizes$chr  %like% 'chrX']
+    chromosome = genome.Chromsizes$chr[str_detect(genome.Chromsizes$chr,'chr[0-9X]{1,2}')]
+    genome_size = sum(genome.Chromsizes$size[str_detect(genome.Chromsizes$chr  ,'chr[0-9]{1,2}')])
+    genome_size = genome_size + genome.Chromsizes$size[str_detect(genome.Chromsizes$chr,'chrX')]
     bins = bins[bins$chr %in% chromosome, ]
 } else if (!opt$keep_X & !opt$keep_Y) {
-    chromosome = genome.Chromsizes$chr[genome.Chromsizes$chr %like% 'chr[0-9]{1,2}']
-    genome_size = sum(genome.Chromsizes$size[genome.Chromsizes$chr  %like% 'chr[0-9]{1,2}'])
+    chromosome = genome.Chromsizes$chr[str_detect(genome.Chromsizes$chr,'chr[0-9]{1,2}')]
+    genome_size = sum(genome.Chromsizes$size[str_detect(genome.Chromsizes$chr,'chr[0-9]{1,2}')])
     bins = bins[bins$chr %in% chromosome, ]
 }
 

@@ -185,7 +185,6 @@ Run the script
     R Packages:
      - Biostrings
      - Cairo
-     - DescTools
      - DNAcopy
      - doSNOW
      - foreach
@@ -218,25 +217,23 @@ Run the script
     [1] stats4    parallel  stats     graphics  grDevices utils     datasets  methods   base     
 
     other attached packages:
-    [1] scales_1.0.0         Cairo_1.5-10         Rbowtie2_1.4.0       RColorBrewer_1.1-2   colorRamps_2.3       matrixStats_0.54.0  
-    [7]  optparse_1.6.2       LaplacesDemon_16.1.1 modes_0.7.0          MASS_7.3-51.4        gplots_3.0.1.1      DNAcopy_1.56.0
-    [13] DescTools_0.99.28    Rsamtools_1.34.1     Biostrings_2.50.2    XVector_0.22.0       GenomicRanges_1.34.0 GenomeInfoDb_1.18.2
-    [19] IRanges_2.16.0       S4Vectors_0.20.1     BiocGenerics_0.28.0  doSNOW_1.0.16        snow_0.4-3          iterators_1.0.10
-    [25] foreach_1.4.4        forcats_0.4.0        stringr_1.4.0        dplyr_0.8.3          purrr_0.3.2         readr_1.3.1
-    [31] tidyr_0.8.3          tibble_2.1.3         ggplot2_3.2.0        tidyverse_1.2.1      BiocManager_1.30.4  
+    [1] MASS_7.3-51.4        DNAcopy_1.56.0       scales_1.0.0         Cairo_1.5-10         ggpubr_0.2.1         magrittr_1.5        
+    [7] LaplacesDemon_16.1.1 Rbowtie2_1.4.0       RColorBrewer_1.1-2   matrixStats_0.54.0   gplots_3.0.1.1       doSNOW_1.0.16       
+    [13] snow_0.4-3           iterators_1.0.10     foreach_1.4.4        forcats_0.4.0        stringr_1.4.0        dplyr_0.8.3         
+    [19] purrr_0.3.2          readr_1.3.1          tidyr_0.8.3          tibble_2.1.3         ggplot2_3.2.0        tidyverse_1.2.1     
+    [25] Rsamtools_1.34.1     Biostrings_2.50.2    XVector_0.22.0       GenomicRanges_1.34.0 GenomeInfoDb_1.18.2  IRanges_2.16.0      
+    [31] S4Vectors_0.20.1     BiocGenerics_0.28.0  optparse_1.6.2      
 
     loaded via a namespace (and not attached):
-    [1] nlme_3.1-140           bitops_1.0-6           lubridate_1.7.4        httr_1.4.0             tools_3.5.2            backports_1.1.4       
-    [7] utf8_1.1.4             R6_2.4.0               KernSmooth_2.23-15     lazyeval_0.2.2         colorspace_1.4-1       withr_2.1.2           
-    [13] tidyselect_0.2.5       compiler_3.5.2         cli_1.1.0              rvest_0.3.4            expm_0.999-4           xml2_1.2.0            
-    [19] labeling_0.3           caTools_1.17.1.2       mvtnorm_1.0-11         LaF_0.8.0              digest_0.6.20          foreign_0.8-71        
-    [25] pkgconfig_2.0.2        manipulate_1.0.1       rlang_0.4.0            readxl_1.3.1           rstudioapi_0.10        generics_0.0.2        
-    [31] jsonlite_1.6           BiocParallel_1.16.6    gtools_3.8.1           RCurl_1.95-4.12        magrittr_1.5           GenomeInfoDbData_1.2.0
-    [37] Matrix_1.2-17          Rcpp_1.0.1             munsell_0.5.0          fansi_0.4.0            stringi_1.4.3          yaml_2.2.0            
-    [43] zlibbioc_1.28.0        plyr_1.8.4             grid_3.5.2             gdata_2.18.0           crayon_1.3.4           lattice_0.20-38       
-    [49] haven_2.1.1            hms_0.5.0              zeallot_0.1.0          pillar_1.4.2           boot_1.3-23            reshape2_1.4.3        
-    [55] codetools_0.2-16       glue_1.3.1             modelr_0.1.4           vctrs_0.2.0            cellranger_1.1.0       gtable_0.3.0          
-    [61] getopt_1.20.3          assertthat_0.2.1       broom_0.5.2   
+    [1] httr_1.4.0             jsonlite_1.6           modelr_0.1.4           gtools_3.8.1           assertthat_0.2.1       GenomeInfoDbData_1.2.0
+    [7] cellranger_1.1.0       yaml_2.2.0             pillar_1.4.2           backports_1.1.4        lattice_0.20-38        glue_1.3.1            
+    [13] ggsignif_0.5.0         rvest_0.3.4            colorspace_1.4-1       pkgconfig_2.0.2        broom_0.5.2            haven_2.1.1           
+    [19] zlibbioc_1.28.0        gdata_2.18.0           getopt_1.20.3          BiocParallel_1.16.6    generics_0.0.2         withr_2.1.2           
+    [25] lazyeval_0.2.2         cli_1.1.0              crayon_1.3.4           readxl_1.3.1           nlme_3.1-140           xml2_1.2.0            
+    [31] tools_3.5.2            hms_0.5.0              munsell_0.5.0          compiler_3.5.2         caTools_1.17.1.2       rlang_0.4.0           
+    [37] grid_3.5.2             RCurl_1.95-4.12        rstudioapi_0.10        bitops_1.0-6           gtable_0.3.0           codetools_0.2-16      
+    [43] R6_2.4.0               lubridate_1.7.4        zeallot_0.1.0          KernSmooth_2.23-15     stringi_1.4.3          Rcpp_1.0.1            
+    [49] vctrs_0.2.0            tidyselect_0.2.5   
 
 ### Authors
 

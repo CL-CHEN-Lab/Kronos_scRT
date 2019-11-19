@@ -87,7 +87,6 @@ opt = parse_args(OptionParser(option_list = option_list),convert_hyphens_to_unde
 
 #load needed packages
 suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
-suppressPackageStartupMessages(library(DescTools, quietly = TRUE))
 suppressPackageStartupMessages( library(Rbowtie2, quietly = TRUE))
 suppressPackageStartupMessages( library(Rsamtools, quietly = TRUE))
 
