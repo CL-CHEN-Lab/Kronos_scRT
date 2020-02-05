@@ -118,9 +118,9 @@ if(opt$path_to_java==''){
     stop('java was not found, please provide path.')
 }
 
-
+if(opt$path_to_picard==''){
 opt$path_to_picard=Sys.which(opt$path_to_picard)
-
+}
 if(opt$path_to_picard==''){
     stop('picard was not found, please provide path.')
 }
