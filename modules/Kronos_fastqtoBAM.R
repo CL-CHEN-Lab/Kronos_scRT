@@ -93,13 +93,11 @@ suppressPackageStartupMessages( library(Rsamtools, quietly = TRUE))
 options(scipen = 9999)
 
 
-# check imputs 
+# check inputs 
 if(str_extract(opt$output_dir,'.$')!='/'){
     opt$output_dir=paste0(opt$output_dir,'/')
 }
-if(str_extract(opt$path_to_fastq,'.$')!='/'){
-    opt$path_to_fastq=paste0(opt$path_to_fastq,'/')
-}
+
 
 #findpaths
 opt$path_to_trim_galore=Sys.which(opt$path_to_trim_galore)
@@ -155,7 +153,6 @@ if ('one' %in% names(opt) &
         paste0(
             opt$path_to_trim_galore,
             ' ',
-            opt$path_to_fastq,
             opt$one,
             ' --output_dir ',
             opt$output_dir,
@@ -220,7 +217,6 @@ if ('one' %in% names(opt) &
         paste0(
             opt$path_to_trim_galore,
             ' ',
-            opt$path_to_fastq,
             list$X1[i],
             ' --output_dir ',
             opt$output_dir,
