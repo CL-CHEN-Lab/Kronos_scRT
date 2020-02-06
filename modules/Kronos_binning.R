@@ -68,7 +68,7 @@ option_list = list(
         metavar = "integer"
     ),
     make_option(
-        c("-d","--dir_indexed_bam"),
+        c("-d", "--dir_indexed_bam"),
         type = "character",
         action = 'store',
         help = "If provided parameters will be automatically estimated form the data.",
@@ -96,7 +96,7 @@ if (str_extract(opt$output_dir,'.$')!='/'){
 
 system(paste0('mkdir -p ', opt$output_dir))
 
-# check imputs 
+# check inputs 
 if(!"RefGenome" %in% names(opt)){
     stop("Fastq file not provided. See script usage (--help)")
 }
@@ -111,16 +111,17 @@ reference=readDNAStringSet(opt$RefGenome)
 cl=makeCluster(opt$cores)
 registerDoSNOW(cl)
 
-if ('dir_indexed_bam' %in% names(opt)){
-#sample 20 files to exstimate parameters
-    list=list.files(opt$dri_indexed_mab,pattern = 'bam$')
-    list=sample(list,ceiling(length(list)/20))
+if ('dir_indexed_bam' %in% names(opt) ){
+#sample a maximum of 20 files to estimate parameters
+    list=list.files(opt$dir_indexed_bam, pattern = '.+[.]bam', full.names = T)
+    number_of_bam_files = length(list)
+    if (number_of_bam_files>20){list=sample(list,20)}
     parameters=foreach(i=list,.combine = 'rbind',.packages = 'Rsamtools')%dopar%{
         sapply(scanBam(paste0(opt$dri_indexed_mab,i),param=ScanBamParam(what=c('isize','qwidth')))[[1]],
                 function(x) median(abs(x),na.rm = T))
     }
     
-    parameters=as.tibble(parameters)%>%
+    parameters=as_tibble(parameters)%>%
         summarise(qwidth=round(median(qwidth)),
                   isize=round(median(isize)))
     
