@@ -118,7 +118,7 @@ if(opt$path_to_java==''){
     stop('java was not found, please provide path.')
 }
 
-if(opt$path_to_picard=='picard'){
+if(opt$path_to_picard==''){
 opt$path_to_picard=Sys.which(opt$path_to_picard)
 }
 if(opt$path_to_picard==''){
@@ -160,7 +160,7 @@ if ('one' %in% names(opt) &
             ' --path_to_cutadapt ',
             opt$path_to_cutadapt,
             ' --no_report_file'
-            
+            #--fastqc
         )
     )
     
@@ -217,14 +217,14 @@ if ('one' %in% names(opt) &
         paste0(
             opt$path_to_trim_galore,
             ' --paired ',
-            opt$one,' ',opt$two,
+            opt$one, ' ', opt$two,
             ' --output_dir ',
             opt$output_dir,
             'trimmed/',
             ' --path_to_cutadapt ',
             opt$path_to_cutadapt,
             ' --no_report_file'
-            
+            #--fastqc
         )
     )
     
