@@ -207,7 +207,7 @@ if ('one' %in% names(opt) &
         )
     )
     
-} else if (c('one', 'two') %in% names(opt)) {
+} else if ('one' %in% names(opt) & 'two' %in% names(opt)) {
     if (!"index" %in% names(opt)) {
         stop("bowtie2 index not provided. See script usage (--help)")
     }
@@ -216,8 +216,8 @@ if ('one' %in% names(opt) &
     system(
         paste0(
             opt$path_to_trim_galore,
-            ' ',
-            list$X1[i],
+            ' --paired ',
+            opt$one,' ',opt$two,
             ' --output_dir ',
             opt$output_dir,
             'trimmed/',
