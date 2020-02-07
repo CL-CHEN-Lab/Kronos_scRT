@@ -116,7 +116,7 @@ if ('dir_indexed_bam' %in% names(opt)){
         opt$dir_indexed_bam=paste0(opt$dir_indexed_bam,'/')
     }
     #sample 30 files (if available) to exstimate parameters
-    list=list.files(opt$dir_indexed_bam,pattern = 'bam$').
+    list=list.files(opt$dir_indexed_bam,pattern = 'bam$')
     
     if(length(list) > 30 ){
         list=sample(list,30) 
