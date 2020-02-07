@@ -96,7 +96,7 @@ if (str_extract(opt$output_dir,'.$')!='/'){
 
 system(paste0('mkdir -p ', opt$output_dir))
 
-# check imputs 
+# check inputs 
 if(!"RefGenome" %in% names(opt)){
     stop("Fastq file not provided. See script usage (--help)")
 }
@@ -112,11 +112,18 @@ cl=makeCluster(opt$cores)
 registerDoSNOW(cl)
 
 if ('dir_indexed_bam' %in% names(opt)){
-#sample 20 files to exstimate parameters
-    list=list.files(opt$dri_indexed_mab,pattern = 'bam$')
-    list=sample(list,ceiling(length(list)/20))
+    if (str_extract(opt$dir_indexed_bam,'.$')!='/'){
+        opt$dir_indexed_bam=paste0(opt$dir_indexed_bam,'/')
+    }
+    #sample 30 files (if available) to exstimate parameters
+    list=list.files(opt$dir_indexed_bam,pattern = 'bam$').
+    
+    if(length(list) > 30 ){
+        list=sample(list,30) 
+    }
+   
     parameters=foreach(i=list,.combine = 'rbind',.packages = 'Rsamtools')%dopar%{
-        sapply(scanBam(paste0(opt$dri_indexed_mab,i),param=ScanBamParam(what=c('isize','qwidth')))[[1]],
+        sapply(scanBam(paste0(opt$dir_indexed_bam,i),param=ScanBamParam(what=c('isize','qwidth')))[[1]],
                 function(x) median(abs(x),na.rm = T))
     }
     
@@ -129,13 +136,16 @@ if ('dir_indexed_bam' %in% names(opt)){
         opt$insert_size=parameters$isize
         opt$reads_size=parameters$qwidth
     }else{
+        opt$paired_ends=F
         opt$reads_size=parameters$qwidth
     }
   
 }
+chr_list = paste0('chr', c(1:56, 'X', 'Y'))
+chr_list = chr_list[chr_list %in% unique(names(reference))]
 
 genome.Chromsizes = foreach(
-    Chr = names(reference),
+    Chr = chr_list,
     .combine = 'rbind',
     .packages = c('Biostrings', 'foreach', 'tidyverse')
 ) %dopar% {
