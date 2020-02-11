@@ -159,8 +159,8 @@ if ('one' %in% names(opt) &
             'trimmed/',
             ' --path_to_cutadapt ',
             opt$path_to_cutadapt,
-            ' --no_report_file'
-            #--fastqc
+            ' --no_report_file -j ',
+            opt$cores
         )
     )
     
@@ -177,7 +177,7 @@ if ('one' %in% names(opt) &
             bt2Index = opt$index,
             samOutput = paste0(opt$output_dir, 'sorted_bam/', file_basename, '.sam'),
             seq1 = paste0(opt$output_dir, 'trimmed/', input_bowtie),
-            ... = paste0('-k 1 '),
+            ... = paste0('-k 1 --threads ', opt$cores),
             overwrite = TRUE
         )
     )
@@ -189,7 +189,7 @@ if ('one' %in% names(opt) &
     system(
         paste0(
             opt$path_to_java,
-            ' -jar ',
+            ' -XX:ParallelGCThreads=',opt$cores , ' -jar ',
             opt$path_to_picard,
             ' MarkDuplicates I=',
             opt$output_dir,
@@ -223,8 +223,8 @@ if ('one' %in% names(opt) &
             'trimmed/',
             ' --path_to_cutadapt ',
             opt$path_to_cutadapt,
-            ' --no_report_file'
-            #--fastqc
+            ' --no_report_file -j ',
+            opt$cores
         )
     )
     
@@ -233,6 +233,7 @@ if ('one' %in% names(opt) &
     file_basename_two = str_remove(basename(opt$two), pattern = '.fastq|.fastq.gz|.fq|.fq.gz')
     input_bowtie_1 = list.files(paste0(opt$output_dir, 'trimmed/'), pattern = file_basename_one)
     input_bowtie_2 = list.files(paste0(opt$output_dir, 'trimmed/'), pattern = file_basename_two)
+    
     
     if ('sam_file_basename' %in% names(opt)) {
         file_basename = opt$sam_file_basename
@@ -243,11 +244,11 @@ if ('one' %in% names(opt) &
     #align with bowtie2
     suppressMessages(
         bowtie2(
-            bt2Index = opt$index,
+            bt2Index = opt$index, 
             samOutput = paste0(opt$output_dir, 'sorted_bam/', file_basename, '.sam'),
             seq1 = paste0(opt$output_dir, 'trimmed/', input_bowtie_1),
             seq2 = paste0(opt$output_dir, 'trimmed/', input_bowtie_2),
-            ... = paste0('-k 1 '),
+            ... = paste0('-k 1 --threads ', opt$cores),
             overwrite = TRUE
         )
     )
@@ -258,7 +259,7 @@ if ('one' %in% names(opt) &
     system(
         paste0(
             opt$path_to_java,
-            ' -jar ',
+            ' -XX:ParallelGCThreads=',opt$cores , ' -jar ',
             opt$path_to_picard,
             ' MarkDuplicates I=',
             opt$output_dir,
