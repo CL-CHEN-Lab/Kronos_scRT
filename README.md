@@ -93,7 +93,6 @@ Run the script
     -D CHARACTER, --directory=CHARACTER                 Single cell Bamfiles directory
     -B CHARACTER, --bins=CHARACTER                      File with bins produced by Kronos binning
     -X, --keep_X                                        Keep X chromosomes [default= FALSE]
-    --number_of_X=INTEGER                               Number of X chromosomes 
     -Y, --keep_Y                                        Keep Y chromosome [default= FALSE]
     -m DOUBLE, --min_n_reads=DOUBLE                     Min n of reads to keep a cell in the analysis [default= 2e+05]
     -c INTEGER, --cores=INTEGER                         Number of cores to use. [default= 3]
