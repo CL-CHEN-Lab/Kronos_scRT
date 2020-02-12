@@ -149,6 +149,8 @@ bins = bins %>%
     group_by(chr) %>%
     mutate(bin = 1:n())
 
+bins_median_size = median(bins$end - bins$start)
+
 # calculating profile
 files = foreach (
     file = files,
@@ -156,9 +158,7 @@ files = foreach (
     .packages = c('Rsamtools', 'tidyverse', 'foreach')
 ) %dopar% {
     if (type == 'PE') {
-        bins_median_size = median(bins$end - bins$start)
-        
-        # Singe reads
+        # Single reads
         param1 <- ScanBamParam(
             what = c('rname', 'pos', 'mapq'),
             flag = scanBamFlag(
@@ -278,7 +278,7 @@ files = foreach (
             group_by(chr, bin) %>%
             summarise(reads = sum(read)) %>%
             ungroup()
-        count_reads = sum(SR$reads)
+        count_reads = sum(sam$reads)
         
     } else{
         stop('Bins file does not contain a correct sequencing type (SE/PE)')
@@ -559,3 +559,4 @@ system(paste0(
     'rm ',
     paste0(opt$output_dir, files, '_cnv_calls.bed', collapse = ' ')
 ))
+
