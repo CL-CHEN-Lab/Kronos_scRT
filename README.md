@@ -47,7 +47,7 @@ Run the script
     binning         Calculates mappability and gc content for bins to be used with Kronos CNV
     CNV             Calculates copy number variation 
     10xtoKronos     Converts 10X genomics files in a format that Kronos can use
-    diagnostic      Plotting tools to identify appropriate tresholds for Kronos RT
+    diagnostic      Plotting tools to identify appropriate thresholds for Kronos RT
     RT              Calculates scReplication profiles and scRT
     compare RT      Compares RT results from multiple experiments
     compare TW      Compares variability from multiple experiments and/or over multiple regions
@@ -82,7 +82,7 @@ Run the script
     --paired_ends                                       Generates paired ends reads [default: FALSE]
     --insert_size=INTEGER                               Insert size if paired end option is used. [default: 200]
     --bin_size=INTEGER                                  Bins size. [default= 20000 bp]
-    -d CHARACTER, --dir_indexed_bam=CHARACTER           If provided parameters will be automatically estimated form the data.
+    -d CHARACTER, --dir_indexed_bam=CHARACTER           If provided parameters will be automatically estimated from the data.
     -h, --help                                          Show this help message and exit
     
 -- CNV module
@@ -115,7 +115,7 @@ Run the script
     ./Kronos diagnostic [options]
 
     Options:
-    -f CHARACTER, --file=CHARACTER                      Dataset file name
+    -F CHARACTER, --file=CHARACTER                      Dataset file name
     -o CHARACTER, --out=CHARACTER                       Output directory [default= ./output]
     -b CHARACTER, --base_name=CHARACTER                 Base name for files names [default= exp]
     -S DOUBLE, --threshold_Sphase=DOUBLE                Threshold to identify S-phase cells
