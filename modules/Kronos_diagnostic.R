@@ -5,7 +5,7 @@
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
 options(stringsAsFactors = FALSE)
-options(warn=1) 
+options(warn = 1)
 option_list = list(
     make_option(
         c("-F", "--file"),
@@ -61,7 +61,7 @@ option_list = list(
     )
 )
 
-opt = parse_args( OptionParser(option_list=option_list))
+opt = parse_args(OptionParser(option_list = option_list))
 
 suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
 suppressPackageStartupMessages(library(LaplacesDemon, quietly = TRUE))
@@ -74,19 +74,18 @@ if (!'file' %in% names(opt)) {
 }
 
 #create output directory
-if (str_extract(opt$out,'.$')!='/'){
-    opt$out=paste0(opt$out,'/')
+if (str_extract(opt$out, '.$') != '/') {
+    opt$out = paste0(opt$out, '/')
 }
 
 system(paste0('mkdir -p ./', opt$out))
 
 #load data
-data<-read_csv(opt$file,
-               col_types = cols())
+data <- read_csv(opt$file,
+                 col_types = cols())
 
-if (!'threshold_Sphase' %in% names(opt)){
-
-    data=data %>%
+if (!'threshold_Sphase' %in% names(opt)) {
+    data = data %>%
         mutate(Type = ifelse(
             as.logical(is_high_dimapd) == T &
                 as.logical(is_noisy) == T,
@@ -97,18 +96,19 @@ if (!'threshold_Sphase' %in% names(opt)){
                 'unknown cells',
                 'G1/G2 cells'
             )
-        )) 
+        ))
     
-    median_ploidy_not_noisy = median(data%>%
-                                         filter(is_noisy == F)%>%pull(mean_ploidy))
+    median_ploidy_not_noisy = median(data %>%
+                                         filter(is_noisy == F) %>% pull(mean_ploidy))
     
-    data=data%>%
-        filter(coverage_per_1Mbp >= 140*median_ploidy_not_noisy,
-               ploidy_confidence > 2,
-                mean_ploidy > median_ploidy_not_noisy / 1.5 ,
-                mean_ploidy < median_ploidy_not_noisy * 2
-                   )
-     p =data%>%
+    data = data %>%
+        filter(
+            coverage_per_1Mbp >= 140 * median_ploidy_not_noisy,
+            ploidy_confidence > 2,
+            mean_ploidy > median_ploidy_not_noisy / 1.5 ,
+            mean_ploidy < median_ploidy_not_noisy * 2
+        )
+    p = data %>%
         ggplot(aes(mean_ploidy, normalized_dimapd, color = Type)) +
         geom_point(alpha = 0.3) +
         scale_color_manual(
@@ -121,14 +121,15 @@ if (!'threshold_Sphase' %in% names(opt)){
         theme(legend.position = 'top', legend.title = element_blank())
     
     system(paste('mkdir -p', opt$out))
-    suppressMessages( ggsave(p, filename = paste0(opt$out, '/', opt$base_name, '_plot.pdf')))
+    suppressMessages(ggsave(p, filename = paste0(
+        opt$out, '/', opt$base_name, '_plot.pdf'
+    )))
     
-    opt$threshold_G1G2phase=NA
-    opt$threshold_Sphase=NA
+    opt$threshold_G1G2phase = NA
+    opt$threshold_Sphase = NA
     
-}else{
-    
-    if(!'threshold_G1G2phase' %in% names(opt) ){
+} else{
+    if (!'threshold_G1G2phase' %in% names(opt)) {
         opt$threshold_G1G2phase = opt$threshold_Sphase
     }
     
@@ -150,12 +151,12 @@ if (!'threshold_Sphase' %in% names(opt)){
             )
         )
     
-    median_ploidy_not_noisy = median(data%>%filter(is_noisy == F)%>%pull(mean_ploidy))
+    median_ploidy_not_noisy = median(data %>% filter(is_noisy == F) %>% pull(mean_ploidy))
     data = data %>%
-        filter(coverage_per_1Mbp >= 140*median_ploidy_not_noisy,
+        filter(
+            coverage_per_1Mbp >= 140 * median_ploidy_not_noisy,
             mean_ploidy > median_ploidy_not_noisy / 1.5 ,
-            mean_ploidy < median_ploidy_not_noisy * 2,
-            !ploidy_confidence <= 2
+            mean_ploidy < median_ploidy_not_noisy * 2,!ploidy_confidence <= 2
         )
     
     median_ploidy_not_noisy = median(data$mean_ploidy[data$is_noisy == F &
@@ -171,47 +172,63 @@ if (!'threshold_Sphase' %in% names(opt)){
             )
         ) +
         theme(legend.position = 'top', legend.title = element_blank()) +
-        geom_vline(xintercept = median_ploidy_not_noisy)+
+        geom_vline(xintercept = median_ploidy_not_noisy) +
         xlab('Ploidy') + ylab('Variability')
-
-    suppressMessages(ggsave(p,
-           filename = paste0(opt$out, '/', opt$base_name, '_plot_th_', opt$threshold_Sphase,'-',opt$threshold_G1G2phase, '.pdf')))
+    
+    suppressMessages(ggsave(
+        p,
+        filename = paste0(
+            opt$out,
+            '/',
+            opt$base_name,
+            '_plot_th_',
+            opt$threshold_Sphase,
+            '-',
+            opt$threshold_G1G2phase,
+            '.pdf'
+        )
+    ))
 }
 
-if('Sphase_first_part' %in% names(opt) & 'Sphase_second_part' %in% names(opt)){
-    distributions=tibble(A=opt$Sphase_first_part,
-                         B=opt$Sphase_second_part)
-}else{
-    if(xor('Sphase_first_part' %in% names(opt) , 'Sphase_second_part' %in% names(opt))){
-        warning('One of the correction factors has not been provided, the program will automatically correct the Sphase progression')
+if ('Sphase_first_part' %in% names(opt) &
+    'Sphase_second_part' %in% names(opt)) {
+    distributions = tibble(A = opt$Sphase_first_part,
+                           B = opt$Sphase_second_part)
+} else{
+    if (xor('Sphase_first_part' %in% names(opt) ,
+            'Sphase_second_part' %in% names(opt))) {
+        warning(
+            'One of the correction factors has not been provided, the program will automatically correct the Sphase progression'
+        )
     }
-# correct mean ploidy 
-cl=makeCluster(opt$cores)
-registerDoSNOW(cl)
-
-# test multiple parameters to correct S phase
-distributions = foreach(
-    a = seq(0.95, 1, by = 0.001),
-    .combine = 'rbind',
-    .packages = c('tidyverse', 'LaplacesDemon', 'foreach')
-) %dopar% {
-    dist = foreach(
-        b = seq(0.5, 0.55, by = 0.001),
+    
+    # correct mean ploidy
+    cl = makeCluster(opt$cores)
+    registerDoSNOW(cl)
+    
+    # test multiple parameters to correct S phase
+    distributions = foreach(
+        a = seq(0.95, 1, by = 0.001),
         .combine = 'rbind',
-        .packages = c('tidyverse', 'LaplacesDemon')
-    ) %do% {
-        #adjust S-phase based on a and b
-        x = data %>%
-            filter(Type=='S-phase')%>%
-            mutate(
-                corrected_mean_ploidy = ifelse(
-                    mean_ploidy >= median_ploidy_not_noisy,
-                    mean_ploidy / a,
-                    mean_ploidy / b
-                )
-            )%>%
-            dplyr::select(corrected_mean_ploidy)%>%pull()
-
+        .packages = c('tidyverse', 'LaplacesDemon', 'foreach')
+    ) %dopar% {
+        dist = foreach(
+            b = seq(0.5, 0.55, by = 0.001),
+            .combine = 'rbind',
+            .packages = c('tidyverse', 'LaplacesDemon')
+        ) %do% {
+            #adjust S-phase based on a and b
+            x = data %>%
+                filter(Type == 'S-phase') %>%
+                mutate(
+                    corrected_mean_ploidy = ifelse(
+                        mean_ploidy >= median_ploidy_not_noisy,
+                        mean_ploidy / a,
+                        mean_ploidy / b
+                    )
+                ) %>%
+                dplyr::select(corrected_mean_ploidy) %>% pull()
+            
             # are the data unimodal?
             if (is.unimodal(x)) {
                 # d is the distance betwen theoretical center of the Sphase (G1 median ploidy *1.5)
@@ -220,11 +237,11 @@ distributions = foreach(
                 tibble(
                     A = a,
                     B = b,
-                    d = 1/sd(x),
+                    d = 1 / sd(x),
                     unimodal = T
                 )
                 
-            }else{
+            } else{
                 tibble(
                     A = a,
                     B = b,
@@ -232,48 +249,53 @@ distributions = foreach(
                     unimodal = F
                 )
             }
-
+            
+        }
+        dist
     }
-    dist
+    
+    on.exit(stopCluster(cl))
+    
+    #select the minimum value of d
+    if (length(distributions) == 0) {
+        stop(
+            'S phase correction parameters could not be established, please provide manual ones'
+        )
+    } else{
+        distributions = distributions %>%
+            filter(unimodal == ifelse(any(unimodal == T), T, F)) %>%
+            filter(d == min(d))
+    }
 }
 
-stopCluster(cl)
 
-#select the minimum value of d
-if (length(distributions)==0){
-   stop('S phase correction parameters could not be established, please provide manual ones') 
-}else{
-distributions=distributions%>%
-    filter(unimodal==ifelse(any(unimodal==T),T,F))%>%
-    filter(d==min(d))
-}
-}
 
 data = data %>%
     mutate(
         mean_ploidy_corrected = ifelse(
-            Type=='S-phase' &
+            Type == 'S-phase' &
                 mean_ploidy < median_ploidy_not_noisy,
             mean_ploidy / distributions$B,
             ifelse(
-                Type=='S-phase' &
+                Type == 'S-phase' &
                     mean_ploidy > median_ploidy_not_noisy,
                 mean_ploidy /  distributions$A,
                 mean_ploidy
-            )),
-            Type = ifelse(
-                Type=='S-phase' &
-                    mean_ploidy < median_ploidy_not_noisy,
-                'S-phase second part',
-                ifelse(
-                    Type=='S-phase' &
-                        mean_ploidy > median_ploidy_not_noisy,
-                    'S-phase first part',
-                    Type
-                )
+            )
+        ),
+        Type = ifelse(
+            Type == 'S-phase' &
+                mean_ploidy < median_ploidy_not_noisy,
+            'S-phase second part',
+            ifelse(
+                Type == 'S-phase' &
+                    mean_ploidy > median_ploidy_not_noisy,
+                'S-phase first part',
+                Type
+            )
         )
     )
-    
+
 
 p = data %>%
     ggplot(aes(mean_ploidy_corrected, normalized_dimapd, color = Type)) +
@@ -282,27 +304,45 @@ p = data %>%
         values = c(
             'G1/G2 cells' = 'darkred',
             'S-phase first part' = 'darkgreen',
-            'S-phase second part'='blue',
+            'S-phase second part' = 'blue',
             'unknown cells' = 'darkorange'
         )
     ) +
     theme(legend.position = 'top', legend.title = element_blank()) +
-    geom_vline(xintercept = median_ploidy_not_noisy)+
-    xlab('Ploidy') + ylab('Variability')+
-    geom_density(data=data %>%filter(Type %in% c( 'S-phase second part','S-phase first part')),
-                     aes(x=mean_ploidy_corrected,y=(..density..)), color="black")+
-    scale_y_continuous(sec.axis = sec_axis(trans = ~.,name ='S-phase density distribution'))+
-    theme(legend.position = 'top', legend.title = element_blank()) 
+    geom_vline(xintercept = median_ploidy_not_noisy) +
+    xlab('Ploidy') + ylab('Variability') +
+    geom_density(
+        data = data %>% filter(Type %in% c('S-phase second part', 'S-phase first part')),
+        aes(x = mean_ploidy_corrected, y = (..density..)),
+        color = "black"
+    ) +
+    scale_y_continuous(sec.axis = sec_axis(trans = ~ ., name = 'S-phase density distribution')) +
+    theme(legend.position = 'top', legend.title = element_blank())
 
-suppressMessages( ggsave(p,
-                         filename = paste0(opt$out, '/', opt$base_name, '_plot_th_', opt$threshold_Sphase,'-',opt$threshold_G1G2phase, '_Sphase_corrected_',distributions$A,'-',distributions$B,'.pdf')))
+suppressMessages(ggsave(
+    p,
+    filename = paste0(
+        opt$out,
+        '/',
+        opt$base_name,
+        '_plot_th_',
+        opt$threshold_Sphase,
+        '-',
+        opt$threshold_G1G2phase,
+        '_Sphase_corrected_',
+        distributions$A,
+        '-',
+        distributions$B,
+        '.pdf'
+    )
+))
 
 
 tibble(
-    threshold_Sphase= opt$threshold_Sphase,
+    threshold_Sphase = opt$threshold_Sphase,
     threshold_G1G2phase = opt$threshold_G1G2phase,
-    Sphase_first_part=distributions$A,
-    Sphase_second_part=distributions$B,
-    RPM_TH=round(112*median_ploidy_not_noisy)
-)%>%
-    write_tsv(paste0(opt$out,opt$base_name, '_settings.txt'))
+    Sphase_first_part = distributions$A,
+    Sphase_second_part = distributions$B,
+    RPM_TH = round(112 * median_ploidy_not_noisy)
+) %>%
+    write_tsv(paste0(opt$out, opt$base_name, '_settings.txt'))
