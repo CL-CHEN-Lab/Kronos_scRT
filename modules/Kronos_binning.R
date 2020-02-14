@@ -71,7 +71,7 @@ option_list = list(
         c("-d","--dir_indexed_bam"),
         type = "character",
         action = 'store',
-        help = "If provided parameters will be automatically estimated form the data.",
+        help = "If provided parameters will be automatically estimated from the data.",
         metavar = "character"
     )
 )
