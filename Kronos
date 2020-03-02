@@ -25,6 +25,14 @@ elif [ "$1" == "RT" ];then
     else
        Rscript $DIR/modules/Kronos_RT.R "${@:2}"
     fi
+    
+elif [ "$1" == "WhoIsWho" ];then
+    if test "$#" == 1 ; then
+        echo Usage: Kronos RT [options]
+        Rscript $DIR/modules/Kronos_whoswho.R -h | grep -v Kronos_RT
+    else
+       Rscript $DIR/modules/Kronos_whoswho.R "${@:2}"
+    fi
 
 elif [ "$1" == "CNV" ];then
     if test "$#" == 1 ; then
