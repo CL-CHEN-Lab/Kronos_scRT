@@ -28,8 +28,8 @@ elif [ "$1" == "RT" ];then
     
 elif [ "$1" == "WhoIsWho" ];then
     if test "$#" == 1 ; then
-        echo Usage: Kronos RT [options]
-        Rscript $DIR/modules/Kronos_whoswho.R -h | grep -v Kronos_RT
+        echo Usage: Kronos WhoIsWho [options]
+        Rscript $DIR/modules/Kronos_whoswho.R -h | grep -v Kronos_whoswho.R
     else
        Rscript $DIR/modules/Kronos_whoswho.R "${@:2}"
     fi
