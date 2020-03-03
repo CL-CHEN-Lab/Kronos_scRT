@@ -57,6 +57,8 @@ data<-inner_join(read_csv(opt$file,
 
 # write data
 data%>%
-    mutate(is_high_dimapd=ifelse(Phase=='S',T,F))%>%
+    mutate(Phase=str_to_upper(Phase))%>%
+    mutate(is_high_dimapd=ifelse(Phase=='S',T,F),
+           is_noisy=ifelse(Phase=='S',T,F))%>%
     dplyr::select(-Phase)%>%
     write.csv(paste0(opt$out,'phased_',basename(opt$file)))
