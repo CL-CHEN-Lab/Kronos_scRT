@@ -104,7 +104,7 @@ if (!'threshold_Sphase' %in% names(opt)) {
     data = data %>%
         filter(
             coverage_per_1Mbp >= 140 * median_ploidy_not_noisy,
-            ploidy_confidence > 2,
+             ploidy_confidence > 2 | ploidy_confidence== -100,
             mean_ploidy > median_ploidy_not_noisy / 1.5 ,
             mean_ploidy < median_ploidy_not_noisy * 2
         )
@@ -269,6 +269,8 @@ if ('Sphase_first_part' %in% names(opt) &
 }
 
 
+#print (c(mean_ploidy, "end of mean ploidy"))
+print (distributions$A)
 
 data = data %>%
     mutate(

@@ -66,6 +66,12 @@ option_list = list(
         action = 'store',
         help = "Experiment name. [default= %default]",
         metavar = "character"
+    ),
+    make_option(
+        c("-p", "--ploidy"),
+        type = "numeric",
+        help = "user extimated ploidy",
+        metavar = "numeric"
     )
 )
 
@@ -426,6 +432,22 @@ mapd = foreach (
     min = possible_factors$possible_factors[which(diff(sign(
         diff(possible_factors$possible_factors)
     )) == 2) + 1]
+    
+    
+    if('ploidy' %in% names(opt)){
+        possible_factors = possible_factors %>%
+            filter(possible_factors %in% min,
+                   mean_cn < opt$ploidy * 1.7,
+                   mean_cn > opt$ploidy / 1.7
+                   ) 
+        selected = possible_factors$X[possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
+                                                                             2) == min(abs(possible_factors$mean_cn - 2)))]]
+        
+        mean_cn = possible_factors$mean_cn[possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
+                                                                                  2) == min(abs(possible_factors$mean_cn - 2)))]]
+        
+        PloConf = -100
+    }else{
     possible_factors = possible_factors %>%
         filter(possible_factors %in% min,
                mean_cn < 8)
@@ -446,7 +468,7 @@ mapd = foreach (
                                           selected]
         
     }
-    
+    }
     CNV_correction = tibble(
         ID = unique(segment.smoothed.CNA.object$ID),
         Cell = str_remove(file, '.tmp$'),

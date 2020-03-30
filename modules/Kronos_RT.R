@@ -3,7 +3,7 @@
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
 options(stringsAsFactors = FALSE)
-options(warn = 1)
+options(warn = 1,scipen = 999)
 
 option_list = list(
     make_option(
@@ -53,6 +53,13 @@ option_list = list(
         type = "character",
         default = "exp",
         help = "Base name for files names [default= %default]",
+        metavar = "character"
+    ),
+    make_option(
+        c("-f", "--output_file_base_name"),
+        type = "character",
+        default = "out",
+        help = "Base name for the output file [default= %default]",
         metavar = "character"
     ),
     make_option(
@@ -125,6 +132,7 @@ suppressPackageStartupMessages(library(gplots, quietly = TRUE))
 suppressPackageStartupMessages(library(matrixStats, quietly = TRUE))
 suppressPackageStartupMessages(library(RColorBrewer, quietly = TRUE))
 suppressPackageStartupMessages(library(GenomicRanges, quietly = TRUE))
+suppressPackageStartupMessages(library(MASS, quietly = TRUE))
 
 
 #check inputs
@@ -226,7 +234,8 @@ chr_list = paste0('chr', c(1:56, 'X', 'Y'))
 chr_list = chr_list[chr_list %in% unique(Chr_Size$chr)]
 
 Chr_Size = Chr_Size %>%
-    mutate(chr = factor(x =  chr, levels = chr_list))
+    mutate(chr = factor(x =  chr, levels = chr_list)) %>%
+    drop_na()
 
 #load single cells infor
 data <-
@@ -238,13 +247,13 @@ data <-
         inner_join(
             read_csv(opt$file[i], col_types = cols()) %>%
                 mutate(
-                    basename = opt$base_name[i],
-                    group = opt$groups[i]
+                    basename = factor(opt$base_name[i], levels = opt$base_name),
+                    group = factor(opt$groups[i], levels = opt$groups)
                 ),
             read_tsv(opt$settings_file[i], col_types = cols()) %>%
                 mutate(
-                    basename = opt$base_name[i],
-                    group = opt$groups[i]
+                    basename = factor(opt$base_name[i], levels = opt$base_name),
+                    group = factor(opt$groups[i], levels = opt$groups)
                 ),
             by = c('basename', 'group')
         )
@@ -262,8 +271,8 @@ all_tracks <-
     ) %do% {
         read_delim(opt$tracks[i], delim = '\t', col_types = cols()) %>%
             mutate(
-                basename = opt$base_name[i],
-                group = opt$groups[i],
+                basename = factor(opt$base_name[i], levels = opt$base_name),
+                group = factor(opt$groups[i], levels = opt$groups),
                 chr = factor(x =  chr, levels = chr_list)
             ) %>%
             drop_na()
@@ -354,9 +363,10 @@ p = data %>%
                                                                              basename, scales = 'free') +
     xlab('Ploidy') + ylab('Variability')
 
-suppressMessages(ggsave(p, filename = paste0(
-    opt$out, '/', paste(opt$base_name, collapse = '_'), '_plot.pdf'
-)))
+suppressMessages(ggsave(
+    p,
+    filename = paste0(opt$out, '/', opt$output_file_base_name, '_plot.pdf')
+))
 
 # correct mean ploidy late S phase
 data = data %>%
@@ -395,7 +405,7 @@ suppressMessages(ggsave(
     filename = paste0(
         opt$out,
         '/',
-        paste(opt$base_name, collapse = '_'),
+        opt$output_file_base_name,
         '_plot_sphase_corrected.pdf'
     )
 ))
@@ -487,7 +497,9 @@ signal_smoothed = cbind(
 ) %>%
     group_by(index, basename, group, chr, start, end) %>%
     summarise(CN = weightedMedian(x = copy_number_corrected, w =
-                                      width, na.rm = T))
+                                      width, na.rm = T)) %>%
+    ungroup()
+
 
 #free memory
 rm('Sphase_tracks')
@@ -507,7 +519,8 @@ backgroud_smoothed = cbind(
 ) %>%
     group_by(basename, group, chr, start, end) %>%
     summarise(background = weightedMedian(x = copy_number, w =
-                                              width, na.rm = T))
+                                              width, na.rm = T)) %>%
+    ungroup()
 
 
 #free some space
@@ -541,7 +554,9 @@ if ('referenceRT' %in% names(opt)) {
                                           width, na.rm = T)) %>%
         ungroup() %>%
         mutate(chr = factor(x =  chr, levels = chr_list),
-               RT = (RT - min(RT)) / (max(RT) - min(RT)))
+               RT = (RT - min(RT)) / (max(RT) - min(RT))) %>%
+        ungroup()
+    
     
     #write output
     write_delim(
@@ -549,7 +564,7 @@ if ('referenceRT' %in% names(opt)) {
         path = paste0(
             opt$out,
             '/',
-            paste(opt$base_name, collapse = '_'),
+            opt$output_file_base_name,
             '_reference_replication_timing_',
             opt$binsSize,
             'bp.tsv'
@@ -567,8 +582,7 @@ if ('referenceRT' %in% names(opt)) {
 #merge signal and bg and calculate their ratio
 signal_smoothed = signal_smoothed %>%
     ungroup() %>%
-    mutate(chr = factor(x =  chr, levels = chr_list),
-           basename = as.character(basename)) %>%
+    mutate(chr = factor(x =  chr, levels = chr_list)) %>%
     inner_join(backgroud_smoothed,
                by = c("chr", "start", "end", "basename", 'group')) %>%
     mutate(CN_bg = log2(CN / background)) %>%
@@ -613,8 +627,7 @@ selecte_th = selecte_th %>%
     group_by(index, basename) %>%
     filter(sum_error == min(sum_error)) %>%
     summarise(th = min(th)) %>%
-    ungroup %>%
-    mutate(basename = as.character(basename))
+    ungroup
 
 # mark replicated bins
 signal_smoothed = signal_smoothed %>%
@@ -657,7 +670,7 @@ suppressMessages(ggsave(
     filename = paste0(
         opt$out,
         '/',
-        paste(opt$base_name, collapse = '_'),
+        opt$output_file_base_name,
         '_percentage_of_replicating_cells.pdf'
     )
 ))
@@ -679,7 +692,7 @@ mat = signal_smoothed %>%
 
 #correlation
 results = cor(mat, mat)
-basenames = str_extract(colnames(mat), '[a-z|A-Z|0-9]{1,100} ')
+basenames = str_remove(colnames(mat), ' _ [0-9]{1,10}$')
 Index = colnames(mat)
 basename_n = basenames
 
@@ -688,16 +701,15 @@ for (i in 1:length(unique(basename_n))) {
 }
 
 #write matrix and plot heatmap before filtering
-write.table(
-    results,
+write.matrix(
+    x = results,
     file = paste0(
         opt$out,
         '/',
-        paste(opt$base_name, collapse = '_'),
+        opt$output_file_base_name,
         '_correlation_per_cell_before_filtering.mx'
     ),
-    row.names = TRUE,
-    col.names = TRUE
+    sep = '\t'
 )
 
 #prepare color patterns
@@ -706,12 +718,14 @@ color = colorRampPalette(colors = c('blue', 'green', 'yellow', 'orange', 'red'))
 
 color_basebanes = selcol(length(unique(basename_n)))
 
-jpeg(paste0(
-    opt$out,
-    '/',
-    paste(opt$base_name, collapse = '_'),
-    '_correlation_plot_per_cell_before_filter.jpg'
-))
+jpeg(
+    paste0(
+        opt$out,
+        '/',
+        opt$output_file_base_name,
+        '_correlation_plot_per_cell_before_filter.jpg'
+    )
+)
 
 heatmap.2(
     results,
@@ -744,26 +758,27 @@ results = results[to_keep, to_keep]
 basename_n = basename_n[to_keep]
 Index = Index[to_keep]
 
-write.table(
-    results,
+write.matrix(
+    x = results,
     file = paste0(
         opt$out,
         '/',
-        paste(opt$base_name, collapse = '_'),
+        opt$output_file_base_name,
         '_correlation_per_cell_after_filtering.mx'
     ),
-    row.names = TRUE,
-    col.names = TRUE
+    sep = '\t'
 )
 
 color_basebanes = selcol(length(unique(basename_n)))
 
-jpeg(paste0(
-    opt$out,
-    '/',
-    paste(opt$base_name, collapse = '_'),
-    '_correlation_plot_per_cell_after_filter.jpg'
-))
+jpeg(
+    paste0(
+        opt$out,
+        '/',
+        opt$output_file_base_name,
+        '_correlation_plot_per_cell_after_filter.jpg'
+    )
+)
 
 heatmap.2(
     results,
@@ -786,7 +801,8 @@ invisible(dev.off())
 #filter out samples that don't correlate ans save
 signal_smoothed = signal_smoothed %>%
     filter(index %in% Index) %>%
-    separate(index, c('basename', 'index'))
+    separate(index, c('basename', 'index'), sep = ' _ ') %>%
+    mutate(basename = factor(basename, level = opt$base_name))
 
 rep_percentage = signal_smoothed %>%
     group_by(basename, index) %>%
@@ -803,8 +819,8 @@ suppressMessages(ggsave(
     plot = plot,
     filename = paste0(
         opt$out,
-        paste(opt$base_name, collapse = '_'),
-        'percentage_of_replicating_cells_after_filtering.pdf'
+        opt$output_file_base_name,
+        '_percentage_of_replicating_cells_after_filtering.pdf'
     )
 ))
 
@@ -826,7 +842,7 @@ write_delim(
     path = paste0(
         opt$out,
         '/',
-        paste(opt$base_name, collapse = '_'),
+        opt$output_file_base_name,
         '_single_cells_CNV_',
         opt$binsSize,
         'bp.tsv'
@@ -850,7 +866,7 @@ write_delim(
     path = paste0(
         opt$out,
         '/',
-        paste(opt$base_name, collapse = '_'),
+        opt$output_file_base_name,
         '_calculated_replication_timing_',
         opt$binsSize,
         'bp.tsv'
@@ -861,7 +877,7 @@ write_delim(
 
 #plots
 if (opt$plot) {
-    system(paste0('mkdir ', opt$out, '/regions'))
+    system(paste0('mkdir -p ', opt$out, '/regions'))
     if (!'region' %in% names(opt)) {
         for (i in 1:length(Chr_Size$chr)) {
             region = round(runif(1, min = 1000000, max = Chr_Size$size[i] - 8000000),
@@ -882,7 +898,7 @@ if (opt$plot) {
                     end = ifelse(end > End , End, end)
                 )
             
-            
+            max_index = track_toplot %>% pull(newIndex) %>% max()
             
             s50_toplot = s50 %>%
                 ungroup() %>%
@@ -914,7 +930,7 @@ if (opt$plot) {
                         xmin = start,
                         xmax = end,
                         ymin = 0,
-                        ymax = 40,
+                        ymax = max_index / 20,
                         fill = RT
                     ),
                     inherit.aes = F
@@ -949,36 +965,32 @@ if (opt$plot) {
                         aes(
                             xmin = start,
                             xmax = end,
-                            ymin = 41,
-                            ymax = 80,
+                            ymin = max_index / 20,
+                            ymax = max_index / 10,
                             fill = RT
                         ),
                         inherit.aes = F
                     ) +
                     scale_y_discrete(
-                        limits = c(60, 20, -seq(
-                            20, max(track_toplot$newIndex), round((
-                                max(track_toplot$newIndex) - 20
-                            ) / 20)
-                        )),
-                        labels = c('referenceRT', 'RT',  seq(
-                            20, max(track_toplot$newIndex), round((
-                                max(track_toplot$newIndex) - 20
-                            ) / 20)
+                        limits = c(
+                            0.075 * max_index,
+                            max_index / 40,
+                            -seq(1, max_index, round(max_index / 20))
+                        ),
+                        labels = c('RT reference', 'RT',  seq(
+                            1,  max_index, round(max_index / 20)
                         ))
                     )
             } else{
                 plot = plot +
-                    scale_y_discrete(limits = c(20, -seq(
-                        20, max(track_toplot$newIndex), round((
-                            max(track_toplot$newIndex) - 20
-                        ) / 20)
-                    )),
-                    labels = c('RT',  seq(
-                        20, max(track_toplot$newIndex), round((
-                            max(track_toplot$newIndex) - 20
-                        ) / 20)
-                    )))
+                    scale_y_discrete(
+                        limits = c(max_index / 40, -seq(
+                            1, max_index, round(max_index / 20)
+                        )),
+                        labels = c('RT',  seq(
+                            1,  max_index, round(max_index / 20)
+                        ))
+                    )
             }
             
             suppressMessages(ggsave(
@@ -986,7 +998,7 @@ if (opt$plot) {
                 filename = paste0(
                     opt$out,
                     '/regions/',
-                    paste(opt$base_name, collapse = '_'),
+                    opt$output_file_base_name,
                     '_plot_RT_',
                     Chr,
                     ':',
@@ -1052,7 +1064,7 @@ if (opt$plot) {
                         xmin = start,
                         xmax = end,
                         ymin = 0,
-                        ymax = 40,
+                        max_index / 20,
                         fill = RT
                     ),
                     inherit.aes = F
@@ -1088,44 +1100,40 @@ if (opt$plot) {
                         aes(
                             xmin = start,
                             xmax = end,
-                            ymin = 41,
-                            ymax = 80,
+                            max_index / 20,
+                            max_index / 10,
                             fill = RT
                         ),
                         inherit.aes = F
                     ) +
                     scale_y_discrete(
-                        limits = c(60, 20, -seq(
-                            20, max(track_toplot$newIndex), round((
-                                max(track_toplot$newIndex) - 20
-                            ) / 20)
-                        )),
+                        limits = c(
+                            0.075 * max_index,
+                            max_index / 40,
+                            -seq(1, max_index, round(max_index / 20))
+                        ),
                         labels = c('RT reference', 'RT',  seq(
-                            20, max(track_toplot$newIndex), round((
-                                max(track_toplot$newIndex) - 20
-                            ) / 20)
+                            1,  max_index, round(max_index / 20)
                         ))
                     )
             } else{
                 plot = plot +
-                    scale_y_discrete(limits = c(20, -seq(
-                        20, max(track_toplot$newIndex), round((
-                            max(track_toplot$newIndex) - 20
-                        ) / 20)
-                    )),
-                    labels = c('RT',  seq(
-                        20, max(track_toplot$newIndex), round((
-                            max(track_toplot$newIndex) - 20
-                        ) / 20)
-                    )))
+                    scale_y_discrete(
+                        limits = c(max_index / 40, -seq(
+                            1, max_index, round(max_index / 20)
+                        )),
+                        labels = c('RT',  seq(
+                            1,  max_index, round(max_index / 20)
+                        ))
+                    )
             }
-            plot = plot + facet_wrap( ~ basename)
+            plot = plot + facet_wrap(~ basename)
             suppressMessages(ggsave(
                 plot,
                 filename = paste0(
                     opt$out,
                     '/regions/',
-                    paste(opt$base_name, collapse = '_'),
+                    opt$output_file_base_name,
                     '_plot_RT_',
                     Chr,
                     ':',
@@ -1161,7 +1169,7 @@ pdf(
     paste0(
         opt$out,
         '/',
-        paste(opt$base_name, collapse = '_')
+        opt$output_file_base_name
         ,
         '_RT_distribution_plot_calculated_RT_vs_reference.pdf'
     )
@@ -1206,7 +1214,7 @@ if (length(RT_type) != 1) {
     pdf(paste0(
         opt$out,
         '/',
-        paste(opt$base_name, collapse = '_'),
+        opt$output_file_base_name,
         '_correlation_plot_RTs.pdf'
     ))
     heatmap.2(
@@ -1223,10 +1231,10 @@ if (length(RT_type) != 1) {
         lhei = c(1, 3),
         lwid = c(1, 3),
         breaks = seq(0, 1, length.out = 101),
-        srtCol = 0,
-        srtRow = 90,
-        adjRow = 0.5,
-        adjCol = 0.5,
+        srtCol = 90,
+        srtRow = 0,
+        adjRow = 0,
+        adjCol = 1,
         density.info = 'density',
         key.title = 'Pearson',
         col = color(100)
@@ -1278,8 +1286,6 @@ x = foreach(
     
 }
 
-stopCluster(cl)
-
 x = x %>%
     filter(time > -10,
            time < 10)
@@ -1298,11 +1304,12 @@ x = x %>%
     mutate(
         time = time - time50,
         Cat_RT = case_when(
-           RT < 2 ~ '5 - Very Late',
-           RT >= 2 & RT < 4 ~ '4 - Late',
-           RT >= 4 & RT < 6 ~ '3 - Mid',
-           RT >= 6 & RT < 8 ~ '2 - Early',
-           RT >= 8 ~ '1 - Very Early'),
+            RT < 2 ~ '5 - Very Late',
+            RT >= 2 & RT < 4 ~ '4 - Late',
+            RT >= 4 & RT < 6 ~ '3 - Mid',
+            RT >= 6 & RT < 8 ~ '2 - Early',
+            RT >= 8 ~ '1 - Very Early'
+        ),
         Cat_RT = factor(
             Cat_RT,
             levels = c(
@@ -1317,13 +1324,23 @@ x = x %>%
     )
 
 x = rbind(x, x %>%
-              mutate(Cat_RT = 'All'))
+              mutate(Cat_RT = factor(
+                  'All',
+                  levels = c(
+                      'All',
+                      '1 - Very Early',
+                      '2 - Early',
+                      '3 - Mid',
+                      '4 - Late',
+                      '5 - Very Late'
+                  )
+              )))
 
 x %>%
     write_tsv(paste0(
         opt$out,
         '/',
-        paste(opt$base_name, collapse = '_'),
+        opt$output_file_base_name,
         '_scRT_variability.tsv'
     ))
 
@@ -1332,7 +1349,7 @@ fitted_data = foreach(
     basename = unique(x$basename),
     .combine = 'rbind',
     .packages = c('tidyverse', 'foreach')
-) %do% {
+) %dopar% {
     temp = foreach(
         EL = unique(x$Cat_RT),
         .combine = 'rbind',
@@ -1369,7 +1386,7 @@ fitted_data = foreach(
         }
         
         t = T25_75(df = x[x$basename == basename &
-                              x$Cat_RT == EL,], basename, EL)
+                              x$Cat_RT == EL, ], basename, EL)
     }
     temp
 }
@@ -1378,7 +1395,26 @@ t = fitted_data %>% filter(t75 | t25) %>%
     gather('t', 'value', t25, t75) %>%
     filter(value) %>%
     dplyr::select(-percentage, -value) %>%
-    spread(t, time)
+    spread(t, time) %>%
+    mutate(Twidth = abs(t75 - t25))
+
+t %>% write_tsv(paste0(opt$out,
+                       '/',
+                       opt$output_file_base_name,
+                       '_Twidth.tsv'))
+
+
+p = ggplot(t) +
+    geom_col(aes(Cat_RT, Twidth, fill = basename), position = 'dodge') +
+    ylab('Twidth') + xlab('')
+
+suppressMessages(ggsave(
+    p,
+    filename = paste0(opt$out,
+                      '/',
+                      opt$output_file_base_name,
+                      '_Twidths.pdf')
+))
 
 p = ggplot() +
     stat_density_2d(
@@ -1420,21 +1456,25 @@ p = ggplot() +
     scale_y_continuous(labels = scales::percent_format()) +
     ylab('Replicated Bins')
 
-suppressMessages(ggsave(p,
-                        filename = paste0(
-                            opt$out,
-                            '/',
-                            paste(opt$base_name, collapse = '_'),
-                            '_variability_plot.pdf'
-                        )))
+suppressMessages(ggsave(
+    p,
+    filename = paste0(
+        opt$out,
+        '/',
+        opt$output_file_base_name,
+        '_variability_plot.pdf'
+    )
+))
 
-suppressMessages(ggsave(p,
-                        filename = paste0(
-                            opt$out,
-                            '/',
-                            paste(opt$base_name, collapse = '_'),
-                            '_variability_plot.jpg'
-                        )))
+suppressMessages(ggsave(
+    p,
+    filename = paste0(
+        opt$out,
+        '/',
+        opt$output_file_base_name,
+        '_variability_plot.jpg'
+    )
+))
 
 if (opt$Var_against_reference) {
     Reference_RT = Reference_RT %>%
@@ -1492,7 +1532,8 @@ if (opt$Var_against_reference) {
                 RT >= 2 & RT < 4 ~ '4 - Late',
                 RT >= 4 & RT < 6 ~ '3 - Mid',
                 RT >= 6 & RT < 8 ~ '2 - Early',
-                RT >= 8 ~ '1 - Very Early'),
+                RT >= 8 ~ '1 - Very Early'
+            ),
             Cat_RT = factor(
                 Cat_RT,
                 levels = c(
@@ -1506,21 +1547,33 @@ if (opt$Var_against_reference) {
             )
         )
     x = rbind(x, x %>%
-                  mutate(Cat_RT = 'All'))
+                  mutate(
+                      Cat_RT = 'All',
+                      levels = c(
+                          'All',
+                          '1 - Very Early',
+                          '2 - Early',
+                          '3 - Mid',
+                          '4 - Late',
+                          '5 - Very Late'
+                      )
+                  ))
     x %>%
-        write_tsv(paste0(
-            opt$out,
-            '/',
-            paste(opt$base_name, collapse = '_'),
-            '_scRT_variability_on_reference.tsv'
-        ))
+        write_tsv(
+            paste0(
+                opt$out,
+                '/',
+                opt$output_file_base_name,
+                '_scRT_variability_on_reference.tsv'
+            )
+        )
     
     #calculate tresholds 25% 75% replication keeping in account early and late domains
     fitted_data = foreach(
         basename = unique(x$basename),
         .combine = 'rbind',
         .packages = c('tidyverse', 'foreach')
-    ) %do% {
+    ) %dopar% {
         temp = foreach(
             EL = unique(x$Cat_RT),
             .combine = 'rbind',
@@ -1557,7 +1610,7 @@ if (opt$Var_against_reference) {
             }
             
             t = T25_75(df = x[x$basename == basename &
-                                  x$Cat_RT == EL,], basename, EL)
+                                  x$Cat_RT == EL, ], basename, EL)
         }
         temp
     }
@@ -1566,7 +1619,30 @@ if (opt$Var_against_reference) {
         gather('t', 'value', t25, t75) %>%
         filter(value) %>%
         dplyr::select(-percentage, -value) %>%
-        spread(t, time)
+        spread(t, time) %>%
+        mutate(Twidth = abs(t75 - t25))
+    
+    t %>% write_tsv(paste0(
+        opt$out,
+        '/',
+        opt$output_file_base_name,
+        '_Twidth_ref_RT.tsv'
+    ))
+    
+    
+    p = ggplot(t) +
+        geom_col(aes(Cat_RT, Twidth, fill = basename), position = 'dodge') +
+        ylab('Twidth') + xlab('')
+    
+    suppressMessages(ggsave(
+        p,
+        filename = paste0(
+            opt$out,
+            '/',
+            opt$output_file_base_name,
+            '_Twidths_ref_RT.pdf'
+        )
+    ))
     
     p = ggplot() +
         stat_density_2d(
@@ -1613,7 +1689,7 @@ if (opt$Var_against_reference) {
         filename = paste0(
             opt$out,
             '/',
-            paste(opt$base_name, collapse = '_'),
+            opt$output_file_base_name,
             '_variability_plot_Early_Late_ref_RT.pdf'
         )
     ))
@@ -1623,10 +1699,12 @@ if (opt$Var_against_reference) {
         filename = paste0(
             opt$out,
             '/',
-            paste(opt$base_name, collapse = '_'),
+            opt$output_file_base_name,
             '_variability_plot_Early_Late_ref_RT.jpg'
         )
     ))
     
 }
+
+stopCluster(cl)
 print('done')

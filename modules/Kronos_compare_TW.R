@@ -3,7 +3,7 @@
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
 options(stringsAsFactors = FALSE)
-options(warn = 1)
+options(warn = 1,scipen = 999)
 
 option_list = list(
     make_option(
@@ -43,6 +43,13 @@ option_list = list(
         metavar = "character"
     ),
     make_option(
+        c("-f", "--output_file_base_name"),
+        type = "character",
+        default = "out",
+        help = "Base name for the output file [default= %default]",
+        metavar = "character"
+    ),
+    make_option(
         c("-c", "--cores"),
         type = "integer",
         default = 3,
@@ -62,6 +69,12 @@ suppressPackageStartupMessages(library(ggpubr, quietly = TRUE))
 if (!'file' %in% names(opt)) {
     stop("Variability file must be provided. See script usage (--help)")
 }
+
+if (str_extract(opt$out, '.$') != '/') {
+    opt$out = paste0(opt$out, '/')
+}
+
+system(paste0('mkdir -p ./', opt$out))
 
 opt$file = str_split(opt$file, ',')[[1]]
 
@@ -129,6 +142,10 @@ if ('regions' %in% names(opt)) {
         ungroup() %>%
         mutate(seqnames = as.character(seqnames))
     
+    data = data %>%
+        mutate(old_Cat_RT = Cat_RT) %>%
+        dplyr::select(-Cat_RT) %>%
+        inner_join(Annotation, by = c("chr" = "seqnames", "start", "end"))
     
     if (opt$both_annotations) {
         if ('regions2' %in% opt) {
@@ -154,19 +171,19 @@ if ('regions' %in% names(opt)) {
                 changed %>%
                     mutate(
                         size = width(overlaps),
-                        Cat_RT = overlaps$annotation
+                        old_Cat_RT = overlaps$annotation
                     ) %>%
-                    group_by(seqnames, start, end, Cat_RT) %>%
+                    group_by(seqnames, start, end, old_Cat_RT) %>%
                     summarise(n = sum(size)) %>%
                     ungroup() %>%
                     group_by(seqnames, start, end) %>%
                     mutate(
                         select = (n / sum(n) >= 0.6),
-                        Cat_RT = ifelse(any(select), Cat_RT, '_Unknown_')
+                        old_Cat_RT = ifelse(any(select), old_Cat_RT, '_Unknown_')
                     ) %>%
-                    dplyr::select(seqnames, start, end, Cat_RT),
-                not_changed %>% mutate(Cat_RT = '_Unknown_') %>%
-                    dplyr::select(seqnames, start, end, Cat_RT)
+                    dplyr::select(seqnames, start, end, old_Cat_RT),
+                not_changed %>% mutate(old_Cat_RT = '_Unknown_') %>%
+                    dplyr::select(seqnames, start, end, old_Cat_RT)
             )
             Annotation = Annotation %>%
                 ungroup() %>%
@@ -174,7 +191,7 @@ if ('regions' %in% names(opt)) {
             
             data = data %>%
                 mutate(old_Cat_RT = Cat_RT) %>%
-                dplyr::select(-Cat_RT) %>%
+                dplyr::select(-old_Cat_RT) %>%
                 inner_join(Annotation, by = c("chr" = "seqnames", "start", "end"))
             
         }
@@ -258,7 +275,27 @@ if ('regions' %in% names(opt)) {
             gather('t', 'value', t25, t75) %>%
             filter(value) %>%
             dplyr::select(-percentage, -value) %>%
-            spread(t, time)
+            spread(t, time)%>%
+            mutate(Twidth = abs(t75 - t25))
+        
+        t %>%rename(Cat_RT='Annotation1'  , old_Cat_RT='Annotation2')%>%
+        write_tsv(paste0(opt$out,
+                               '/',
+                               opt$output_file_base_name,
+                               '_Twidth_2_categories.tsv'))
+        
+        
+        p = ggplot(t) +
+            geom_col(aes(' ', Twidth, fill = basename), position = 'dodge') +
+            ylab('Twidth') + xlab('')+facet_grid(Cat_RT~old_Cat_RT)
+        
+        suppressMessages(ggsave(
+            p,
+            filename = paste0(opt$out,
+                              '/',
+                              opt$output_file_base_name,
+                              '_Twidths_2_categories.pdf')
+        ))
         
         counts = data %>% select(chr, start, Cat_RT, old_Cat_RT, basename) %>%
             unique() %>%
@@ -317,7 +354,7 @@ if ('regions' %in% names(opt)) {
             filename = paste0(
                 opt$out,
                 '/',
-                paste(unique(data$basename), collapse = '_'),
+                opt$output_file_base_name,
                 '_variability_2_categories.pdf'
             )
         ))
@@ -327,7 +364,7 @@ if ('regions' %in% names(opt)) {
             filename = paste0(
                 opt$out,
                 '/',
-                paste(unique(data$basename), collapse = '_'),
+                opt$output_file_base_name,
                 '_variability_2_categories.jpg'
             )
         ))
@@ -391,7 +428,26 @@ t = fitted_data %>% filter(t75 | t25) %>%
     gather('t', 'value', t25, t75) %>%
     filter(value) %>%
     dplyr::select(-percentage, -value) %>%
-    spread(t, time)
+    spread(t, time)%>%
+    mutate(Twidth = abs(t75 - t25))
+
+t %>% write_tsv(paste0(opt$out,
+                       '/',
+                       opt$output_file_base_name,
+                       '_Twidth_1_category.tsv'))
+
+
+p = ggplot(t) +
+    geom_col(aes(Cat_RT, Twidth, fill = basename), position = 'dodge') +
+    ylab('Twidth') + xlab('')
+
+suppressMessages(ggsave(
+    p,
+    filename = paste0(opt$out,
+                      '/',
+                      opt$output_file_base_name,
+                      '_Twidths_1_category.pdf')
+))
 
 counts = data %>% select(chr, start, Cat_RT, basename) %>%
     unique() %>%
@@ -450,7 +506,7 @@ suppressMessages(ggsave(
     filename = paste0(
         opt$out,
         '/',
-        paste(unique(data$basename), collapse = '_'),
+        opt$output_file_base_name,
         '_variability_1_category.pdf'
     )
 ))
@@ -460,7 +516,7 @@ suppressMessages(ggsave(
     filename = paste0(
         opt$out,
         '/',
-        paste(unique(data$basename), collapse = '_'),
+        opt$output_file_base_name,
         '_variability_1_category.pdf'
     )
 ))
