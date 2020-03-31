@@ -74,6 +74,7 @@ if ('tracks' %in% names(opt)) {
         read_tsv(tracks, skip = 2, col_types = cols()) %>%
             select(id, `#chrom`, start, end, copy_number) %>%
             `colnames<-`(c('Cell', 'chr', 'start', 'end', 'copy_number')) %>%
+	mutate(reads= '10X')%>%
             write_tsv(paste0(opt$out, '/Kronos_format_', basename(tracks)))
     }
 }
