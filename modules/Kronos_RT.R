@@ -3,7 +3,7 @@
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
 options(stringsAsFactors = FALSE)
-options(warn = 1,scipen = 999)
+options(warn = 1, scipen = 999)
 
 option_list = list(
     make_option(
@@ -898,118 +898,134 @@ if (opt$plot) {
                     end = ifelse(end > End , End, end)
                 )
             
-            if(length(track_toplot$chr)!=0){
-            
-            max_index = track_toplot %>% pull(newIndex) %>% max()
-            
-            s50_toplot = s50 %>%
-                ungroup() %>%
-                filter(
-                    chr %in% Chr,
-                    (start >= Start & end <= End) |
-                        (start <= Start & end >= Start) |
-                        (start <= End & end >= End)
-                ) %>%
-                mutate(
-                    RT = RT ,
-                    start = ifelse(start < Start, Start, start),
-                    end = ifelse(end > End , End, end)
-                )
-            
-            plot =  ggplot() +
-                geom_rect(
-                    data = track_toplot,
-                    aes(
-                        xmin = start,
-                        xmax = end,
-                        ymin = -newIndex,
-                        ymax = -newIndex - 1,
-                        fill = as.numeric(Rep)
-                    )
-                ) + geom_rect(
-                    data = s50_toplot,
-                    aes(
-                        xmin = start,
-                        xmax = end,
-                        ymin = 0,
-                        ymax = max_index / 20,
-                        fill = RT
-                    ),
-                    inherit.aes = F
-                ) +
-                facet_grid(chr ~ basename, scale = 'free') +
-                scale_fill_gradient(low = 'blue',
-                                    high = 'red',
-                                    limits = c(0, 1)) +
-                scale_x_continuous(
-                    labels = function(x)
-                        paste(x / 1000000, 'Mb', sep = ' ')
-                ) +
-                labs(y = 'S phase progression', fill = "Replication Timing\nBinary Replication Profile\n") +
-                theme(
-                    legend.position = 'top',
-                    axis.text.x = element_text(angle = 45, hjust = 1)
-                )
-            
-            if ('referenceRT' %in% names(opt)) {
-                RT_toplot = Reference_RT %>%
-                    filter(chr %in% Chr,
-                           start >= Start,
-                           end <= End) %>%
+            if (length(track_toplot$chr) != 0) {
+                max_index = track_toplot %>% pull(newIndex) %>% max()
+                
+                s50_toplot = s50 %>%
+                    ungroup() %>%
+                    filter(
+                        chr %in% Chr,
+                        (start >= Start & end <= End) |
+                            (start <= Start & end >= Start) |
+                            (start <= End & end >= End)
+                    ) %>%
                     mutate(
                         RT = RT ,
                         start = ifelse(start < Start, Start, start),
                         end = ifelse(end > End , End, end)
                     )
-                plot = plot +
+                
+                plot =  ggplot() +
                     geom_rect(
-                        data = RT_toplot,
+                        data = track_toplot,
                         aes(
                             xmin = start,
                             xmax = end,
-                            ymin = max_index / 20,
-                            ymax = max_index / 10,
+                            ymin = -newIndex,
+                            ymax = -newIndex - 1,
+                            fill = as.numeric(Rep)
+                        )
+                    ) + geom_rect(
+                        data = s50_toplot,
+                        aes(
+                            xmin = start,
+                            xmax = end,
+                            ymin = 0,
+                            ymax = max_index / 20,
                             fill = RT
                         ),
                         inherit.aes = F
-                    )  +
-                    scale_y_discrete(
-                        limits = c(
-                            0.075 * max_index,
-                            max_index / 40,
-                            -seq(1, max_index, round(max_index / 20))
-                        ),
-                        labels = c('RT reference', 'RT',  seq(
-                            1,  max_index, round(max_index / 20)
-                        ))
+                    ) +
+                    facet_grid(chr ~ basename, scale = 'free') +
+                    scale_fill_gradient(
+                        low = 'blue',
+                        high = 'red',
+                        limits = c(0, 1)
+                    ) +
+                    scale_x_continuous(
+                        labels = function(x)
+                            paste(x / 1000000, 'Mb', sep = ' ')
+                    ) +
+                    labs(y = 'S phase progression', fill = "Replication Timing\nBinary Replication Profile\n") +
+                    theme(
+                        legend.position = 'top',
+                        axis.text.x = element_text(angle = 45, hjust = 1)
                     )
-            } else{
-                plot = plot +
-                    scale_y_discrete(
-                        limits = c(max_index / 40, -seq(
-                            1, max_index, round(max_index / 20)
-                        )),
-                        labels = c('RT',  seq(
-                            1,  max_index, round(max_index / 20)
-                        ))
+                
+                if ('referenceRT' %in% names(opt)) {
+                    RT_toplot = Reference_RT %>%
+                        filter(chr %in% Chr,
+                               start >= Start,
+                               end <= End) %>%
+                        mutate(
+                            RT = RT ,
+                            start = ifelse(start < Start, Start, start),
+                            end = ifelse(end > End , End, end)
+                        )
+                    if (lengh(RT_toplot$chr) != 0) {
+                        plot = plot +
+                            geom_rect(
+                                data = RT_toplot,
+                                aes(
+                                    xmin = start,
+                                    xmax = end,
+                                    ymin = max_index / 20,
+                                    ymax = max_index / 10,
+                                    fill = RT
+                                ),
+                                inherit.aes = F
+                            )  +
+                            scale_y_discrete(
+                                limits = c(
+                                    0.075 * max_index,
+                                    max_index / 40,
+                                    -seq(1, max_index, round(max_index / 20))
+                                ),
+                                labels = c(
+                                    'RT reference',
+                                    'RT',
+                                    seq(1,  max_index, round(max_index / 20))
+                                )
+                            )
+                    } else{
+                        plot = plot +
+                            scale_y_discrete(
+                                limits = c(
+                                    max_index / 40,
+                                    -seq(1, max_index, round(max_index / 20))
+                                ),
+                                labels = c('RT',  seq(
+                                    1,  max_index, round(max_index / 20)
+                                ))
+                            )
+                    }
+                } else{
+                    plot = plot +
+                        scale_y_discrete(
+                            limits = c(max_index / 40, -seq(
+                                1, max_index, round(max_index / 20)
+                            )),
+                            labels = c('RT',  seq(
+                                1,  max_index, round(max_index / 20)
+                            ))
+                        )
+                }
+                
+                suppressMessages(ggsave(
+                    plot,
+                    filename = paste0(
+                        opt$out,
+                        '/regions/',
+                        opt$output_file_base_name,
+                        '_plot_RT_',
+                        Chr,
+                        ':',
+                        Start,
+                        '-',
+                        End,
+                        '.pdf'
                     )
-            }
-            
-            suppressMessages(ggsave(
-                plot,
-                filename = paste0(
-                    opt$out,
-                    '/regions/',
-                    opt$output_file_base_name,
-                    '_plot_RT_',
-                    Chr,
-                    ':',
-                    Start,
-                    '-',
-                    End,
-                    '.pdf'
-                )
-            ))
+                ))
             }
         }
     } else{
@@ -1035,119 +1051,135 @@ if (opt$plot) {
                     end = ifelse(end > End , End, end)
                 )
             
-            if(length(track_toplot$chr)!=0){
-        
-            max_index = track_toplot %>% pull(newIndex) %>% max()
+            if (length(track_toplot$chr) != 0) {
+                max_index = track_toplot %>% pull(newIndex) %>% max()
                 
-            s50_toplot = s50 %>%
-                ungroup() %>%
-                filter(
-                    chr %in% Chr,
-                    (start >= Start & end <= End) |
-                        (start <= Start & end >= Start) |
-                        (start <= End & end >= End)
-                ) %>%
-                mutate(
-                    RT = RT + 1,
-                    start = ifelse(start < Start, Start, start),
-                    end = ifelse(end > End , End, end)
-                )
-            
-            plot =  ggplot() +
-                geom_rect(
-                    data = track_toplot,
-                    aes(
-                        xmin = start,
-                        xmax = end,
-                        ymin = -newIndex,
-                        ymax = -newIndex - 1,
-                        fill = as.numeric(Rep)
-                    )
-                ) + geom_rect(
-                    data = s50_toplot,
-                    aes(
-                        xmin = start,
-                        xmax = end,
-                        ymin = 0,
-                        ymax = max_index / 20,
-                        fill = RT
-                    ),
-                    inherit.aes = F
-                ) +
-                facet_grid(chr ~ basename, scale = 'free') +
-                scale_fill_gradient(low = 'blue',
-                                    high = 'red',
-                                    limits = c(0, 1)) +
-                scale_x_continuous(
-                    labels = function(x)
-                        paste(x / 1000000, 'Mb', sep = ' ')
-                ) +
-                labs(y = 'S phase progression', fill = "RT") +
-                theme(
-                    legend.position = 'top',
-                    axis.text.x = element_text(angle = 45, hjust = 1)
-                )
-            
-            
-            if ('referenceRT' %in% names(opt)) {
-                RT_toplot = Reference_RT %>%
-                    filter(chr %in% Chr,
-                           start >= Start,
-                           end <= End) %>%
+                s50_toplot = s50 %>%
+                    ungroup() %>%
+                    filter(
+                        chr %in% Chr,
+                        (start >= Start & end <= End) |
+                            (start <= Start & end >= Start) |
+                            (start <= End & end >= End)
+                    ) %>%
                     mutate(
-                        RT = RT ,
+                        RT = RT + 1,
                         start = ifelse(start < Start, Start, start),
                         end = ifelse(end > End , End, end)
                     )
-                plot = plot +
+                
+                plot =  ggplot() +
                     geom_rect(
-                        data = RT_toplot,
+                        data = track_toplot,
                         aes(
                             xmin = start,
                             xmax = end,
-                            ymin = max_index / 20,
-                            ymax = max_index / 10,
+                            ymin = -newIndex,
+                            ymax = -newIndex - 1,
+                            fill = as.numeric(Rep)
+                        )
+                    ) + geom_rect(
+                        data = s50_toplot,
+                        aes(
+                            xmin = start,
+                            xmax = end,
+                            ymin = 0,
+                            ymax = max_index / 20,
                             fill = RT
                         ),
                         inherit.aes = F
                     ) +
-                    scale_y_discrete(
-                        limits = c(
-                            0.075 * max_index,
-                            max_index / 40,
-                            -seq(1, max_index, round(max_index / 20))
-                        ),
-                        labels = c('RT reference', 'RT',  seq(
-                            1,  max_index, round(max_index / 20)
-                        ))
+                    facet_grid(chr ~ basename, scale = 'free') +
+                    scale_fill_gradient(
+                        low = 'blue',
+                        high = 'red',
+                        limits = c(0, 1)
+                    ) +
+                    scale_x_continuous(
+                        labels = function(x)
+                            paste(x / 1000000, 'Mb', sep = ' ')
+                    ) +
+                    labs(y = 'S phase progression', fill = "RT") +
+                    theme(
+                        legend.position = 'top',
+                        axis.text.x = element_text(angle = 45, hjust = 1)
                     )
-            } else{
-                plot = plot +
-                    scale_y_discrete(
-                        limits = c(max_index / 40, -seq(
-                            1, max_index, round(max_index / 20)
-                        )),
-                        labels = c('RT',  seq(
-                            1,  max_index, round(max_index / 20)
-                        ))
+                
+                
+                if ('referenceRT' %in% names(opt)) {
+                    RT_toplot = Reference_RT %>%
+                        filter(chr %in% Chr,
+                               start >= Start,
+                               end <= End) %>%
+                        mutate(
+                            RT = RT ,
+                            start = ifelse(start < Start, Start, start),
+                            end = ifelse(end > End , End, end)
+                        )
+                    if (length(RT_toplot$chr) != 0) {
+                        plot = plot +
+                            geom_rect(
+                                data = RT_toplot,
+                                aes(
+                                    xmin = start,
+                                    xmax = end,
+                                    ymin = max_index / 20,
+                                    ymax = max_index / 10,
+                                    fill = RT
+                                ),
+                                inherit.aes = F
+                            ) +
+                            scale_y_discrete(
+                                limits = c(
+                                    0.075 * max_index,
+                                    max_index / 40,
+                                    -seq(1, max_index, round(max_index / 20))
+                                ),
+                                labels = c(
+                                    'RT reference',
+                                    'RT',
+                                    seq(1,  max_index, round(max_index / 20))
+                                )
+                            )
+                    } else{
+                        plot = plot +
+                            scale_y_discrete(
+                                limits = c(
+                                    max_index / 40,
+                                    -seq(1, max_index, round(max_index / 20))
+                                ),
+                                labels = c('RT',  seq(
+                                    1,  max_index, round(max_index / 20)
+                                ))
+                            )
+                    }
+                } else{
+                    plot = plot +
+                        scale_y_discrete(
+                            limits = c(max_index / 40, -seq(
+                                1, max_index, round(max_index / 20)
+                            )),
+                            labels = c('RT',  seq(
+                                1,  max_index, round(max_index / 20)
+                            ))
+                        )
+                }
+                plot = plot + facet_wrap( ~ basename)
+                suppressMessages(ggsave(
+                    plot,
+                    filename = paste0(
+                        opt$out,
+                        '/regions/',
+                        opt$output_file_base_name,
+                        '_plot_RT_',
+                        Chr,
+                        ':',
+                        Start,
+                        '-',
+                        End,
+                        '.pdf'
                     )
-            }
-            plot = plot + facet_wrap(~ basename)
-            suppressMessages(ggsave(
-                plot,
-                filename = paste0(
-                    opt$out,
-                    '/regions/',
-                    opt$output_file_base_name,
-                    '_plot_RT_',
-                    Chr,
-                    ':',
-                    Start,
-                    '-',
-                    End,
-                    '.pdf'
-                )
-            ))
+                ))
             }
         }
     }
@@ -1392,7 +1424,7 @@ fitted_data = foreach(
         }
         
         t = T25_75(df = x[x$basename == basename &
-                              x$Cat_RT == EL, ], basename, EL)
+                              x$Cat_RT == EL,], basename, EL)
     }
     temp
 }
@@ -1616,7 +1648,7 @@ if (opt$Var_against_reference) {
             }
             
             t = T25_75(df = x[x$basename == basename &
-                                  x$Cat_RT == EL, ], basename, EL)
+                                  x$Cat_RT == EL,], basename, EL)
         }
         temp
     }
