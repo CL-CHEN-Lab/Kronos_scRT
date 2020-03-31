@@ -962,7 +962,7 @@ if (opt$plot) {
                             start = ifelse(start < Start, Start, start),
                             end = ifelse(end > End , End, end)
                         )
-                    if (lengh(RT_toplot$chr) != 0) {
+                    if (length(RT_toplot$chr) != 0) {
                         plot = plot +
                             geom_rect(
                                 data = RT_toplot,
