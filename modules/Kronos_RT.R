@@ -260,7 +260,7 @@ data <-
     }
 
 #filter data with too little reads per megabase (0.75milion reads for a diploid human genome)
-data = data %>% filter(coverage_per_1Mbp >= RPM_TH)
+#data = data %>% filter(coverage_per_1Mbp >= RPM_TH)
 
 #load tracks
 all_tracks <-
@@ -880,7 +880,7 @@ if (opt$plot) {
     system(paste0('mkdir -p ', opt$out, '/regions'))
     if (!'region' %in% names(opt)) {
         for (i in 1:length(Chr_Size$chr)) {
-            region = round(runif(1, min = 1000000, max = Chr_Size$size[i] - 8000000),
+            region = round(runif(1, min = 1000000, max = Chr_Size$size[i] - 70000000),
                            0)
             Chr = Chr_Size$chr[i]
             Start = region
@@ -897,6 +897,8 @@ if (opt$plot) {
                     start = ifelse(start < Start, Start, start),
                     end = ifelse(end > End , End, end)
                 )
+            
+            if(length(track_toplot$chr)!=0){
             
             max_index = track_toplot %>% pull(newIndex) %>% max()
             
@@ -970,7 +972,7 @@ if (opt$plot) {
                             fill = RT
                         ),
                         inherit.aes = F
-                    ) +
+                    )  +
                     scale_y_discrete(
                         limits = c(
                             0.075 * max_index,
@@ -1008,7 +1010,7 @@ if (opt$plot) {
                     '.pdf'
                 )
             ))
-            
+            }
         }
     } else{
         #reshape regins
@@ -1033,7 +1035,10 @@ if (opt$plot) {
                     end = ifelse(end > End , End, end)
                 )
             
-            
+            if(length(track_toplot$chr)!=0){
+        
+            max_index = track_toplot %>% pull(newIndex) %>% max()
+                
             s50_toplot = s50 %>%
                 ungroup() %>%
                 filter(
@@ -1064,7 +1069,7 @@ if (opt$plot) {
                         xmin = start,
                         xmax = end,
                         ymin = 0,
-                        max_index / 20,
+                        ymax = max_index / 20,
                         fill = RT
                     ),
                     inherit.aes = F
@@ -1100,8 +1105,8 @@ if (opt$plot) {
                         aes(
                             xmin = start,
                             xmax = end,
-                            max_index / 20,
-                            max_index / 10,
+                            ymin = max_index / 20,
+                            ymax = max_index / 10,
                             fill = RT
                         ),
                         inherit.aes = F
@@ -1143,6 +1148,7 @@ if (opt$plot) {
                     '.pdf'
                 )
             ))
+            }
         }
     }
 }
@@ -1161,7 +1167,7 @@ if ('referenceRT' %in% names(opt)) {
 } else{
     RTs =  s50 %>%
         ungroup() %>%
-        select(chr, start, end, RT, basename) %>%
+        dplyr::select(chr, start, end, RT, basename) %>%
         mutate(RT = RT)
 }
 
