@@ -113,6 +113,14 @@ option_list = list(
         metavar = "logical"
     ),
     make_option(
+        c("--ploidy"),
+        type = "logical",
+        default = F,
+        action = "store_true",
+        help = "use confidence from user estimated ploidy after WhoIsWho",
+        metavar = "logical"
+    ),
+    make_option(
         c("--min_correlation"),
         type = "double",
         default = 0.25,
@@ -320,6 +328,31 @@ median_ploidy_G1_G2_cells = data %>%
     group_by(basename) %>%
     summarise(median_ploidy_G1_G2_cells = median(mean_ploidy))
 
+if ('ploidy' %in% names(opt)) {
+    data = data %>%
+        inner_join(median_ploidy_G1_G2_cells, by = 'basename') %>%
+        filter(
+            mean_ploidy > median_ploidy_G1_G2_cells / 1.50,
+            mean_ploidy < median_ploidy_G1_G2_cells * 2
+        ) %>%
+        mutate(Type = ifelse(
+            as.logical(is_high_dimapd) == T &
+                as.logical(is_noisy) == T,
+            'S-phase',
+            ifelse(
+                ifelse(
+                    is.na(threshold_G1G2phase),
+                    as.logical(is_high_dimapd) == F &
+                        as.logical(is_noisy) == F,
+                    as.logical(is_high_dimapd) == F &
+                        as.logical(is_noisy) == F &
+                        normalized_dimapd < threshold_G1G2phase
+                ),
+                'G1/G2 cells',
+                'unknown cells'
+            )
+        ))
+}else{
 data = data %>%
     inner_join(median_ploidy_G1_G2_cells, by = 'basename') %>%
     filter(
@@ -344,6 +377,7 @@ data = data %>%
             'unknown cells'
         )
     ))
+}
 
 #plot Variability vs ploidy
 p = data %>%
@@ -880,7 +914,7 @@ if (opt$plot) {
     system(paste0('mkdir -p ', opt$out, '/regions'))
     if (!'region' %in% names(opt)) {
         for (i in 1:length(Chr_Size$chr)) {
-            region = round(runif(1, min = 1000000, max = Chr_Size$size[i] - 8000000),
+            region = round(runif(1, min = 1000000, max = Chr_Size$size[i] - 70000000),
                            0)
             Chr = Chr_Size$chr[i]
             Start = region
@@ -897,6 +931,8 @@ if (opt$plot) {
                     start = ifelse(start < Start, Start, start),
                     end = ifelse(end > End , End, end)
                 )
+            
+            if(length(track_toplot$chr)!=0){
             
             max_index = track_toplot %>% pull(newIndex) %>% max()
             
@@ -959,6 +995,8 @@ if (opt$plot) {
                         start = ifelse(start < Start, Start, start),
                         end = ifelse(end > End , End, end)
                     )
+                
+                if(length(RT_toplot$chr)!=0){
                 plot = plot +
                     geom_rect(
                         data = RT_toplot,
@@ -981,6 +1019,17 @@ if (opt$plot) {
                             1,  max_index, round(max_index / 20)
                         ))
                     )
+                }else{
+                    plot = plot +
+                        scale_y_discrete(
+                            limits = c(max_index / 40, -seq(
+                                1, max_index, round(max_index / 20)
+                            )),
+                            labels = c('RT',  seq(
+                                1,  max_index, round(max_index / 20)
+                            ))
+                        )
+                }
             } else{
                 plot = plot +
                     scale_y_discrete(
@@ -992,7 +1041,7 @@ if (opt$plot) {
                         ))
                     )
             }
-            
+
             suppressMessages(ggsave(
                 plot,
                 filename = paste0(
@@ -1008,8 +1057,9 @@ if (opt$plot) {
                     '.pdf'
                 )
             ))
-            
         }
+    }
+        
     } else{
         #reshape regins
         opt$region = data.frame(coord = str_split(opt$region, pattern = ',')[[1]]) %>%
@@ -1033,7 +1083,8 @@ if (opt$plot) {
                     end = ifelse(end > End , End, end)
                 )
             
-            
+            if(length(track_toplot$chr)!=0){
+                
             s50_toplot = s50 %>%
                 ungroup() %>%
                 filter(
@@ -1094,28 +1145,41 @@ if (opt$plot) {
                         start = ifelse(start < Start, Start, start),
                         end = ifelse(end > End , End, end)
                     )
-                plot = plot +
-                    geom_rect(
-                        data = RT_toplot,
-                        aes(
-                            xmin = start,
-                            xmax = end,
-                            max_index / 20,
-                            max_index / 10,
-                            fill = RT
-                        ),
-                        inherit.aes = F
-                    ) +
-                    scale_y_discrete(
-                        limits = c(
-                            0.075 * max_index,
-                            max_index / 40,
-                            -seq(1, max_index, round(max_index / 20))
-                        ),
-                        labels = c('RT reference', 'RT',  seq(
-                            1,  max_index, round(max_index / 20)
-                        ))
-                    )
+                
+                if(length(RT_toplot$chr)!=0){
+                    plot = plot +
+                        geom_rect(
+                            data = RT_toplot,
+                            aes(
+                                xmin = start,
+                                xmax = end,
+                                ymin = max_index / 20,
+                                ymax = max_index / 10,
+                                fill = RT
+                            ),
+                            inherit.aes = F
+                        ) +
+                        scale_y_discrete(
+                            limits = c(
+                                0.075 * max_index,
+                                max_index / 40,
+                                -seq(1, max_index, round(max_index / 20))
+                            ),
+                            labels = c('RT reference', 'RT',  seq(
+                                1,  max_index, round(max_index / 20)
+                            ))
+                        )
+                }else{
+                    plot = plot +
+                        scale_y_discrete(
+                            limits = c(max_index / 40, -seq(
+                                1, max_index, round(max_index / 20)
+                            )),
+                            labels = c('RT',  seq(
+                                1,  max_index, round(max_index / 20)
+                            ))
+                        )
+                }
             } else{
                 plot = plot +
                     scale_y_discrete(
@@ -1143,6 +1207,7 @@ if (opt$plot) {
                     '.pdf'
                 )
             ))
+            }
         }
     }
 }
@@ -1161,7 +1226,7 @@ if ('referenceRT' %in% names(opt)) {
 } else{
     RTs =  s50 %>%
         ungroup() %>%
-        select(chr, start, end, RT, basename) %>%
+        dplyr::select(chr, start, end, RT, basename) %>%
         mutate(RT = RT)
 }
 
