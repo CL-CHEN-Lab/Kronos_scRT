@@ -880,11 +880,11 @@ if (opt$plot) {
     system(paste0('mkdir -p ', opt$out, '/regions'))
     if (!'region' %in% names(opt)) {
         for (i in 1:length(Chr_Size$chr)) {
-            region = round(runif(1, min = 1000000, max = Chr_Size$size[i] - 70000000),
+            region = round(runif(1, min = 1000000, max = 0.8*Chr_Size$size[i]),
                            0)
             Chr = Chr_Size$chr[i]
             Start = region
-            End = region + 60000000
+            End = region + 0.2*Chr_Size$size[i]
             
             track_toplot = signal_smoothed %>%
                 filter(
