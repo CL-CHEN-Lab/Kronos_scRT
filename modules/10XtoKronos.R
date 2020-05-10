@@ -82,3 +82,5 @@ if ('tracks' %in% names(opt)) {
 if (!('tracks' %in% names(opt) & 'file' %in% names(opt) )){
     stop('No input')
 }
+
+print('done')
