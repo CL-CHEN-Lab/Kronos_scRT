@@ -306,3 +306,6 @@ tibble(
     RPM_TH=round(112*median_ploidy_not_noisy)
 )%>%
     write_tsv(paste0(opt$out,opt$base_name, '_settings.txt'))
+
+print('done')
+
