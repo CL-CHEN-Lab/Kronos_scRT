@@ -696,7 +696,7 @@ signal_smoothed = signal_smoothed %>%
     mutate(mean_CN = mean(Rep),
            groups = ceiling(mean_CN * 10))
 
-#plor profile binning
+#plot profile binning
 plot = signal_smoothed %>%
     group_by(index, group) %>%
     summarise(Rep_percentage = mean(Rep)) %>%
@@ -759,7 +759,7 @@ color = colorRampPalette(colors = c('blue', 'green', 'yellow', 'orange', 'red'))
 
 color_basebanes = selcol(length(unique(basename_n)))
 
-jpeg(
+png(
     paste0(
         opt$out,
         '/',
@@ -812,7 +812,7 @@ write.matrix(
 
 color_basebanes = selcol(length(unique(basename_n)))
 
-jpeg(
+png(
     paste0(
         opt$out,
         '/',
@@ -1022,7 +1022,7 @@ if (opt$plot) {
                                     max_index / 40,
                                     -seq(1, max_index, round(max_index / 20))
                                 ),
-                                labels = c('RT reference', 'RT',  seq(
+                                labels = c(paste0('RT ',opt$ref_name), 'RT',  seq(
                                     1,  max_index, round(max_index / 20)
                                 ))
                             )
@@ -1068,7 +1068,7 @@ if (opt$plot) {
         }
         
     } else{
-        #reshape regins
+        #reshape regions
         opt$region = data.frame(coord = str_split(opt$region, pattern = ',')[[1]]) %>%
             separate(coord, c('chr', 'pos'), ':') %>%
             separate(pos, c('start', 'end'), '-')
@@ -1091,7 +1091,7 @@ if (opt$plot) {
                 )
             
             if(length(track_toplot$chr)!=0){
-                
+                max_index = track_toplot %>% pull(newIndex) %>% max()
                 s50_toplot = s50 %>%
                     ungroup() %>%
                     filter(
@@ -1101,11 +1101,12 @@ if (opt$plot) {
                             (start <= End & end >= End)
                     ) %>%
                     mutate(
-                        RT = RT + 1,
+                        RT = RT,
                         start = ifelse(start < Start, Start, start),
                         end = ifelse(end > End , End, end)
                     )
-                
+                track_toplot$end = as.numeric(track_toplot$end)
+                s50_toplot$end = as.numeric(s50_toplot$end)
                 plot =  ggplot() +
                     geom_rect(
                         data = track_toplot,
@@ -1122,7 +1123,7 @@ if (opt$plot) {
                             xmin = start,
                             xmax = end,
                             ymin = 0,
-                            max_index / 20,
+                            ymax = max_index / 20,
                             fill = RT
                         ),
                         inherit.aes = F
@@ -1172,7 +1173,7 @@ if (opt$plot) {
                                     max_index / 40,
                                     -seq(1, max_index, round(max_index / 20))
                                 ),
-                                labels = c('RT reference', 'RT',  seq(
+                                labels = c(paste0('RT ',opt$ref_name), 'RT',  seq(
                                     1,  max_index, round(max_index / 20)
                                 ))
                             )
