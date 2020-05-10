@@ -547,16 +547,21 @@ system(paste0(
     opt$output_dir,
     files[1],
     '_cnv_calls.bed > ',
-    paste0(opt$output_dir, opt$ExpName, '_cnv_calls.bed')
-))
-system(paste0(
-    'for i in ',
-    paste0(opt$output_dir, files[-1], '_cnv_calls.bed', collapse = ' '),
-    "; do sed '1d' $i >> ",
-    paste0(opt$output_dir, opt$ExpName, '_cnv_calls.bed'),
-    '; done'
+    opt$output_dir, opt$ExpName, '_cnv_calls.bed'
 ))
 system(paste0(
     'rm ',
-    paste0(opt$output_dir, files, '_cnv_calls.bed', collapse = ' ')
+    opt$output_dir, files[1], '_cnv_calls.bed'
 ))
+files=foreach (file=files[-1])%do%{
+system(paste0(
+     "sed '1d' ",opt$output_dir, 
+     file, "_cnv_calls.bed >> ",
+    opt$output_dir, opt$ExpName, '_cnv_calls.bed'
+))
+system(paste0(
+    'rm ',
+    opt$output_dir, file, '_cnv_calls.bed'
+))
+file
+}
