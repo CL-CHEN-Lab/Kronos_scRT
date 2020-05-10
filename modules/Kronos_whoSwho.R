@@ -62,3 +62,5 @@ data%>%
            is_noisy=ifelse(Phase=='S',T,F))%>%
     dplyr::select(-Phase)%>%
     write.csv(paste0(opt$out,'phased_',basename(opt$file)))
+
+print('done')
