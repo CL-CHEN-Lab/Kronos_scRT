@@ -518,3 +518,4 @@ bins=bins %>%
 #write bisns with info
 write_tsv(bins, paste0(opt$output_dir, basename(opt$index), '_bins_',ifelse(opt$paired_ends,'PE','SE'),'.tsv'))
 
+print('done')
