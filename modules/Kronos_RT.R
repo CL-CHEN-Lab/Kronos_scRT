@@ -260,7 +260,7 @@ data <-
     }
 
 #filter data with too little reads per megabase (0.75milion reads for a diploid human genome)
-#data = data %>% filter(coverage_per_1Mbp >= RPM_TH)
+data = data %>% filter(coverage_per_1Mbp >= RPM_TH)
 
 #load tracks
 all_tracks <-

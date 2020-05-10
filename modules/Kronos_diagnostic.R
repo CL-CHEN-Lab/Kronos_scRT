@@ -103,7 +103,7 @@ if (!'threshold_Sphase' %in% names(opt)){
                                          filter(is_noisy == F)%>%pull(mean_ploidy))
     
     data=data%>%
-        filter(coverage_per_1Mbp >= 140*median_ploidy_not_noisy,
+        filter(coverage_per_1Mbp >= 112*median_ploidy_not_noisy,
                ploidy_confidence > 2 | ploidy_confidence==-100,
                 mean_ploidy > median_ploidy_not_noisy / 1.5 ,
                 mean_ploidy < median_ploidy_not_noisy * 2
@@ -152,7 +152,7 @@ if (!'threshold_Sphase' %in% names(opt)){
     
     median_ploidy_not_noisy = median(data%>%filter(is_noisy == F)%>%pull(mean_ploidy))
     data = data %>%
-        filter(coverage_per_1Mbp >= 140*median_ploidy_not_noisy,
+        filter(coverage_per_1Mbp >= 112*median_ploidy_not_noisy,
             mean_ploidy > median_ploidy_not_noisy / 1.5 ,
             mean_ploidy < median_ploidy_not_noisy * 2,
             !ploidy_confidence <= 2 | ploidy_confidence==-100
