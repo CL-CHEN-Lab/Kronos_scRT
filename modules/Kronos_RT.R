@@ -325,7 +325,7 @@ data = data %>%
     filter(
         mean_ploidy > median_ploidy_G1_G2_cells / 1.50 ,
         mean_ploidy < median_ploidy_G1_G2_cells * 2,
-        !ploidy_confidence <= 2
+        !ploidy_confidence <= 2 | ploidy_confidence==-100
     ) %>%
     mutate(Type = ifelse(
         as.logical(is_high_dimapd) == T &
