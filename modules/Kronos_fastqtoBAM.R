@@ -280,3 +280,4 @@ if ('one' %in% names(opt) &
     stop("Check list of fastq files format. See script usage (--help)")
 }
 
+print('done')
