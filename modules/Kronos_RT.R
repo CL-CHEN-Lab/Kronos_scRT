@@ -28,6 +28,13 @@ option_list = list(
         metavar = "character"
     ),
     make_option(
+        c("--ref_name"),
+        type = "character",
+        default = "Reference",
+        help = "Name for the reference track",
+        metavar = "character"
+    ),
+    make_option(
         c("-C", "--chrSizes"),
         type = "character",
         default = NULL,
@@ -589,7 +596,7 @@ signal_smoothed = signal_smoothed %>%
     drop_na() %>%
     filter(is.finite(CN_bg))
 
-# remouve control track
+# remove control track
 rm('backgroud_smoothed')
 
 # identify threshold that minimazes the difference of the real data with a binary state (1 or 2)
@@ -655,7 +662,7 @@ signal_smoothed = signal_smoothed %>%
     mutate(mean_CN = mean(Rep),
            groups = ceiling(mean_CN * 10))
 
-#plor profile binning
+#plot profile binning
 plot = signal_smoothed %>%
     group_by(index, group) %>%
     summarise(Rep_percentage = mean(Rep)) %>%
@@ -982,7 +989,7 @@ if (opt$plot) {
                                     -seq(1, max_index, round(max_index / 20))
                                 ),
                                 labels = c(
-                                    'RT reference',
+                                    opt$ref_name,
                                     'RT',
                                     seq(1,  max_index, round(max_index / 20))
                                 )
@@ -1029,7 +1036,7 @@ if (opt$plot) {
             }
         }
     } else{
-        #reshape regins
+        #reshape regions
         opt$region = data.frame(coord = str_split(opt$region, pattern = ',')[[1]]) %>%
             separate(coord, c('chr', 'pos'), ':') %>%
             separate(pos, c('start', 'end'), '-')
@@ -1136,7 +1143,7 @@ if (opt$plot) {
                                     -seq(1, max_index, round(max_index / 20))
                                 ),
                                 labels = c(
-                                    'RT reference',
+                                    opt$ref_name,
                                     'RT',
                                     seq(1,  max_index, round(max_index / 20))
                                 )
@@ -1194,7 +1201,7 @@ if ('referenceRT' %in% names(opt)) {
         
         Reference_RT %>%
             mutate(RT = RT / max(RT, na.rm = T),
-                   basename = 'Reference')
+                   basename = opt$ref_name)
     )
 } else{
     RTs =  s50 %>%
@@ -1382,46 +1389,55 @@ x %>%
         '_scRT_variability.tsv'
     ))
 
+#T25_75 function
+T25_75 = function(df, name, EL) {
+    model = tryCatch(nls(percentage ~ SSlogis(time, Asym, xmid, scal),
+                         data = df[, c('percentage', 'time')]),
+    #If the data cannot be fitted with a Gauss-Newton algorithm, try the
+    #Golub and Pereyra algorithm for the solution of a nonlinear least squares
+    #problem which assumes a number of the parameters are linear.
+    #Also, add a higher tolerance (1e-04 Vs 1e-05).
+                error = function(e) nls(percentage ~ SSlogis(time, Asym, xmid, scal),
+                data = df[, c('percentage', 'time')], algorithm = 'plinear',
+                control = nls.control(tol = 1e-04, warnOnly = T) ) )
+    min = min(df$time)
+    max = max(df$time)
+    data = predict(model,
+                   newdata = data.frame(time = seq(min, max, 0.01)),
+                   type = "l")
+    result = data.frame(
+        time = seq(min, max, 0.01),
+        percentage = data,
+        basename = name
+    )
+    t = result %>%
+        mutate(
+            distance75 = abs(percentage - 0.75),
+            distance25 = abs(percentage - 0.25)
+        ) %>%
+        mutate(
+            min75 = min(distance75),
+            min25 = min(distance25),
+            t75 = distance75 == min75,
+            t25 = distance25 == min25
+        ) %>%
+        dplyr::select(basename, time, percentage, t75, t25)  %>%
+        mutate(Cat_RT = EL)
+
+    return(t)
+}
+
 #calculate tresholds 25% 75% replication keeping in account early and late domains
 fitted_data = foreach(
     basename = unique(x$basename),
     .combine = 'rbind',
     .packages = c('tidyverse', 'foreach')
-) %dopar% {
+) %do% {
     temp = foreach(
         EL = unique(x$Cat_RT),
         .combine = 'rbind',
         .packages = c('tidyverse', 'foreach')
-    ) %do% {
-        T25_75 = function(df, name, EL) {
-            model = nls(percentage ~ SSlogis(time, Asym, xmid, scal),
-                        data = df[, c('percentage', 'time')])
-            min = min(df$time)
-            max = max(df$time)
-            data = predict(model,
-                           newdata = data.frame(time = seq(min, max, 0.01)),
-                           type = "l")
-            result = data.frame(
-                time = seq(min, max, 0.01),
-                percentage = data,
-                basename = name
-            )
-            t = result %>%
-                mutate(
-                    distance75 = abs(percentage - 0.75),
-                    distance25 = abs(percentage - 0.25)
-                ) %>%
-                mutate(
-                    min75 = min(distance75),
-                    min25 = min(distance25),
-                    t75 = distance75 == min75,
-                    t25 = distance25 == min25
-                ) %>%
-                dplyr::select(basename, time, percentage, t75, t25)  %>%
-                mutate(Cat_RT = EL)
-            
-            return(t)
-        }
+    ) %dopar% {
         
         t = T25_75(df = x[x$basename == basename &
                               x$Cat_RT == EL,], basename, EL)
@@ -1611,42 +1627,12 @@ if (opt$Var_against_reference) {
         basename = unique(x$basename),
         .combine = 'rbind',
         .packages = c('tidyverse', 'foreach')
-    ) %dopar% {
+    ) %do% {
         temp = foreach(
             EL = unique(x$Cat_RT),
             .combine = 'rbind',
             .packages = c('tidyverse', 'foreach')
-        ) %do% {
-            T25_75 = function(df, name, EL) {
-                model = nls(percentage ~ SSlogis(time, Asym, xmid, scal),
-                            data = df[, c('percentage', 'time')])
-                min = min(df$time)
-                max = max(df$time)
-                data = predict(model,
-                               newdata = data.frame(time = seq(min, max, 0.01)),
-                               type = "l")
-                result = data.frame(
-                    time = seq(min, max, 0.01),
-                    percentage = data,
-                    basename = name
-                )
-                t = result %>%
-                    mutate(
-                        distance75 = abs(percentage - 0.75),
-                        distance25 = abs(percentage - 0.25)
-                    ) %>%
-                    mutate(
-                        min75 = min(distance75),
-                        min25 = min(distance25),
-                        t75 = distance75 == min75,
-                        t25 = distance25 == min25
-                    ) %>%
-                    dplyr::select(basename, time, percentage, t75, t25)  %>%
-                    mutate(Cat_RT = EL)
-                
-                return(t)
-            }
-            
+        ) %dopar% {
             t = T25_75(df = x[x$basename == basename &
                                   x$Cat_RT == EL,], basename, EL)
         }
