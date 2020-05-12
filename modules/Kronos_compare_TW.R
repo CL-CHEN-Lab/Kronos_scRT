@@ -204,6 +204,56 @@ if ('regions' %in% names(opt)) {
         
         # New Category and RT
         #calculate tresholds 25% 75% replication keeping in account early and late domains
+        
+        T25_75 = function(df, name, RT, New) {
+            if (length(df$chr) != 0) {
+                model = tryCatch(nls(percentage ~ SSlogis(time, Asym, xmid, scal),
+                                       data = df[, c('percentage', 'time')]),
+                  #If the data cannot be fitted with a Gauss-Newton algorithm, try the
+                  #Golub and Pereyra algorithm for the solution of a nonlinear least squares
+                  #problem which assumes a number of the parameters are linear.
+                  #Also, add a higher tolerance (1e-04 Vs 1e-05).
+                              error = function(e) nls(percentage ~ SSlogis(time, Asym, xmid, scal),
+                              data = df[, c('percentage', 'time')], algorithm = 'plinear',
+                              control = nls.control(tol = 1e-04, warnOnly = T) ) )
+                min = min(df$time)
+                max = max(df$time)
+                data = predict(
+                    model,
+                    newdata = data.frame(time = seq(
+                        min, max, 0.01
+                    )),
+                    type = "l"
+                )
+                result = data.frame(
+                    time = seq(min, max, 0.01),
+                    percentage = data,
+                    basename = name
+                )
+                t = result %>%
+                    mutate(
+                        distance75 = abs(percentage - 0.75),
+                        distance25 = abs(percentage - 0.25)
+                    ) %>%
+                    mutate(
+                        min75 = min(distance75),
+                        min25 = min(distance25),
+                        t75 = distance75 == min75,
+                        t25 = distance25 == min25
+                    ) %>%
+                    dplyr::select(basename,
+                                  time,
+                                  percentage,
+                                  t75,
+                                  t25)  %>%
+                    mutate(Cat_RT = New,
+                           old_Cat_RT = RT)
+                
+                return(t)
+            } else{
+                return(tibble())
+            }
+        }
         fitted_data = foreach(
             basename = unique(data$basename),
             .combine = 'rbind',
@@ -219,48 +269,6 @@ if ('regions' %in% names(opt)) {
                     .combine = 'rbind',
                     .packages = c('tidyverse', 'foreach')
                 ) %do% {
-                    T25_75 = function(df, name, RT, New) {
-                        if (length(df$chr) != 0) {
-                            model = nls(percentage ~ SSlogis(time, Asym, xmid, scal),
-                                        data = df[, c('percentage', 'time')])
-                            min = -10
-                            max = 10
-                            data = predict(
-                                model,
-                                newdata = data.frame(time = seq(
-                                    min, max, 0.01
-                                )),
-                                type = "l"
-                            )
-                            result = data.frame(
-                                time = seq(min, max, 0.01),
-                                percentage = data,
-                                basename = name
-                            )
-                            t = result %>%
-                                mutate(
-                                    distance75 = abs(percentage - 0.75),
-                                    distance25 = abs(percentage - 0.25)
-                                ) %>%
-                                mutate(
-                                    min75 = min(distance75),
-                                    min25 = min(distance25),
-                                    t75 = distance75 == min75,
-                                    t25 = distance25 == min25
-                                ) %>%
-                                dplyr::select(basename,
-                                              time,
-                                              percentage,
-                                              t75,
-                                              t25)  %>%
-                                mutate(Cat_RT = New,
-                                       old_Cat_RT = RT)
-                            
-                            return(t)
-                        } else{
-                            return(tibble())
-                        }
-                    }
                     
                     t = T25_75(df = data[data$basename == basename &
                                              data$Cat_RT == New &
@@ -377,6 +385,46 @@ if ('regions' %in% names(opt)) {
 data = data %>%
     rbind(data %>%
               mutate(Cat_RT = 'ALL'))
+
+#T75-25 function
+T25_75 = function(df, name, EL) {
+    model = tryCatch(nls(percentage ~ SSlogis(time, Asym, xmid, scal),
+                         data = df[, c('percentage', 'time')]),
+    #If the data cannot be fitted with a Gauss-Newton algorithm, try the
+    #Golub and Pereyra algorithm for the solution of a nonlinear least squares
+    #problem which assumes a number of the parameters are linear.
+    #Also, add a higher tolerance (1e-04 Vs 1e-05).
+                error = function(e) nls(percentage ~ SSlogis(time, Asym, xmid, scal),
+                data = df[, c('percentage', 'time')], algorithm = 'plinear',
+                control = nls.control(tol = 1e-04, warnOnly = T) ) )
+    min = min(df$time)
+    max = max(df$time)
+    data = predict(model,
+                   newdata = data.frame(time = seq(min, max, 0.01)),
+                   type = "l")
+    result = data.frame(
+        time = seq(min, max, 0.01),
+        percentage = data,
+        basename = name
+    )
+    t = result %>%
+        mutate(
+            distance75 = abs(percentage - 0.75),
+            distance25 = abs(percentage - 0.25)
+        ) %>%
+        mutate(
+            min75 = min(distance75),
+            min25 = min(distance25),
+            t75 = distance75 == min75,
+            t25 = distance25 == min25
+        ) %>%
+        dplyr::select(basename, time, percentage, t75, t25)  %>%
+        mutate(Cat_RT = EL)
+
+    return(t)
+}
+
+
 
 fitted_data = foreach(
     basename = unique(data$basename),
