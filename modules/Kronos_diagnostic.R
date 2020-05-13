@@ -246,6 +246,9 @@ if (length(distributions)==0){
 distributions=distributions%>%
     filter(unimodal==ifelse(any(unimodal==T),T,F))%>%
     filter(d==min(d))
+if (nrow(distributions) > 1){
+    stop('S phase correction parameters could not be established, please provide manual ones.') 
+}
 }
 }
 
@@ -308,4 +311,3 @@ tibble(
     write_tsv(paste0(opt$out,opt$base_name, '_settings.txt'))
 
 print('done')
-
