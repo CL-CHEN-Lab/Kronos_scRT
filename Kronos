@@ -1,7 +1,10 @@
 #!/bin/bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-if [ "$1" == "10xtoKronos" ];then
+if [ "$1" == "InstRpacks" ];then
+        Rscript $DIR/modules/Kronos_scRT_Rpackages_installer.R 
+
+elif [ "$1" == "10xtoKronos" ];then
     if test "$#" == 1 ; then
         echo Usage: Kronos 10xtoKronos [options]
         Rscript $DIR/modules/10XtoKronos.R -h | grep -v 10XtoKronos
@@ -78,6 +81,7 @@ else
 echo -e "\nProgram: Kronos (Tools for the single cell analysis of the replication timing program)\n
 Usage: Kronos <command> [options]\n
 commands:\n
+\t InstRpacks \t Install all the required R packages
 \t fastqtoBAM \t Trims and maps reads
 \t binning    \t Calculates mappability and gc content for bins to be used with Kronos CNV
 \t CNV        \t Calculates copy number variation 
