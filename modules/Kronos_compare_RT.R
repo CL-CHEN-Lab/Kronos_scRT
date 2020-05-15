@@ -314,7 +314,9 @@ if (!'region' %in% names(opt)) {
 } else{
     opt$region = data.frame(coord = str_split(opt$region, pattern = ',')[[1]]) %>%
         separate(coord, c('chr', 'pos'), ':') %>%
-        separate(pos, c('start', 'end'), '-')
+        separate(pos, c('start', 'end'), '-')%>%
+        mutate(start=as.numeric(start),
+               end=as.numeric(end))
     
     for (i in 1:length(opt$region$chr)) {
         p = data %>%

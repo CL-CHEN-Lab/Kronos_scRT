@@ -962,8 +962,9 @@ if (opt$plot) {
                 if ('referenceRT' %in% names(opt)) {
                     RT_toplot = Reference_RT %>%
                         filter(chr %in% Chr,
-                               start >= Start,
-                               end <= End) %>%
+                               (start >= Start & end <= End) |
+                                   (start <= Start & end >= Start) |
+                                   (start <= End & end >= End)) %>%
                         mutate(
                             RT = RT ,
                             start = ifelse(start < Start, Start, start),
@@ -1026,7 +1027,7 @@ if (opt$plot) {
                         opt$output_file_base_name,
                         '_plot_RT_',
                         Chr,
-                        ':',
+                        '_',
                         Start,
                         '-',
                         End,
@@ -1039,7 +1040,9 @@ if (opt$plot) {
         #reshape regions
         opt$region = data.frame(coord = str_split(opt$region, pattern = ',')[[1]]) %>%
             separate(coord, c('chr', 'pos'), ':') %>%
-            separate(pos, c('start', 'end'), '-')
+            separate(pos, c('start', 'end'), '-')%>%
+            mutate(start=as.numeric(start),
+                   end=as.numeric(end))
         
         for (i in 1:length(opt$region$chr)) {
             Chr = opt$region$chr[i]
@@ -1070,7 +1073,7 @@ if (opt$plot) {
                             (start <= End & end >= End)
                     ) %>%
                     mutate(
-                        RT = RT + 1,
+                        RT = RT,
                         start = ifelse(start < Start, Start, start),
                         end = ifelse(end > End , End, end)
                     )
@@ -1116,8 +1119,9 @@ if (opt$plot) {
                 if ('referenceRT' %in% names(opt)) {
                     RT_toplot = Reference_RT %>%
                         filter(chr %in% Chr,
-                               start >= Start,
-                               end <= End) %>%
+                               (start >= Start & end <= End) |
+                                   (start <= Start & end >= Start) |
+                                   (start <= End & end >= End)) %>%
                         mutate(
                             RT = RT ,
                             start = ifelse(start < Start, Start, start),
@@ -1180,7 +1184,7 @@ if (opt$plot) {
                         opt$output_file_base_name,
                         '_plot_RT_',
                         Chr,
-                        ':',
+                        '_',
                         Start,
                         '-',
                         End,
