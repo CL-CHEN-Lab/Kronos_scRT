@@ -75,6 +75,22 @@ option_list = list(
         metavar = "character"
     ),
     make_option(
+      c("-u","--upper_mappability_th"),
+      type = "double",
+      default = 1.5,
+      action = 'store',
+      help = "maximum mappability for a bin to be considered in the analisys  [default= %default bp]",
+      metavar = "double"
+    ),
+    make_option(
+      c("-l","--lower_mappability_th"),
+      type = "double",
+      action = 'store',
+      default = 0.8,
+      help = "minimum mappability for a bin to be considered in the analisys  [default= %default bp]",
+      metavar = "double"
+    ),
+    make_option(
       c("-b","--black_list"),
       type = "character",
       action = 'store',
@@ -496,8 +512,8 @@ bins = foreach (Chr = genome.Chromsizes$chr,
 bins=bins%>%
     mutate(mappability=reads/theoretical_reads,
            mappability_th=ifelse(
-               mappability >= 0.8 &
-                 mappability <= 1.5 ,T,F
+               mappability >= opt$lower_mappability_th &
+                 mappability <= opt$upper_mappability_th ,T,F
            ))%>%
     group_by(chr)%>%
     select(chr,start,end,mappability,mappability_th)
