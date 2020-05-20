@@ -58,6 +58,14 @@ option_list = list(
         default = 3,
         help = "Numbers of parallel jobs to run [default= %default] ",
         metavar = "integer"
+    ),
+    make_option(
+        c("-m", "--min_n_reads"),
+        type = "double",
+        default = 112,
+        action = 'store',
+        help = "Min n of reads per million per aploid genome to keep a cell in the analysis [default= %default]",
+        metavar = "double"
     )
 )
 
@@ -103,7 +111,7 @@ if (!'threshold_Sphase' %in% names(opt)){
                                          filter(is_noisy == F)%>%pull(mean_ploidy))
     
     data=data%>%
-        filter(coverage_per_1Mbp >= 112*median_ploidy_not_noisy,
+        filter(coverage_per_1Mbp >= opt$min_n_reads*median_ploidy_not_noisy,
                ploidy_confidence > 2 | ploidy_confidence==-100,
                 mean_ploidy > median_ploidy_not_noisy / 1.5 ,
                 mean_ploidy < median_ploidy_not_noisy * 2
@@ -152,7 +160,7 @@ if (!'threshold_Sphase' %in% names(opt)){
     
     median_ploidy_not_noisy = median(data%>%filter(is_noisy == F)%>%pull(mean_ploidy))
     data = data %>%
-        filter(coverage_per_1Mbp >= 112*median_ploidy_not_noisy,
+        filter(coverage_per_1Mbp >= opt$min_n_reads*median_ploidy_not_noisy,
             mean_ploidy > median_ploidy_not_noisy / 1.5 ,
             mean_ploidy < median_ploidy_not_noisy * 2,
             !ploidy_confidence <= 2 | ploidy_confidence==-100
