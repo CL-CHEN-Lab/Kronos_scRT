@@ -57,6 +57,14 @@ option_list = list(
         metavar = "character"
     ),
     make_option(
+        c("--trim_galore_extra_option"),
+        type = "character",
+        default = '--no_report_file',
+        action = 'store',
+        help = "extra options for trim_galore",
+        metavar = "character"
+    ),
+    make_option(
         c("--path_to_cutadapt"),
         type = "character",
         default = 'cutadapt',
@@ -80,7 +88,6 @@ option_list = list(
         help = "Path to picard",
         metavar = "character"
     )
-    
 )
 
 opt = parse_args(OptionParser(option_list = option_list),convert_hyphens_to_underscores = T)
@@ -159,8 +166,7 @@ if ('one' %in% names(opt) &
             'trimmed/',
             ' --path_to_cutadapt ',
             opt$path_to_cutadapt,
-            ' --no_report_file'
-            
+            opt$trim_galore_extra_option
         )
     )
     
@@ -223,7 +229,7 @@ if ('one' %in% names(opt) &
             'trimmed/',
             ' --path_to_cutadapt ',
             opt$path_to_cutadapt,
-            ' --no_report_file'
+            opt$trim_galore_extra_option
             
         )
     )
