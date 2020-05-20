@@ -73,6 +73,13 @@ option_list = list(
         action = 'store',
         help = "If provided parameters will be automatically estimated from the data.",
         metavar = "character"
+    ),
+    make_option(
+      c("-b","--black_list"),
+      type = "character",
+      action = 'store',
+      help = "regions to ignore",
+      metavar = "character"
     )
 )
 
@@ -85,7 +92,8 @@ suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 suppressPackageStartupMessages( library(doSNOW, quietly = TRUE))
 suppressPackageStartupMessages( library(Biostrings, quietly = TRUE))
 suppressPackageStartupMessages( library(Rbowtie2, quietly = TRUE))
-suppressPackageStartupMessages( library(Rsamtools))
+suppressPackageStartupMessages( library(Rsamtools, quietly = TRUE))
+suppressPackageStartupMessages( library(GenomicRanges, quietly = TRUE))
 
 options(scipen = 9999)
 
@@ -488,7 +496,8 @@ bins = foreach (Chr = genome.Chromsizes$chr,
 bins=bins%>%
     mutate(mappability=reads/theoretical_reads,
            mappability_th=ifelse(
-               mappability >= 0.8,T,F
+               mappability >= 0.8 &
+                 mappability <= 1.5 ,T,F
            ))%>%
     group_by(chr)%>%
     select(chr,start,end,mappability,mappability_th)
@@ -514,6 +523,24 @@ stopCluster(cl)
 
 bins=bins %>%
     mutate(type=ifelse(opt$paired_ends,'PE','SE'))
+
+if('black_list' %in% opt){
+  bl=read_tsv(opt$black_list,col_names = c('chr','start','end'))%>%
+    makeGRangesFromDataFrame()
+  
+  tbins=bins%>%makeGRangesFromDataFrame()
+  
+  hits=findOverlaps(query = tbins, subject = bl)
+  overlaps=pintersect(bl[subjectHits(hits)],tbins[queryHits(hits)])
+  overlaps=overlaps[width(overlaps) > opt$reads_size]
+  bins=overlaps%>%as_tibble()%>%rename(seqnames='chr')%>%
+    dplyr::select(chr,start,end,hit)%>%
+    right_join(bins, by = c("chr", "start", "end"))
+  
+  bins=bins%>%
+    mutate(mappability_th=ifelse(!is.na(hit),F,mappability_th))%>%
+    dplyr::select(-hit)
+  }
 
 #write bisns with info
 write_tsv(bins, paste0(opt$output_dir, basename(opt$index), '_bins_',ifelse(opt$paired_ends,'PE','SE'),'.tsv'))
