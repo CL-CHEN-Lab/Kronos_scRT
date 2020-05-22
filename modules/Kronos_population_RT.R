@@ -138,6 +138,10 @@ opt$directory = foreach(i = 1:length(opt$directory), .packages = 'tidyverse') %d
         }
     }
 
+opt$bin_size = str_split(opt$bin_size, ',')[[1]]
+
+
+
 if('black_list' %in% names(opt)){
     bl=read_tsv(opt$black_list,col_names = c('chr','start','end'))%>%
         makeGRangesFromDataFrame()
@@ -203,12 +207,6 @@ bins_200=ChrSize%>%
     mutate(end=start+199)%>%
     makeGRangesFromDataFrame()
 
-bins_user=ChrSize%>%
-    rowwise()%>%
-    mutate(start=list(seq(0,size-opt$bin_size,opt$bin_size)))%>%
-    unnest(start)%>%
-    mutate(end=start+opt$bin_size-1)%>%
-    makeGRangesFromDataFrame()
 
 # free memory
 rm('settings')
@@ -276,6 +274,17 @@ results=foreach(phase=unique(files$phase),.combine = 'rbind',.packages = c('tidy
         bins_200$reads[queryHits(hits)]=0
     }
     
+    
+   bins=foreach(bs=opt$bin_size,.combine = 'rbind',.packages = c('tidyverse','GenomicRanges'),.inorder = T)%do%{
+    
+    bins_user=ChrSize%>%
+        rowwise()%>%
+        mutate(start=list(seq(0,size-bs,bs)))%>%
+        unnest(start)%>%
+        mutate(end=start+bs-1)%>%
+        makeGRangesFromDataFrame()
+    
+    
     hits=findOverlaps(subject = bins_user , query = bins_200)
     
     bins_user[subjectHits(hits)]%>%
@@ -284,33 +293,39 @@ results=foreach(phase=unique(files$phase),.combine = 'rbind',.packages = c('tidy
         group_by(seqnames,start,end)%>%
         summarise(reads=sum(reads))%>%
         ungroup()%>%
-        mutate(Phase=phase)
-    
+        mutate(Phase=phase,
+               end=end+1,
+               bin_size=bs)
+   }
+   bins
 }
 
 results= results%>%
     spread(value = reads,key = Phase)%>%
+    group_by(bin_size)%>%
     mutate(G1=1000000*`G1/G2`/sum(`G1/G2`,na.rm = T),
            S=1000000*S/sum(S,na.rm = T),
            RT=ifelse(G1==0|S==0,NA,log2(S/G1)),
+           RT=ifelse(RT>quantile(RT,0.995,na.rm = T)[[1]] | RT < quantile(RT,0.005,na.rm = T)[[1]],NA,RT),
            RT=(RT-min(RT,na.rm = T))/(max(RT,na.rm = T)-min(RT,na.rm = T)))%>%
-    dplyr::select('chr'=seqnames,start,end,G1,S,RT)
+    dplyr::select('chr'=seqnames,start,end,G1,S,RT,bin_size)%>%
+    ungroup()
 
-
-
-write_delim(
-    x = results,
-    path = paste0(
-        opt$out,
-        '/',
-        opt$base_name,
-        '_population_RT_',
-        opt$bin_size,
-        'bp.tsv'
-    ),
-    delim = '\t',
-    col_names = T
-)
-
+x=foreach(bs=opt$opt$bin_size)%dopar%{
+    results %>%
+        filter(bin_size == bs) %>%
+        dplyr::select(-bin_size) %>%
+        write_delim(
+            path = paste0(opt$out,
+                          '/',
+                          opt$base_name,
+                          '_population_RT_',
+                          bs,
+                          'bp.tsv'),
+            delim = '\t',
+            col_names = T
+        )
+    bs
+}
 print('done')
 
