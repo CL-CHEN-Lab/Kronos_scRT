@@ -1,7 +1,7 @@
 #!/usr/local/bin/Rscript
 suppressPackageStartupMessages(library(optparse))
 
-options(stringsAsFactors = FALSE)
+options(stringsAsFactors = FALSE,scipen = 999)
 options(warn = 1)
 option_list = list(
     make_option(
@@ -60,7 +60,7 @@ option_list = list(
         c("-r", "--region"),
         type = "character",
         default = NULL,
-        help = "Region to plot  chr:start-end (multiple regins can be separated by a comma)",
+        help = "Region to plot  chr:start-end (multiple regins can be separated by a comma), it supports units",
         metavar = "character"
     ),
     make_option(
@@ -255,6 +255,18 @@ if (!'region' %in% names(opt)) {
                 mutate(start=start-add/2,
                        end=end+add/2)
         }
+        
+        # prepare name file 
+        name_reg=min( str_length(str_extract(to_plot$start,'0{1,10}$')), str_length(str_extract(to_plot$end,'0{1,10}$')))
+        name_reg= paste(
+            Chr,
+            case_when(
+                is.na(name_reg) ~ paste0(to_plot$start,'bp_',to_plot$end,'bp'),
+                name_reg < 3 ~ paste0(to_plot$start,'bp_',to_plot$end,'bp'),
+                name_reg < 6 ~ paste0(to_plot$start/10^3,'Kb_',to_plot$end/10^3,'Kb'),
+                name_reg >= 6 ~ paste0(to_plot$start/10^6,'Mb_',to_plot$end/10^6,'Mb')
+            ) )
+        
         p = data %>%
             mutate(end = end - 1) %>%
             filter(
@@ -308,15 +320,58 @@ if (!'region' %in% names(opt)) {
             theme(legend.title=element_blank(),axis.text.x = element_text(hjust = 1,angle = 45),legend.position = 'top')
         p
         suppressMessages(
-        ggsave(p, filename = paste0(opt$out, '/changing_region_', paste(changing[i,], collapse = '_'), '.pdf'))
+        ggsave(p, filename = paste0(opt$out, '/changing_region_', name_reg, '.pdf'))
         )
     }
 } else{
-    opt$region = data.frame(coord = str_split(opt$region, pattern = ',')[[1]]) %>%
+    #load bed file if exist
+    if(file.exists(opt$region)){
+    opt$region =read_tsv(opt$region,col_names = c('chr','start','end') )%>%
+        mutate(
+            n_0_start=str_length(str_extract(start,'0{1,10}$')),
+            n_0_end=str_length(str_extract(end,'0{1,10}$')),
+            unit=min(factor(case_when(
+                is.na(n_0_start) ~'bp',
+                n_0_start < 3 ~ 'bp',
+                n_0_start < 6 ~'Kb',
+                n_0_start >= 6 ~ 'Mp'),levels = c('bp','Kb','Mp'), ordered=TRUE),
+                factor(case_when(
+                    is.na(n_0_end) ~'bp',
+                    n_0_end < 3 ~ 'bp',
+                    n_0_end < 6 ~'Kb',
+                    n_0_end >= 6 ~ 'Mp'),levels = c('bp','Kb','Mp'), ordered=TRUE
+                )),
+        name_reg=paste(
+            chr,
+            case_when(
+                unit == 'bp' ~ paste0(start,unit,'_',end,unit),
+                unit == 'Kb' ~ paste0(start/10^3,unit,'_',end/10^3,unit),
+                unit == 'Mb' ~ paste0(start/10^6,unit,'_',end/10^6,unit)
+            ),sep = '_' ))%>%
+        dplyr::select(-unit,-n_0_start,-n_0_end)
+    }else{
+    #reshape provided regions
+    opt$region = tibble(coord = str_split(opt$region, pattern = ',')[[1]]) %>%
+        mutate(name_reg=str_replace_all(coord,pattern = '[-:]',replacement = '_'))%>%
         separate(coord, c('chr', 'pos'), ':') %>%
         separate(pos, c('start', 'end'), '-')%>%
-        mutate(start=as.numeric(start),
-               end=as.numeric(end))
+        mutate(
+            start_unit=str_extract(start,pattern = '.{2}$'),
+            start=as.numeric(str_remove(start, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]")) * case_when(
+            grepl(x =start_unit,pattern =  '[Kk][Bb]') ~ 1000,
+            grepl(x =start_unit, pattern = '[Mm][Bb]') ~ 1000000,
+            grepl(x =start_unit, pattern = '[Bp][Pp]') ~ 1,
+            grepl(x = start_unit,pattern =  '[0-9][0-9]') ~ 1
+        ),            end_unit=str_extract(end,pattern = '.{2}$'),
+
+               end=as.numeric(str_remove(end, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]")) * case_when(
+                   grepl(x =end_unit,pattern =  '[Kk][Bb]') ~ 1000,
+                   grepl(x =end_unit, pattern = '[Mm][Bb]') ~ 1000000,
+                   grepl(x =end_unit, pattern = '[Bp][Pp]') ~ 1,
+                   grepl(x = end_unit,pattern =  '[0-9][0-9]') ~ 1
+               ))%>%
+        dplyr::select(-start_unit,-end_unit)
+    }
     
     for (i in 1:length(opt$region$chr)) {
         p = data %>%
@@ -373,7 +428,7 @@ if (!'region' %in% names(opt)) {
                filename = paste0(
                    opt$out,
                    '/changing_region_',
-                   paste(opt$region[i,], collapse = '_'),
+                   opt$region$name_reg[i],
                    '.pdf'
                )))
         
