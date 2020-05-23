@@ -64,11 +64,11 @@ option_list = list(
         metavar = "integer"
     ),
     make_option(
-        c("--bin_size"),
-        type = "integer",
-        default = 50000,
+        c("-R","--bin_size"),
+        type = "character",
+        default = "50Kb",
         action = 'store',
-        help = "Bins size in bp,multiple bin size can be provided separated by a comma. [default= %default bp]",
+        help = "Bins size in bp,multiple bin size can be provided separated by a comma. [default= %default]",
         metavar = "integer"
     ),
     make_option(
@@ -139,8 +139,26 @@ opt$directory = foreach(i = 1:length(opt$directory), .packages = 'tidyverse') %d
     }
 
 opt$bin_size = str_split(opt$bin_size, ',')[[1]]
+extract_unit=str_extract(opt$bin_size,pattern = '.{2}$')
+opt$bin_size = as.numeric(str_remove(opt$bin_size, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]")) * case_when(
+    grepl(x =extract_unit,pattern =  '[Kk][Bb]') ~ 1000,
+    grepl(x =extract_unit, pattern = '[Mm][Bb]') ~ 1000000,
+    grepl(x =extract_unit, pattern = '[Bp][Pp]') ~ 1,
+    grepl(x = extract_unit,pattern =  '[0-9][0-9]') ~ 1
+)
 
-
+if(any(is.na(opt$bin_size)) & length(opt$bin_size) >1){
+    warning('some binsize have an incorrect format and will be excluded')
+    opt$bin_size=opt$bin_size[!is.na(opt$bin_size)]
+}else if(any(is.na(opt$bin_size)) & length(opt$bin_size) == 1){
+    stop('binsize have an incorrect format')
+}else if(any(opt$bin_size < 1000) & length(opt$bin_size) >1){
+    opt$bin_size=opt$bin_size[opt$bin_size > 200]
+    warning('some binsize are smaller than 1Kb and they will ingnored')
+}else if(any(opt$bin_size < 1000) & length(opt$bin_size) == 1){
+    opt$bin_size=opt$bin_size[opt$bin_size > 200]
+    stop('binsize has to be at least 1Kb')
+}
 
 if('black_list' %in% names(opt)){
     bl=read_tsv(opt$black_list,col_names = c('chr','start','end'))%>%
@@ -311,7 +329,14 @@ results= results%>%
     dplyr::select('chr'=seqnames,start,end,G1,S,RT,bin_size)%>%
     ungroup()
 
-x=foreach(bs=opt$opt$bin_size)%dopar%{
+x=foreach(bs=opt$bin_size)%dopar%{
+    
+    extract_unit = case_when(
+        is.na(str_length(str_extract(bs,'0{1,10}$'))) ~ paste0(bs,'bp'),
+        str_length(str_extract(bs,'0{1,10}$')) < 3 ~ paste0(bs,'bp'),
+        str_length(str_extract(bs,'0{1,10}$')) < 6 ~ paste0(bs/10^3,'Kb'),
+        str_length(str_extract(bs,'0{1,10}$')) >= 6  ~ paste0(bs/10^6,'Mb'))
+    
     results %>%
         filter(bin_size == bs) %>%
         dplyr::select(-bin_size) %>%
@@ -320,8 +345,8 @@ x=foreach(bs=opt$opt$bin_size)%dopar%{
                           '/',
                           opt$base_name,
                           '_population_RT_',
-                          bs,
-                          'bp.tsv'),
+                          extract_unit,
+                          '.tsv'),
             delim = '\t',
             col_names = T
         )
