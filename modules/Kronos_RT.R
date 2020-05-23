@@ -83,10 +83,10 @@ option_list = list(
     ),
     make_option(
         c("-B", "--binsSize"),
-        type = "integer",
-        default = 500000,
-        help = "RT resolution [default= %default] ",
-        metavar = "integer"
+        type = "character",
+        default = '500Kb',
+        help = "RT resolution (supports units) [default= %default] ",
+        metavar = "character"
     ),
     make_option(
         c("-k", "--keepXY"),
@@ -168,6 +168,32 @@ if (opt$Var_against_reference) {
         warning("Reference genome not provided")
         opt$Var_against_reference = F
     }
+}
+# convert binsize to numeric
+
+extract_unit=str_extract(opt$binsSize,pattern = '.{2}$')
+resolution = as.numeric(str_remove(opt$binsSize, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]")) * case_when(
+    grepl(x =extract_unit,pattern =  '[Kk][Bb]') ~ 1000,
+    grepl(x =extract_unit, pattern = '[Mm][Bb]') ~ 1000000,
+    grepl(x =extract_unit, pattern = '[Bp][Pp]') ~ 1,
+    grepl(x = extract_unit,pattern =  '[0-9][0-9]') ~ 1
+)
+
+if(any(is.na(resolution))){
+    stop('binsize have an incorrect format')
+}
+
+# prepare name file
+if(grepl(x = extract_unit,pattern =  '[0-9][0-9]')){
+    n_of_zeros = str_length(str_extract(opt$binsSize, '0{1,10}$'))
+    opt$binsSize = case_when(
+        is.na(n_of_zeros) ~ paste0(opt$binsSize, 'bp'),
+        n_of_zeros < 3 ~ paste0(opt$binsSize, 'bp'),
+        n_of_zeros < 6 ~ paste0(str_remove(opt$binsSize, '0{3}$'), 'Kb'),
+        n_of_zeros >= 6 ~ paste0(str_remove(opt$binsSize, '0{6}$'), 'Mp')
+    )
+}else{
+    opt$binsSize=opt$binsSize
 }
 
 #create directory
@@ -420,7 +446,6 @@ suppressMessages(ggsave(
 #resolution
 cl <- makeCluster(opt$cores)
 registerDoSNOW(cl)
-resolution = opt$binsSize
 
 bins = foreach(chr = 1:length(Chr_Size$chr),
                .combine = 'rbind') %dopar% {
@@ -574,7 +599,7 @@ if ('referenceRT' %in% names(opt)) {
             opt$output_file_base_name,
             '_reference_replication_timing_',
             opt$binsSize,
-            'bp.tsv'
+            '.tsv'
         ),
         delim = '\t',
         col_names = T
@@ -852,7 +877,7 @@ write_delim(
         opt$output_file_base_name,
         '_single_cells_CNV_',
         opt$binsSize,
-        'bp.tsv'
+        '.tsv'
     ),
     delim = '\t',
     col_names = T
@@ -876,7 +901,7 @@ write_delim(
         opt$output_file_base_name,
         '_calculated_replication_timing_',
         opt$binsSize,
-        'bp.tsv'
+        '.tsv'
     ),
     delim = '\t',
     col_names = T
@@ -891,8 +916,20 @@ if (opt$plot) {
                            0)
             Chr = Chr_Size$chr[i]
             Start = region
-            End = region + 0.2*Chr_Size$size[i]
+            End = region + round(0.2*Chr_Size$size[i])
             
+          # prepare name file 
+            name_reg=min( str_length(str_extract(Start,'0{1,10}$')), str_length(str_extract(End,'0{1,10}$')))
+            name_reg= paste(
+                Chr,
+                case_when(
+                    is.na(name_reg) ~ paste0(Start,'bp_',End,'bp'),
+                    name_reg < 3 ~ paste0(Start,'bp_',End,'bp'),
+                    name_reg < 6 ~ paste0(Start/10^3,'Kb_',End/10^3,'Kb'),
+                    name_reg >= 6 ~ paste0(Start/10^6,'Mb_',End/10^6,'Mb')
+           ) )
+
+           
             track_toplot = signal_smoothed %>%
                 filter(
                     chr %in% Chr,
@@ -1026,23 +1063,62 @@ if (opt$plot) {
                         '/regions/',
                         opt$output_file_base_name,
                         '_plot_RT_',
-                        Chr,
-                        '_',
-                        Start,
-                        '-',
-                        End,
+                        name_reg,
                         '.pdf'
                     )
                 ))
             }
         }
     } else{
-        #reshape regions
-        opt$region = data.frame(coord = str_split(opt$region, pattern = ',')[[1]]) %>%
-            separate(coord, c('chr', 'pos'), ':') %>%
-            separate(pos, c('start', 'end'), '-')%>%
-            mutate(start=as.numeric(start),
-                   end=as.numeric(end))
+        if(file.exists(opt$region)){
+            #load bed file if exist
+            opt$region =read_tsv(opt$region,col_names = c('chr','start','end') )%>%
+                mutate(
+                    n_0_start=str_length(str_extract(start,'0{1,10}$')),
+                    n_0_end=str_length(str_extract(end,'0{1,10}$')),
+                    unit=min(factor(case_when(
+                        is.na(n_0_start) ~'bp',
+                        n_0_start < 3 ~ 'bp',
+                        n_0_start < 6 ~'Kb',
+                        n_0_start >= 6 ~ 'Mp'),levels = c('bp','Kb','Mp'), ordered=TRUE),
+                        factor(case_when(
+                            is.na(n_0_end) ~'bp',
+                            n_0_end < 3 ~ 'bp',
+                            n_0_end < 6 ~'Kb',
+                            n_0_end >= 6 ~ 'Mp'),levels = c('bp','Kb','Mp'), ordered=TRUE
+                        )),
+                    name_reg=paste(
+                        chr,
+                        case_when(
+                            unit == 'bp' ~ paste0(start,unit,'_',end,unit),
+                            unit == 'Kb' ~ paste0(start/10^3,unit,'_',end/10^3,unit),
+                            unit == 'Mb' ~ paste0(start/10^6,unit,'_',end/10^6,unit)
+                        ),sep = '_' ))%>%
+                dplyr::select(-unit,-n_0_start,-n_0_end)
+        }else{
+            #reshape regions
+            opt$region = tibble(coord = str_split(opt$region, pattern = ',')[[1]]) %>%
+                mutate(name_reg=str_replace_all(coord,pattern = '[-:]',replacement = '_'))%>%
+                separate(coord, c('chr', 'pos'), ':') %>%
+                separate(pos, c('start', 'end'), '-')%>%
+                mutate(
+                    start_unit=str_extract(start,pattern = '.{2}$'),
+                    start=as.numeric(str_remove(start, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]")) * case_when(
+                        grepl(x =start_unit,pattern =  '[Kk][Bb]') ~ 1000,
+                        grepl(x =start_unit, pattern = '[Mm][Bb]') ~ 1000000,
+                        grepl(x =start_unit, pattern = '[Bp][Pp]') ~ 1,
+                        grepl(x = start_unit,pattern =  '[0-9][0-9]') ~ 1
+                    ),            end_unit=str_extract(end,pattern = '.{2}$'),
+                    
+                    end=as.numeric(str_remove(end, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]")) * case_when(
+                        grepl(x =end_unit,pattern =  '[Kk][Bb]') ~ 1000,
+                        grepl(x =end_unit, pattern = '[Mm][Bb]') ~ 1000000,
+                        grepl(x =end_unit, pattern = '[Bp][Pp]') ~ 1,
+                        grepl(x = end_unit,pattern =  '[0-9][0-9]') ~ 1
+                    ))%>%
+                dplyr::select(-start_unit,-end_unit)
+        }
+        
         
         for (i in 1:length(opt$region$chr)) {
             Chr = opt$region$chr[i]
@@ -1183,11 +1259,7 @@ if (opt$plot) {
                         '/regions/',
                         opt$output_file_base_name,
                         '_plot_RT_',
-                        Chr,
-                        '_',
-                        Start,
-                        '-',
-                        End,
+                        opt$region$name_reg,
                         '.pdf'
                     )
                 ))
