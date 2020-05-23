@@ -61,11 +61,11 @@ option_list = list(
     ),
     make_option(
         c("--bin_size"),
-        type = "integer",
-        default = 20000,
+        type = "character",
+        default = '20Kb',
         action = 'store',
         help = "Bins size. [default= %default bp]",
-        metavar = "integer"
+        metavar = "character"
     ),
     make_option(
         c("-d","--dir_indexed_bam"),
@@ -91,7 +91,7 @@ option_list = list(
       metavar = "double"
     ),
     make_option(
-      c("-b","--black_list"),
+      c("-B","--black_list"),
       type = "character",
       action = 'store',
       help = "regions to ignore",
@@ -127,6 +127,32 @@ if(!"RefGenome" %in% names(opt)){
 
 if(!"index" %in% names(opt)){
     stop("Bowtie2 indexed genome not provided. See script usage (--help)")
+}
+
+# convert binsize to numeric
+
+extract_unit=str_extract(opt$bin_size,pattern = '.{2}$')
+
+if(grepl(x = extract_unit,pattern =  '[0-9][0-9]')){
+  n_of_0=str_length(str_extract(opt$bin_size,'0{1,10}$'))
+  BS=case_when(
+    is.na(n_of_0) ~ paste0(opt$bin_size,'bp'),
+    n_of_0 < 3 ~ paste0(opt$bin_size,'bp'),
+    n_of_0 < 6 ~ paste0(str_remove(opt$bin_size,'0{3}$'),'Kb'),
+    n_of_0 >= 6 ~paste0(str_remove(opt$bin_size,'0{6}$'),'Mp'))
+}else{
+  BS=opt$bin_size
+}
+
+opt$bin_size = as.numeric(str_remove(opt$bin_size, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]")) * case_when(
+  grepl(x =extract_unit,pattern =  '[Kk][Bb]') ~ 1000,
+  grepl(x =extract_unit, pattern = '[Mm][Bb]') ~ 1000000,
+  grepl(x =extract_unit, pattern = '[Bp][Pp]') ~ 1,
+  grepl(x = extract_unit,pattern =  '[0-9][0-9]') ~ 1
+)
+
+if(any(is.na(opt$bin_size))){
+  stop('binsize have an incorrect format')
 }
 
 #loading reference fa
@@ -559,6 +585,6 @@ if('black_list' %in% opt){
   }
 
 #write bisns with info
-write_tsv(bins, paste0(opt$output_dir, basename(opt$index), '_bins_',ifelse(opt$paired_ends,'PE','SE'),'.tsv'))
+write_tsv(bins, paste0(opt$output_dir, basename(opt$index),BS, '_bins_',ifelse(opt$paired_ends,'PE','SE'),'.tsv'))
 
 print('done')
