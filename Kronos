@@ -76,6 +76,14 @@ elif [ "$1" == "compare" ] && [ "$2" == "TW" ];then
     else
        Rscript $DIR/modules/Kronos_compare_TW.R "${@:3}"
     fi
+    
+elif [ "$1" == "population" ] && [ "$2" == "RT" ];then
+    if test "$#" == 2 ; then
+        echo Usage: Kronos population RT [options]
+        Rscript $DIR/modules/Kronos_population_RT.R -h | grep -v Kronos_compare
+    else
+       Rscript $DIR/modules/Kronos_population_RT.R "${@:3}"
+    fi
 else
 
 echo -e "\nProgram: Kronos (Tools for the single cell analysis of the replication timing program)\n
@@ -91,7 +99,7 @@ commands:\n
 \t RT         \t Calculates scReplication profiles and scRT
 \t compare RT    \t Compares RT results from multiple experiments
 \t compare TW \t Compares variability from multiple experiments and/or over multiple regions
-
+\t population RT \t Calcualtes population RT starting from single cell BAM files and Kronos diagnostic outputs
 "
 
 fi
