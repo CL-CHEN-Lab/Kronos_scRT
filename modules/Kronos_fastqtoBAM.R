@@ -165,7 +165,7 @@ if ('one' %in% names(opt) &
             opt$output_dir,
             'trimmed/',
             ' --path_to_cutadapt ',
-            opt$path_to_cutadapt,
+            opt$path_to_cutadapt,' ',
             opt$trim_galore_extra_option
         )
     )
@@ -228,7 +228,7 @@ if ('one' %in% names(opt) &
             opt$output_dir,
             'trimmed/',
             ' --path_to_cutadapt ',
-            opt$path_to_cutadapt,
+            opt$path_to_cutadapt,' ',
             opt$trim_galore_extra_option
             
         )
