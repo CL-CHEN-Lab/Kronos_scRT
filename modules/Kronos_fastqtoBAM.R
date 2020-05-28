@@ -183,7 +183,7 @@ if ('one' %in% names(opt) &
             bt2Index = opt$index,
             samOutput = paste0(opt$output_dir, 'sorted_bam/', file_basename, '.sam'),
             seq1 = paste0(opt$output_dir, 'trimmed/', input_bowtie),
-            ... = paste0('-k 1 '),
+            ... = paste0('-k 1 --threads ', opt$cores),
             overwrite = TRUE
         )
     )
@@ -195,7 +195,7 @@ if ('one' %in% names(opt) &
     system(
         paste0(
             opt$path_to_java,
-            ' -jar ',
+            ' -XX:ParallelGCThreads=',opt$cores , ' -jar ',
             opt$path_to_picard,
             ' MarkDuplicates I=',
             opt$output_dir,
@@ -228,7 +228,7 @@ if ('one' %in% names(opt) &
             opt$output_dir,
             'trimmed/',
             ' --path_to_cutadapt ',
-            opt$path_to_cutadapt,' ',
+            opt$path_to_cutadapt,' -j ', opt$cores,' ',
             opt$trim_galore_extra_option
             
         )
@@ -253,7 +253,7 @@ if ('one' %in% names(opt) &
             samOutput = paste0(opt$output_dir, 'sorted_bam/', file_basename, '.sam'),
             seq1 = paste0(opt$output_dir, 'trimmed/', input_bowtie_1),
             seq2 = paste0(opt$output_dir, 'trimmed/', input_bowtie_2),
-            ... = paste0('-k 1 '),
+            ... = paste0('-k 1 --threads ', opt$cores),
             overwrite = TRUE
         )
     )
@@ -264,7 +264,7 @@ if ('one' %in% names(opt) &
     system(
         paste0(
             opt$path_to_java,
-            ' -jar ',
+            ' -XX:ParallelGCThreads=',opt$cores , ' -jar ',
             opt$path_to_picard,
             ' MarkDuplicates I=',
             opt$output_dir,
