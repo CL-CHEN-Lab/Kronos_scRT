@@ -31,14 +31,14 @@ option_list = list(
         c("--ref_name"),
         type = "character",
         default = "Reference",
-        help = "Name for the reference track",
+        help = "Name for the reference track [default= %default]",
         metavar = "character"
     ),
     make_option(
         c("-C", "--chrSizes"),
         type = "character",
         default = NULL,
-        help = "chromosome size file",
+        help = "Chromosome size file",
         metavar = "character"
     ),
     make_option(
@@ -515,7 +515,6 @@ rm('data')
 rm('all_tracks')
 
 #calculate median CNV across a bin for S cells
-
 
 hits = findOverlaps(bins, Sphase_tracks)
 
@@ -1365,11 +1364,12 @@ if (length(RT_type) != 1) {
 
 #joing s50 with relative signals
 signal_smoothed = signal_smoothed%>%
-    dplyr::select(basename,chr,start,end,CN_bg) %>%
+    dplyr::select(basename,chr,start,end,CN_bg,mean_CN) %>%
     inner_join(s50, by = c("basename", "chr", "start", "end"))  %>%
     group_by(basename) %>%
-    mutate(CN_bg = 10 * (CN_bg - min(CN_bg)) / (max(CN_bg) - min(CN_bg)),
-           RT = 10*RT)
+    mutate(CN_bg = 10 * (CN_bg - quantile(CN_bg, c(0.01))[[1]]) / (quantile(CN_bg, c(0.99))[[1]] - quantile(CN_bg, c(0.01))[[1]]),
+           RT = 10*RT,
+           mean_CN=round(mean_CN))
 
 #test multiple time windows
 cl <- makeCluster(opt$cores)
@@ -1388,12 +1388,14 @@ x = foreach(
         .packages = c('tidyverse')
     )%dopar% {
         sub %>%
-        filter(basename==bs)%>%
         mutate(rep = CN_bg <= seq) %>%
-        group_by(chr, start, end, basename) %>%
-        summarise(percentage = mean(rep),
-                  RT = unique(RT)) %>%
-        mutate(time = RT - seq)
+        group_by(chr, start, end, basename,RT,mean_CN) %>%
+        summarise(percentage = mean(rep))%>%
+        group_by(chr, start, end, basename,RT) %>%
+        summarise(percentage = mean(percentage)) %>%
+        mutate(time = RT - seq)%>%
+            filter(time < 10 ,
+                   time > -10)
     
     }
    tmp}
@@ -1462,7 +1464,7 @@ TW=x%>%
            '_variability_plot_all_bins.pdf'
        )
    ))
-    write_tsv(TW,
+    write_delim(TW,
         path = paste0(
             opt$out,
             '/',
@@ -1615,7 +1617,8 @@ p = ggplot() +
     facet_grid(basename ~ Cat_RT) +
     ggplot2::scale_x_reverse() +
     scale_y_continuous(labels = scales::percent_format()) +
-    ylab('Replicated Bins')
+    ylab('Replicated Bins')+
+    theme(legend.position = 'top')
 
 suppressMessages(ggsave(
     p,
@@ -1637,6 +1640,7 @@ suppressMessages(ggsave(
     )
 ))
 
+
 if (opt$Var_against_reference) {
 
     #joing s50 with relative signals
@@ -1644,29 +1648,36 @@ if (opt$Var_against_reference) {
         dplyr::select(-RT) %>%
         inner_join(Reference_RT, by = c("chr", "start", "end")) %>%
         group_by(basename) %>%
-        mutate(CN_bg = 10 * (CN_bg - min(CN_bg)) / (max(CN_bg) - min(CN_bg)),
+        mutate(CN_bg = 10 * (CN_bg - quantile(CN_bg, c(0.01))[[1]]) / (quantile(CN_bg, c(0.99))[[1]] - quantile(CN_bg, c(0.01))[[1]]),
                RT = 10 * RT)
     
     
     #test multiple time windows
-    cl <- makeCluster(opt$cores)
-    registerDoSNOW(cl)
-    
     x = foreach(
-        seq = seq(0, 10, 0.05),
-        .combine = 'rbind',
-        .packages = c('tidyverse')
-    ) %do% {
-        signal_smoothed %>%
-            mutate(rep = CN_bg <= seq) %>%
-            group_by(chr, start, end, basename) %>%
-            summarise(percentage = mean(rep),
-                      RT = unique(RT)) %>%
-            mutate(time = RT - seq)
+        bs = unique(s50$basename),
+        .combine = 'rbind'
+    )%do%{
+        sub=signal_smoothed %>%
+            filter(basename==bs)
         
-    }
+        tmp= foreach(
+            seq = seq(0, 10, 0.05),
+            .combine = 'rbind',
+            .packages = c('tidyverse')
+        )%dopar% {
+            sub %>%
+                mutate(rep = CN_bg <= seq) %>%
+                group_by(chr, start, end, basename,RT,mean_CN) %>%
+                summarise(percentage = mean(rep))%>%
+                group_by(chr, start, end, basename,RT) %>%
+                summarise(percentage = mean(percentage)) %>%
+                mutate(time = RT - seq)%>%
+                filter(time < 10 ,
+                       time > -10)
+            
+        }
+        tmp}
     
-    stopCluster(cl)
     
     # calculate distance in time per bin
     RT_ref_bins = x %>%
@@ -1853,7 +1864,8 @@ if (opt$Var_against_reference) {
         facet_grid(basename ~ Cat_RT) +
         ggplot2::scale_x_reverse() +
         scale_y_continuous(labels = scales::percent_format()) +
-        ylab('Percentage of cells')
+        ylab('Percentage of cells')+
+        theme(legend.position = 'top')
     
     suppressMessages(ggsave(
         p,
@@ -1878,4 +1890,6 @@ if (opt$Var_against_reference) {
 }
 
 stopCluster(cl)
+
+
 print('done')
