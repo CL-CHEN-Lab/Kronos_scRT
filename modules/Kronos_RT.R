@@ -866,7 +866,7 @@ new_index_list = rep_percentage %>%
 signal_smoothed = signal_smoothed %>%
     ungroup() %>%
     inner_join(new_index_list, by = c('index', 'basename')) %>%
-    dplyr::select(-index)
+    dplyr::select(chr, start, end,CN,background,CN_bg,th,Rep,mean_CN,groups,basename,newIndex)
 
 
 write_delim(
@@ -1363,53 +1363,40 @@ if (length(RT_type) != 1) {
     invisible(dev.off())
 }
 
-# filter out extreme bins
-bins = signal_smoothed %>%
-    group_by(basename) %>%
-    filter(CN_bg < quantile(CN_bg, c(0.01))[[1]] |
-               CN_bg > quantile(CN_bg, c(0.99))[[1]]) %>%
-    mutate(coor = paste0(chr, ':', start, '-', end)) %>%
-    ungroup() %>%
-    dplyr::select(coor) %>%
-    unique()
-
-signal_smoothed = signal_smoothed %>%
-    filter(!paste0(chr, ':', start, '-', end) %in% bins$coor)
-
-s50 = s50 %>%
-    filter(!paste0(chr, ':', start, '-', end) %in% bins$coor) %>%
-    group_by(basename) %>%
-    mutate(RT = (RT - min(RT)) / (max(RT) - min(RT)) ,
-           chr = factor(x =  chr, levels = chr_list))
-
 #joing s50 with relative signals
-signal_smoothed = signal_smoothed %>%
+signal_smoothed = signal_smoothed%>%
+    dplyr::select(basename,chr,start,end,CN_bg) %>%
     inner_join(s50, by = c("basename", "chr", "start", "end"))  %>%
     group_by(basename) %>%
     mutate(CN_bg = 10 * (CN_bg - min(CN_bg)) / (max(CN_bg) - min(CN_bg)),
-           RT = 10 * RT)
+           RT = 10*RT)
 
 #test multiple time windows
 cl <- makeCluster(opt$cores)
 registerDoSNOW(cl)
 
 x = foreach(
-    seq = seq(0, 10, 0.05),
-    .combine = 'rbind',
-    .packages = c('tidyverse')
-) %dopar% {
-    signal_smoothed %>%
+    bs = unique(s50$basename),
+    .combine = 'rbind'
+)%do%{
+    sub=signal_smoothed %>%
+        filter(basename==bs)
+
+   tmp= foreach(
+        seq = seq(0, 10, 0.05),
+        .combine = 'rbind',
+        .packages = c('tidyverse')
+    )%dopar% {
+        sub %>%
+        filter(basename==bs)%>%
         mutate(rep = CN_bg <= seq) %>%
         group_by(chr, start, end, basename) %>%
         summarise(percentage = mean(rep),
                   RT = unique(RT)) %>%
         mutate(time = RT - seq)
     
-}
-
-x = x %>%
-    filter(time > -10,
-           time < 10)
+    }
+   tmp}
 
 # calculate distance in time per bin
 s50_bin = x %>%
@@ -1442,6 +1429,50 @@ x = x %>%
                 '5 - Very Late'
             )
         )
+    )
+
+
+TW=x%>%
+    group_by(chr,start,end,basename)%>%
+    mutate(t25=abs(percentage-0.25),
+           t75=abs(percentage-0.75),
+           t25=t25==min(t25),
+           t75=t75==min(t75))%>%
+    gather(points,filter_colums,t25,t75)%>%
+    filter(filter_colums)%>%
+    group_by(chr,start,end,basename,points)%>%
+    summarise(time=min(time))%>%
+    spread(points,time)%>%
+    mutate(TW=abs(t75-t25))%>%
+    dplyr::select(chr,start,end,basename,TW)
+
+   plot= TW%>%
+        inner_join(s50, by = c("chr", "start", "end", "basename"))%>%
+    ggplot()+
+       geom_point(aes(x=RT,y=TW),color='red',alpha=0.2)+
+       geom_smooth(aes(x=RT,y=TW))+
+        facet_wrap(~basename)
+
+   suppressMessages(ggsave(
+       plot,
+       filename = paste0(
+           opt$out,
+           '/',
+           opt$output_file_base_name,
+           '_variability_plot_all_bins.pdf'
+       )
+   ))
+    write_tsv(TW,
+        path = paste0(
+            opt$out,
+            '/',
+            opt$output_file_base_name,
+            '_calculated_Twhith_',
+            opt$binsSize,
+            '.tsv'
+        ),
+        delim = '\t',
+        col_names = T
     )
 
 x = rbind(x, x %>%
@@ -1607,10 +1638,7 @@ suppressMessages(ggsave(
 ))
 
 if (opt$Var_against_reference) {
-    Reference_RT = Reference_RT %>%
-        filter(!paste0(chr, ':', start, '-', end) %in% bins$coor)
-    
-    
+
     #joing s50 with relative signals
     signal_smoothed = signal_smoothed %>%
         dplyr::select(-RT) %>%
@@ -1639,10 +1667,6 @@ if (opt$Var_against_reference) {
     }
     
     stopCluster(cl)
-    
-    x = x %>%
-        filter(time > -10,
-               time < 10)
     
     # calculate distance in time per bin
     RT_ref_bins = x %>%
@@ -1676,6 +1700,53 @@ if (opt$Var_against_reference) {
                 )
             )
         )
+    
+    
+    TW=x%>%
+        group_by(chr,start,end,basename)%>%
+        mutate(t25=abs(percentage-0.25),
+               t75=abs(percentage-0.75),
+               t25=t25==min(t25),
+               t75=t75==min(t75))%>%
+        gather(points,filter_colums,t25,t75)%>%
+        filter(filter_colums)%>%
+        group_by(chr,start,end,basename,points)%>%
+        summarise(time=min(time))%>%
+        spread(points,time)%>%
+        mutate(TW=abs(t75-t25))%>%
+        dplyr::select(chr,start,end,basename,TW)
+    
+    plot= TW%>%
+        inner_join(Reference_RT, by = c("chr", "start", "end", "basename"))%>%
+        ggplot()+
+        geom_point(aes(x=RT,y=TW),color='red',alpha=0.2)+
+        geom_smooth(aes(x=RT,y=TW))+
+        facet_wrap(~basename)
+    
+    suppressMessages(ggsave(
+        plot,
+        filename = paste0(
+            opt$out,
+            '/',
+            opt$output_file_base_name,
+            '_variability_plot_all_bins_over_reference_RT.pdf'
+        )
+    ))
+    write_tsv(TW,
+              path = paste0(
+                  opt$out,
+                  '/',
+                  opt$output_file_base_name,
+                  '_calculated_Twhith_over_reference_RT',
+                  opt$binsSize,
+                  '.tsv'
+              ),
+              delim = '\t',
+              col_names = T
+    )
+    
+    
+    
     x = rbind(x, x %>%
                   mutate(
                       Cat_RT = 'All',
