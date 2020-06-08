@@ -42,24 +42,31 @@ Run the script
     ./Kronos <command> [options]
         
     commands:
-
+    
+    InstRpacks      Install all the required R packages
     fastqtoBAM      Trims and maps reads
     binning         Calculates mappability and gc content for bins to be used with Kronos CNV
     CNV             Calculates copy number variation 
     10xtoKronos     Converts 10X genomics files in a format that Kronos can use
+    WhoIsWho        Manually assign cell cycle stage
     diagnostic      Plotting tools to identify appropriate thresholds for Kronos RT
     RT              Calculates scReplication profiles and scRT
     compare RT      Compares RT results from multiple experiments
     compare TW      Compares variability from multiple experiments and/or over multiple regions
+    population RT   Calcualtes population RT starting from single cell BAM files and Kronos diagnostic outputs
+--InstRpacks
+
+    ./Kronos InstRpacks
 
 -- fastqtoBAM module
 
     ./Kronos fastqtoBAM [options]
     
     Options:
-    --one=CHARACTER                                     Fastq files
-    --two=CHARACTER                                     Fastq files (for paired ends)
-    -b CHARACTER, --sam_file_basename=CHARACTER         Sam file name
+    -l CHARACTER, --fastq_list=CHARACTER                A table formatted in the following way: sam_file_basename\tFastq_1\tFastq_2(optional for PE sequencing). Compressed files are not allowed. Alternative to --one/--two/-b
+    --one=CHARACTER                                     Fastq files, for multiple files they have to be separated by a comma. Compressed files are not allowed.  Alternative to -l
+    --two=CHARACTER                                     Fastq files (for paired ends), for multiple files they have to be separated by a comma. Compressed files are not allowed.  Alternative to -l
+    -b CHARACTER, --sam_file_basename=CHARACTER         Sam file name, for multiple files they have to be separated by a comma.  Alternative to -l
     -i CHARACTER, --index=CHARACTER                     Bowtie 2 index
     -c INTEGER, --cores=INTEGER                         Number of cores to use. [default= 3]
     -o CHARACTER, --output_dir=CHARACTER                Output folder. [default= output/]
@@ -83,6 +90,10 @@ Run the script
     --insert_size=INTEGER                               Insert size if paired end option is used. [default: 200]
     --bin_size=INTEGER                                  Bins size. [default= 20000 bp]
     -d CHARACTER, --dir_indexed_bam=CHARACTER           If provided parameters will be automatically estimated from the data.
+    -u DOUBLE, --upper_mappability_th=DOUBLE            Maximum mappability for a bin to be considered in the analisys  [default= 1.5]
+    -l DOUBLE, --lower_mappability_th=DOUBLE            Minimum mappability for a bin to be considered in the analisys  [default= 0.8]
+    -B CHARACTER, --black_list=CHARACTER                Regions to ignore
+    -x CHARACTER, --coverage=CHARACTER                  Coverage for simulated genome. [default= 1x]
     -h, --help                                          Show this help message and exit
     
 -- CNV module
@@ -98,6 +109,7 @@ Run the script
     -c INTEGER, --cores=INTEGER                         Number of cores to use. [default= 3]
     -o CHARACTER, --output_dir=CHARACTER                Output folder. [default= output/]
     -e CHARACTER, --ExpName=CHARACTER                   Experiment name. [default= Exp]
+    -p NUMERIC, --ploidy=NUMERIC                        User extimated ploidy (optional)
     -h, --help                                          Show this help message and exit
 
 -- 10xtoKronos module
@@ -133,6 +145,7 @@ Run the script
     -f DOUBLE, --Sphase_first_part=DOUBLE               Correction parameter for the first part of the S-phase [0.95,1]
     -s DOUBLE, --Sphase_second_part=DOUBLE              Correction parameter for the second part of the S-phase [0.5,0.55]
     -c INTEGER, --cores=INTEGER                         Numbers of parallel jobs to run [default= 3] 
+    -m DOUBLE, --min_n_reads=DOUBLE                     Min n of reads per million per aploid genome to keep a cell in the analysis [default= 112]
     -h, --help                                          Show this help message and exit
 
 -- RT module
@@ -143,8 +156,9 @@ Run the script
     -F CHARACTER, --file=CHARACTER                      Per cell stat file , if multiple files are provided they have to be separated by a comma
     -T CHARACTER, --tracks=CHARACTER                    Tracks file,  if multiple files are provided they have to be separated by a comma
     -R CHARACTER, --referenceRT=CHARACTER               Reference RT min=Late, max=Early, only one reference is allowed
-    -C CHARACTER, --chrSizes=CHARACTER                  chromosome size file
-    -r CHARACTER, --region=CHARACTER                    Region to plot  chr:start-end (multiple regins can be separated by a comma)
+    --ref_name=CHARACTER                                Name for the reference track [default= Reference]
+    -C CHARACTER, --chrSizes=CHARACTER                  Chromosome size file
+    -r CHARACTER, --region=CHARACTER                    Region to plot  chr:start-end (multiple regins can be separated by a comma) or a bed file can be provided
     -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
     -b CHARACTER, --base_name=CHARACTER                 Base name for files names [default= exp]
     -f CHARACTER, --output_file_base_name=CHARACTER     Base name for the output file [default= out]
@@ -187,6 +201,23 @@ Run the script
     -c INTEGER, --cores=INTEGER                         Numbers of parallel jobs to run [default= 3] 
     -f CHARACTER, --output_file_base_name=CHARACTER     Base name for the output file [default= out]
     -h, --help                                          Show this help message and exit
+
+-- Kronos population RT
+
+    ./Kronos
+    -F CHARACTER, --file=CHARACTER                 Per cell stat file, to merge multiple runs separate directories with a comma
+    -S CHARACTER, --settings_file=CHARACTER        File generated by Kronos diagnostic, to merge multiple runs separate directories with a comma
+    -D CHARACTER, --directory=CHARACTER            Single cell Bamfiles directory, to merge multiple runs separate directories with a comma
+    -o CHARACTER, --out=CHARACTER                  Output directory [default= output]
+    -b CHARACTER, --base_name=CHARACTER            Base name for files names [default= exp]
+    -X, --keep_X                                   Keep X chromosomes. [default= FALSE]
+    -Y, --keep_Y                                   Keep Y chromosome. [default= FALSE]
+    -c INTEGER, --cores=INTEGER                    Numbers of parallel jobs to run [default= 3] 
+    -R INTEGER, --bin_size=INTEGER                 Bins size in bp,multiple bin size can be provided separated by a comma. [default= 50Kb]
+    -C CHARACTER, --chrSizes=CHARACTER             Chromosome size file
+    -B CHARACTER, --black_list=CHARACTER           Regions to ignore
+    -h, --help                                     Show this help message and exit
+
 
 ### Requirements
     Programs:
