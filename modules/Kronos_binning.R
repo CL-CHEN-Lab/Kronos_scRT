@@ -64,7 +64,7 @@ option_list = list(
         type = "character",
         default = '20Kb',
         action = 'store',
-        help = "Bins size. [default= %default bp]",
+        help = "Bins size. [default= %default ]",
         metavar = "character"
     ),
     make_option(
@@ -79,7 +79,7 @@ option_list = list(
       type = "double",
       default = 1.5,
       action = 'store',
-      help = "maximum mappability for a bin to be considered in the analisys  [default= %default bp]",
+      help = "maximum mappability for a bin to be considered in the analisys  [default= %default]",
       metavar = "double"
     ),
     make_option(
@@ -87,7 +87,7 @@ option_list = list(
       type = "double",
       action = 'store',
       default = 0.8,
-      help = "minimum mappability for a bin to be considered in the analisys  [default= %default bp]",
+      help = "minimum mappability for a bin to be considered in the analisys  [default= %default]",
       metavar = "double"
     ),
     make_option(
@@ -96,6 +96,14 @@ option_list = list(
       action = 'store',
       help = "regions to ignore",
       metavar = "character"
+    ),
+    make_option(
+        c("-x","--coverage"),
+        type = "character",
+        action = 'store',
+        help = "coverage for simulated genome. [default= %default]",
+        default = '1x',
+        metavar = "character"
     )
 )
 
@@ -129,6 +137,10 @@ if(!"index" %in% names(opt)){
     stop("Bowtie2 indexed genome not provided. See script usage (--help)")
 }
 
+opt$coverage=tryCatch(expr = as.numeric(str_remove(opt$coverage,'[Xx]')),
+                      error = function(x) tryCatch(expr = as.numeric(opt$coverage),
+                      error= stop('Wrong coverage format')))
+
 # convert binsize to numeric
 
 extract_unit=str_extract(opt$bin_size,pattern = '.{2}$')
@@ -151,13 +163,14 @@ opt$bin_size = as.numeric(str_remove(opt$bin_size, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]")
   grepl(x = extract_unit,pattern =  '[0-9][0-9]') ~ 1
 )
 
-if(any(is.na(opt$bin_size))){
+if(is.na(opt$bin_size)){
   stop('binsize have an incorrect format')
 }
 
 #loading reference fa
 reference=readDNAStringSet(opt$RefGenome)
 
+#exstimate paramenters
 cl=makeCluster(opt$cores)
 registerDoSNOW(cl)
 
@@ -177,7 +190,7 @@ if ('dir_indexed_bam' %in% names(opt)){
                 function(x) median(abs(x),na.rm = T))
     }
     
-    parameters=as.tibble(parameters)%>%
+    parameters=as_tibble(parameters)%>%
         summarise(qwidth=round(median(qwidth)),
                   isize=round(median(isize)))
     
@@ -191,24 +204,121 @@ if ('dir_indexed_bam' %in% names(opt)){
     }
   
 }
+
+
 chr_list = paste0('chr', c(1:56, 'X', 'Y'))
 chr_list = chr_list[chr_list %in% unique(names(reference))]
+
+# Identify reagins in wich the sequence is known
+find_known_sequences = function(x) {
+    library(tidyverse)
+    y = str_locate_all(x, '.[TACG]+')
+    return(tibble(start = y[[1]][, 1], end = y[[1]][, 2]))
+}
+#recover reads and mutate them
+recover_and_mutate = function(simulated_reads, Chr_reference) {
+    library(tidyverse)
+    simulated_reads = tibble(
+        reads = str_sub(
+            Chr_reference,
+            start = simulated_reads$start,
+            end = simulated_reads$end - 1
+        ),
+        order = simulated_reads$order
+    )%>%
+        mutate(reads=str_remove(reads,'N'))
+    
+    # simulate mutations 0.1 % rate
+    mutate = sample(1:length(simulated_reads$reads),
+                    0.001 * length(simulated_reads$reads))
+    to_mutate = simulated_reads[mutate,]
+    simulated_reads = simulated_reads[-mutate,]
+    
+    to_mutate = to_mutate %>%
+        group_by(reads) %>%
+        mutate(
+            len = str_length(reads),
+            mutate = sample(1:40, 1),
+            before = str_sub(reads, 0, mutate - 1),
+            after = str_sub(reads, mutate + 1, len),
+            mutate_b = str_sub(reads, mutate, mutate),
+            mutated_base = ifelse(
+                mutate_b == 'A',
+                sample(c('T', 'C', 'G'), 1),
+                ifelse(
+                    mutate_b == 'C',
+                    sample(c('A', 'T', 'G'), 1),
+                    ifelse(
+                        mutate_b == 'G',
+                        sample(c('A', 'T', 'C'), 1),
+                        ifelse(mutate_b == 'T' ,
+                               sample(c(
+                                   'A', 'C', 'G'
+                               ), 1),
+                               sample(c(
+                                   'A', 'C', 'G', 'T'
+                               ), 1))
+                    )
+                )
+            ),
+            new_seq = paste0(before, mutated_base, after),
+            check = str_length(new_seq)
+        ) %>%
+        ungroup() %>%
+        select(new_seq, order) %>%
+        `colnames<-`(names(simulated_reads))
+    simulated_reads = rbind(simulated_reads, to_mutate)
+    return(simulated_reads)
+}
+#reshape reads for the fastq file
+reshape_and_save = function(simulated_reads, file,Chr,x) {
+    simulated_reads %>%
+        arrange(order)%>%
+        `colnames<-`(c('2','order') )%>%
+        mutate(
+            n=str_count(`2`),
+            `1` = paste0('@read', 1:n(),Chr,'round',x),
+            `3` = '+',
+            `4` = unlist(lapply(n, function(x) paste0(rep('D', x), collapse = '')))
+        ) %>%
+        select(-n)%>%
+        gather('pos', 'towrite', -order) %>%
+        arrange(order, pos) %>%
+        select(towrite) %>%
+        write_delim(path = file,
+                    col_names = F,append = T)
+    return(0)
+}
+
+#calculate reverse complement for PE
+rev_com = function(x) {
+    library(tidyverse)
+    dict = list(
+        A = 'T',
+        `T` = 'A',
+        C = 'G',
+        G = 'C',
+        N = 'N'
+    )
+    x = str_extract_all(x, '.')
+    x = unlist(lapply(x , function(x)
+        paste0(
+            sapply(rev(x), function(x)
+                dict[[x]], simplify = T),
+            collapse = ''
+        )))
+    return(x)
+}
+
 
 genome.Chromsizes = foreach(
     Chr = chr_list,
     .combine = 'rbind',
     .packages = c('Biostrings', 'foreach', 'tidyverse')
-) %dopar% {
+)%dopar%{
     #genome size
     genome.Chromsizes = tibble(chr = Chr,
                                size = width(reference[Chr]))
-    
-    # Identify reagins in wich the sequence is known
-    find_known_sequences = function(x) {
-        library(tidyverse)
-        y = str_locate_all(x, '.[TACG]+')
-        return(tibble(start = y[[1]][, 1], end = y[[1]][, 2]))
-    }
     
     position = find_known_sequences(reference[Chr])
     
@@ -216,12 +326,30 @@ genome.Chromsizes = foreach(
     if (opt$paired_ends) {
         #initialize simulated reads
         size = (2 * opt$reads_size + opt$insert_size)
+        
+    }else{
+        
+        size = opt$reads_size 
+        
+        }
+    
+    
+    
+    tmp=foreach(
+        variability=round(seq(-size,size,by = 2*size/(opt$coverage+1)))[1:opt$coverage+1],
+    .packages = c('Biostrings', 'foreach', 'tidyverse')
+) %do% {
+    
+    #look for seeds
+    if (opt$paired_ends) {
+        
+        #initialize simulated reads
         position = position %>%
             filter(end - start > size)
         
         simulated_reads_1 = foreach(i = 1:length(position$start),
                                     .combine = 'c') %do% {
-                                        seq(position$start[i], position$end[i]-size, by = size)
+                                        seq(position$start[i]+variability, position$end[i], by = size)
                                     }
         simulated_reads_1 = tibble(start = unlist(simulated_reads_1),
                                    end = start + opt$reads_size) %>%
@@ -231,99 +359,25 @@ genome.Chromsizes = foreach(
                    end = start + opt$reads_size)
         
     } else{
-        size = opt$reads_size
+        
         position = position %>%
             filter(end - start > size)
         #initialize simulated reads
         simulated_reads = foreach(i = 1:length(position$start)) %do% {
-            seq(position$start[i], position$end[i]-size, by = opt$reads_size)
+            seq(position$start[i]+variability, position$end[i], by = opt$reads_size)
         }
         simulated_reads = tibble(start = unlist(simulated_reads),
                                  end = start + opt$reads_size) %>%
             mutate(order =  row_number())
     }
 
-    #recover reads and mutate them
-    recover_and_mutate = function(simulated_reads, Chr_reference) {
-        library(tidyverse)
-        simulated_reads = tibble(
-            reads = str_sub(
-                Chr_reference,
-                start = simulated_reads$start,
-                end = simulated_reads$end - 1
-            ),
-            order = simulated_reads$order
-        )%>%
-            mutate(reads=str_remove(reads,'N'))
-        
-        # simulate mutations 0.1 % rate
-        mutate = sample(1:length(simulated_reads$reads),
-                        0.001 * length(simulated_reads$reads))
-        to_mutate = simulated_reads[mutate,]
-        simulated_reads = simulated_reads[-mutate,]
-        
-        to_mutate = to_mutate %>%
-            group_by(reads) %>%
-            mutate(
-                len = str_length(reads),
-                mutate = sample(1:40, 1),
-                before = str_sub(reads, 0, mutate - 1),
-                after = str_sub(reads, mutate + 1, len),
-                mutate_b = str_sub(reads, mutate, mutate),
-                mutated_base = ifelse(
-                    mutate_b == 'A',
-                    sample(c('T', 'C', 'G'), 1),
-                    ifelse(
-                        mutate_b == 'C',
-                        sample(c('A', 'T', 'G'), 1),
-                        ifelse(
-                            mutate_b == 'G',
-                            sample(c('A', 'T', 'C'), 1),
-                            ifelse(mutate_b == 'T' ,
-                                   sample(c(
-                                       'A', 'C', 'G'
-                                   ), 1),
-                                   sample(c(
-                                       'A', 'C', 'G', 'T'
-                                   ), 1))
-                        )
-                    )
-                ),
-                new_seq = paste0(before, mutated_base, after),
-                check = str_length(new_seq)
-            ) %>%
-            ungroup() %>%
-            select(new_seq, order) %>%
-            `colnames<-`(names(simulated_reads))
-        simulated_reads = rbind(simulated_reads, to_mutate)
-        return(simulated_reads)
-    }
-    
     if (opt$paired_ends) {
         #recover strings reads and mutate some of them
         simulated_reads_1 = recover_and_mutate(simulated_reads = simulated_reads_1,
                                                Chr_reference = reference[Chr])
         simulated_reads_2 = recover_and_mutate(simulated_reads = simulated_reads_2,
                                                Chr_reference = reference[Chr])
-        #calculate reverse complement for PE
-        rev_com = function(x) {
-            library(tidyverse)
-            dict = list(
-                A = 'T',
-                `T` = 'A',
-                C = 'G',
-                G = 'C',
-                N = 'N'
-            )
-            x = str_extract_all(x, '.')
-            x = unlist(lapply(x , function(x)
-                paste0(
-                    sapply(rev(x), function(x)
-                        dict[[x]], simplify = T),
-                    collapse = ''
-                )))
-            return(x)
-        }
+
         
         simulated_reads_2 = simulated_reads_2 %>%
             mutate(reads = rev_com(reads))
@@ -331,26 +385,6 @@ genome.Chromsizes = foreach(
         #recover strings reads and mutate some of them
         simulated_reads = recover_and_mutate(simulated_reads = simulated_reads,
                                              Chr_reference = reference[Chr])
-    }
-    
-    #reshape reads for the fastq file
-    reshape_and_save = function(simulated_reads, file,Chr) {
-       simulated_reads %>%
-            arrange(order)%>%
-            `colnames<-`(c('2','order') )%>%
-            mutate(
-                n=str_count(`2`),
-                `1` = paste0('@read', 1:n(),Chr),
-                `3` = '+',
-                `4` = unlist(lapply(n, function(x) paste0(rep('D', x), collapse = '')))
-            ) %>%
-            select(-n)%>%
-            gather('pos', 'towrite', -order) %>%
-            arrange(order, pos) %>%
-            select(towrite) %>%
-            write_delim(path = file,
-                        col_names = F)
-        return(0)
     }
     
     if (opt$paired_ends) {
@@ -363,7 +397,8 @@ genome.Chromsizes = foreach(
                 Chr,
                 '_simulated_reads_1.fq'
             ),
-            Chr=Chr
+            Chr=Chr,
+            x = variability
         )
         reshape_and_save(
             simulated_reads_2,
@@ -373,7 +408,8 @@ genome.Chromsizes = foreach(
                 Chr,
                 '_simulated_reads_2.fq'
             ),
-            Chr=Chr
+            Chr=Chr,
+            x = variability
         )
         
     } else{
@@ -386,12 +422,15 @@ genome.Chromsizes = foreach(
                 Chr,
                 '_simulated_reads.fq'
             ),
-            Chr=Chr
+            Chr=Chr,
+            x = variability
         )    #remove from memory
         rm('simulated_reads')
     }
-    genome.Chromsizes
+    variability
 }
+genome.Chromsizes
+    }
 
 stopCluster(cl)
 
@@ -487,7 +526,6 @@ if(opt$paired_ends){
     
 }
 
-
 bins = foreach (Chr = genome.Chromsizes$chr,
                 .combine = 'rbind',
                 .packages = 'tidyverse') %do% {
@@ -536,10 +574,10 @@ bins = foreach (Chr = genome.Chromsizes$chr,
                 }
 
 bins=bins%>%
-    mutate(mappability=reads/theoretical_reads,
+    mutate(mappability=reads/(opt$coverage*theoretical_reads),
            mappability_th=ifelse(
                mappability >= opt$lower_mappability_th &
-                 mappability <= opt$upper_mappability_th ,T,F
+                   mappability <= opt$upper_mappability_th ,T,F
            ))%>%
     group_by(chr)%>%
     select(chr,start,end,mappability,mappability_th)
@@ -566,7 +604,7 @@ stopCluster(cl)
 bins=bins %>%
     mutate(type=ifelse(opt$paired_ends,'PE','SE'))
 
-if('black_list' %in% opt){
+if('black_list' %in% names(opt)){
   bl=read_tsv(opt$black_list,col_names = c('chr','start','end'))%>%
     makeGRangesFromDataFrame()
   
@@ -582,9 +620,19 @@ if('black_list' %in% opt){
   bins=bins%>%
     mutate(mappability_th=ifelse(!is.na(hit),F,mappability_th))%>%
     dplyr::select(-hit)
+  
   }
 
+
 #write bisns with info
-write_tsv(bins, paste0(opt$output_dir, basename(opt$index),BS, '_bins_',ifelse(opt$paired_ends,'PE','SE'),'.tsv'))
+write_tsv(bins, paste0(opt$output_dir, basename(opt$index),'_',
+                       BS, '_bins_',
+                       opt$coverage,'X_coverage_',
+                       opt$reads_size,'bp_reads_',
+                       ifelse(opt$paired_ends,paste0('PE_',opt$insert_size,'bp_InsertSize')
+                              ,'SE'),
+                       ifelse('black_list' %in% names(opt),'_blacklisted_',''),
+                              paste0('_min_mappability_',opt$lower_mappability_th,
+                                     '_max_mappability_',opt$upper_mappability_th),'.tsv'))
 
 print('done')
