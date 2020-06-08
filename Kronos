@@ -80,7 +80,7 @@ elif [ "$1" == "compare" ] && [ "$2" == "TW" ];then
 elif [ "$1" == "population" ] && [ "$2" == "RT" ];then
     if test "$#" == 2 ; then
         echo Usage: Kronos population RT [options]
-        Rscript $DIR/modules/Kronos_population_RT.R -h | grep -v Kronos_compare
+        Rscript $DIR/modules/Kronos_population_RT.R -h | grep -v Kronos_population_RT
     else
        Rscript $DIR/modules/Kronos_population_RT.R "${@:3}"
     fi
