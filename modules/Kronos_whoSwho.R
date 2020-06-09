@@ -47,7 +47,7 @@ if (str_extract(opt$out,'.$')!='/'){
     opt$out=paste0(opt$out,'/')
 }
 
-system(paste0('mkdir -p ./', opt$out))
+system(paste0('mkdir -p ', opt$out))
 
 #load data
 data<-inner_join(read_csv(opt$file,

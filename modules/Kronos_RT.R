@@ -250,7 +250,7 @@ if (str_extract(opt$out, '.$') != '/') {
     opt$out = paste0(opt$out, '/')
 }
 
-system(paste0('mkdir -p ./', opt$out))
+system(paste0('mkdir -p ', opt$out))
 
 
 # check inputs

@@ -122,6 +122,9 @@ if (str_extract(opt$out, '.$') != '/') {
     opt$out = paste0(opt$out, '/')
 }
 
+system(paste0('mkdir -p ', opt$out))
+
+
 #load files
 opt$file = str_split(opt$file, ',')[[1]]
 
@@ -342,7 +345,6 @@ x=foreach(bs=opt$bin_size)%dopar%{
         dplyr::select(-bin_size) %>%
         write_delim(
             path = paste0(opt$out,
-                          '/',
                           opt$base_name,
                           '_population_RT_',
                           extract_unit,

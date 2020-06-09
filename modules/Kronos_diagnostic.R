@@ -86,7 +86,7 @@ if (str_extract(opt$out,'.$')!='/'){
     opt$out=paste0(opt$out,'/')
 }
 
-system(paste0('mkdir -p ./', opt$out))
+system(paste0('mkdir -p ', opt$out))
 
 #load data
 data<-read_csv(opt$file,
@@ -128,7 +128,7 @@ if (!'threshold_Sphase' %in% names(opt)){
         ) +
         theme(legend.position = 'top', legend.title = element_blank())
     
-    system(paste('mkdir -p', opt$out))
+    system(paste('mkdir -p ', opt$out))
     suppressMessages( ggsave(p, filename = paste0(opt$out, '/', opt$base_name, '_plot.pdf')))
     
     opt$threshold_G1G2phase=NA

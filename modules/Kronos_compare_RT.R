@@ -85,7 +85,7 @@ if (str_extract(opt$out,'.$')!='/'){
     opt$out=paste0(opt$out,'/')
 }
 
-system(paste0('mkdir -p ./', opt$out))
+system(paste0('mkdir -p ', opt$out))
 
 if (!'S50s' %in% names(opt)) {
     stop("No S50 file has been provided. See script usage (--help)")
