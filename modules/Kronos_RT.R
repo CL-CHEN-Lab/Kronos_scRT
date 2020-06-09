@@ -7,6 +7,12 @@ options(warn = 1, scipen = 999)
 
 option_list = list(
     make_option(
+        c("-K", "--Kronos_conf_file"),
+        type = "character",
+        default = NULL,
+        help = "Kronos setting file. If provided -F,-T,-S,-b and -g are ignored. Tab file containing: Per cell stat file /t tracks file /t settings file /t basename (optional) /t group (optional) ",
+        metavar = "character"
+    ),make_option(
         c("-F", "--file"),
         type = "character",
         default = NULL,
@@ -140,28 +146,72 @@ suppressPackageStartupMessages(library(matrixStats, quietly = TRUE))
 suppressPackageStartupMessages(library(RColorBrewer, quietly = TRUE))
 suppressPackageStartupMessages(library(GenomicRanges, quietly = TRUE))
 suppressPackageStartupMessages(library(MASS, quietly = TRUE))
-
-
 #check inputs
-if (!'file' %in% names(opt)) {
-    stop("Per cell stat file must be provided. See script usage (--help)")
-}
-
-if (!'tracks' %in% names(opt)) {
-    stop("File containing cells CNV must be provided. See script usage (--help)")
-}
-
-if (!'settings_file' %in% names(opt)) {
-    stop("File containing settings sizes must be provided. See script usage (--help)")
-}
-
+if('Kronos_conf_file' %in% names(opt)) {
+    
+    settings=tryCatch(expr = read_tsv(opt$Kronos_conf_file,col_names = c('file','traks','settings','basename','groups'),col_types = cols())%>%
+        mutate(
+            basename=ifelse(is.na(basename),paste0('exp',row_number()),basename),
+            groups=ifelse(is.na(groups),basename,groups)
+        ),
+        error=function(e){stop('Settings file does not exitst')},
+        warning=function(w){
+            tmp=suppressWarnings(
+            read_tsv(opt$Kronos_conf_file,col_names = c('file','traks','settings','basename','groups'),col_types = cols())%>%
+                mutate(
+                    basename=ifelse(is.na(basename),paste0('exp',row_number()),basename),
+                    groups=ifelse(is.na(groups),basename,groups)
+                ))
+            warning('missing basenames and groups were replaced with default parameters')
+            return(tmp)})
+    
+    #reformat files
+    opt$file = settings$file
+    
+    opt$settings_file = settings$settings
+    
+    opt$tracks = settings$traks
+    
+    opt$base_name = settings$basename
+    
+    opt$groups = settings$groups
+    
+} else{
+    
+    if (!'file' %in% names(opt)) {
+        stop("Per cell stat file or Kronos setting file must be provided. See script usage (--help)")
+    }
+    
+    if (!'tracks' %in% names(opt)) {
+        stop("File containing cells CNV or Kronos setting file must be provided. See script usage (--help)")
+    }
+    
+    if (!'settings_file' %in% names(opt)) {
+        stop("File containing settings sizes must be provided. See script usage (--help)")
+    }
+    
+    if (!'groups' %in% names(opt)) {
+        opt$groups = opt$base_name
+    }
+    
+    #reformat files
+    opt$file = str_split(opt$file, ',')[[1]]
+    
+    opt$settings_file = str_split(opt$settings_file, ',')[[1]]
+    
+    opt$tracks = str_split(opt$tracks, ',')[[1]]
+    
+    opt$base_name = str_split(opt$base_name, ',')[[1]]
+    
+    opt$groups = str_split(opt$groups, ',')[[1]]
+    
+    
+}    
 if (!'chrSizes' %in% names(opt)) {
     stop("File containing Chromosomes sizes must be provided. See script usage (--help)")
 }
 
-if (!'groups' %in% names(opt)) {
-    opt$groups = opt$base_name
-}
+
 
 if (opt$Var_against_reference) {
     if (!'referenceRT' %in% names(opt)) {
@@ -203,16 +253,6 @@ if (str_extract(opt$out, '.$') != '/') {
 
 system(paste0('mkdir -p ./', opt$out))
 
-#load files
-opt$file = str_split(opt$file, ',')[[1]]
-
-opt$settings_file = str_split(opt$settings_file, ',')[[1]]
-
-opt$tracks = str_split(opt$tracks, ',')[[1]]
-
-opt$base_name = str_split(opt$base_name, ',')[[1]]
-
-opt$groups = str_split(opt$groups, ',')[[1]]
 
 # check inputs
 if (length(opt$tracks) != length(opt$file)) {
