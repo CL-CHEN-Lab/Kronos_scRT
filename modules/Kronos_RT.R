@@ -321,12 +321,12 @@ data <-
             read_csv(opt$file[i], col_types = cols()) %>%
                 mutate(
                     basename = factor(opt$base_name[i], levels = opt$base_name),
-                    group = factor(opt$groups[i], levels = opt$groups)
+                    group = factor(opt$groups[i], levels = unique(opt$groups))
                 ),
             read_tsv(opt$settings_file[i], col_types = cols()) %>%
                 mutate(
                     basename = factor(opt$base_name[i], levels = opt$base_name),
-                    group = factor(opt$groups[i], levels = opt$groups)
+                    group = factor(opt$groups[i], levels = unique(opt$groups))
                 ),
             by = c('basename', 'group')
         )
@@ -345,7 +345,7 @@ all_tracks <-
         read_delim(opt$tracks[i], delim = '\t', col_types = cols()) %>%
             mutate(
                 basename = factor(opt$base_name[i], levels = opt$base_name),
-                group = factor(opt$groups[i], levels = opt$groups),
+                group = factor(opt$groups[i], levels = unique(opt$groups)),
                 chr = factor(x =  chr, levels = chr_list)
             ) %>%
             drop_na()
