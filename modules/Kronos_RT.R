@@ -207,11 +207,10 @@ if('Kronos_conf_file' %in% names(opt)) {
     
     
 }    
+
 if (!'chrSizes' %in% names(opt)) {
     stop("File containing Chromosomes sizes must be provided. See script usage (--help)")
 }
-
-
 
 if (opt$Var_against_reference) {
     if (!'referenceRT' %in% names(opt)) {
@@ -302,7 +301,7 @@ if (!opt$keepXY) {
 }
 
 #chr order
-chr_list = paste0('chr', c(1:56, 'X', 'Y'))
+chr_list = paste0('chr', c(1:100, 'X', 'Y'))
 
 chr_list = chr_list[chr_list %in% unique(Chr_Size$chr)]
 
@@ -698,7 +697,7 @@ selecte_th = selecte_th %>%
     group_by(index, basename) %>%
     filter(sum_error == min(sum_error)) %>%
     summarise(th = min(th)) %>%
-    ungroup
+    ungroup()
 
 # mark replicated bins
 signal_smoothed = signal_smoothed %>%
@@ -714,6 +713,14 @@ new_index_list = signal_smoothed %>%
     group_by(group) %>%
     mutate(newIndex = 1:n()) %>%
     dplyr::select(index, basename, newIndex, group)
+
+
+write_tsv(new_index_list,paste0(
+    opt$out,
+    '/',
+    opt$output_file_base_name,
+    '_new_old_index_correspondance.txt'
+))
 
 signal_smoothed = signal_smoothed %>%
     inner_join(new_index_list, by = c('index', 'basename', 'group'))
@@ -873,7 +880,7 @@ invisible(dev.off())
 signal_smoothed = signal_smoothed %>%
     filter(index %in% Index) %>%
     separate(index, c('basename', 'index'), sep = ' _ ') %>%
-    mutate(basename = factor(basename, level = opt$base_name))
+    mutate(basename = factor(basename, level = unique(opt$groups)))
 
 rep_percentage = signal_smoothed %>%
     group_by(basename, index) %>%
@@ -1541,7 +1548,7 @@ TW = x %>%
 plot = TW %>%
     inner_join(s50, by = c("chr", "start", "end", "basename")) %>%
     ggplot() +
-    geom_point(aes(x = RT, y = TW, color = 'basename'), alpha = 0.2) +
+    geom_point(aes(x = RT, y = TW, color = basename), alpha = 0.2) +
     geom_smooth(aes(x = RT, y = TW), color = 'black') +
     facet_wrap( ~ basename)
 
@@ -1828,7 +1835,7 @@ if (opt$Var_against_reference) {
     plot = TW %>%
         inner_join(Reference_RT, by = c("chr", "start", "end")) %>%
         ggplot() +
-        geom_point(aes(x = RT, y = TW, color = 'basename'), alpha = 0.2) +
+        geom_point(aes(x = RT, y = TW, color = basename), alpha = 0.2) +
         geom_smooth(aes(x = RT, y = TW), color = 'black') +
         facet_wrap( ~ basename)
     
