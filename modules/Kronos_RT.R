@@ -171,20 +171,20 @@ if (opt$Var_against_reference) {
 }
 # convert binsize to numeric
 
-extract_unit=str_extract(opt$binsSize,pattern = '.{2}$')
+extract_unit = str_extract(opt$binsSize, pattern = '.{2}$')
 resolution = as.numeric(str_remove(opt$binsSize, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]")) * case_when(
-    grepl(x =extract_unit,pattern =  '[Kk][Bb]') ~ 1000,
-    grepl(x =extract_unit, pattern = '[Mm][Bb]') ~ 1000000,
-    grepl(x =extract_unit, pattern = '[Bp][Pp]') ~ 1,
-    grepl(x = extract_unit,pattern =  '[0-9][0-9]') ~ 1
+    grepl(x = extract_unit, pattern =  '[Kk][Bb]') ~ 1000,
+    grepl(x = extract_unit, pattern = '[Mm][Bb]') ~ 1000000,
+    grepl(x = extract_unit, pattern = '[Bp][Pp]') ~ 1,
+    grepl(x = extract_unit, pattern =  '[0-9][0-9]') ~ 1
 )
 
-if(any(is.na(resolution))){
+if (any(is.na(resolution))) {
     stop('binsize have an incorrect format')
 }
 
 # prepare name file
-if(grepl(x = extract_unit,pattern =  '[0-9][0-9]')){
+if (grepl(x = extract_unit, pattern =  '[0-9][0-9]')) {
     n_of_zeros = str_length(str_extract(opt$binsSize, '0{1,10}$'))
     opt$binsSize = case_when(
         is.na(n_of_zeros) ~ paste0(opt$binsSize, 'bp'),
@@ -192,8 +192,8 @@ if(grepl(x = extract_unit,pattern =  '[0-9][0-9]')){
         n_of_zeros < 6 ~ paste0(str_remove(opt$binsSize, '0{3}$'), 'Kb'),
         n_of_zeros >= 6 ~ paste0(str_remove(opt$binsSize, '0{6}$'), 'Mp')
     )
-}else{
-    opt$binsSize=opt$binsSize
+} else{
+    opt$binsSize = opt$binsSize
 }
 
 #create directory
@@ -358,7 +358,7 @@ data = data %>%
     filter(
         mean_ploidy > median_ploidy_G1_G2_cells / 1.50 ,
         mean_ploidy < median_ploidy_G1_G2_cells * 2,
-        !ploidy_confidence <= 2 | ploidy_confidence==-100
+        !ploidy_confidence <= 2 | ploidy_confidence == -100
     ) %>%
     mutate(Type = ifelse(
         as.logical(is_high_dimapd) == T &
@@ -865,7 +865,18 @@ new_index_list = rep_percentage %>%
 signal_smoothed = signal_smoothed %>%
     ungroup() %>%
     inner_join(new_index_list, by = c('index', 'basename')) %>%
-    dplyr::select(chr, start, end,CN,background,CN_bg,th,Rep,mean_CN,groups,basename,newIndex)
+    dplyr::select(chr,
+                  start,
+                  end,
+                  CN,
+                  background,
+                  CN_bg,
+                  th,
+                  Rep,
+                  mean_CN,
+                  groups,
+                  basename,
+                  newIndex)
 
 
 write_delim(
@@ -911,24 +922,28 @@ if (opt$plot) {
     system(paste0('mkdir -p ', opt$out, '/regions'))
     if (!'region' %in% names(opt)) {
         for (i in 1:length(Chr_Size$chr)) {
-            region = round(runif(1, min = 1000000, max = 0.8*Chr_Size$size[i]),
+            region = round(runif(1, min = 1000000, max = 0.8 * Chr_Size$size[i]),
                            0)
             Chr = Chr_Size$chr[i]
             Start = region
-            End = region + round(0.2*Chr_Size$size[i])
+            End = region + round(0.2 * Chr_Size$size[i])
             
-          # prepare name file 
-            name_reg=min( str_length(str_extract(Start,'0{1,10}$')), str_length(str_extract(End,'0{1,10}$')))
-            name_reg= paste(
+            # prepare name file
+            name_reg = min(str_length(str_extract(Start, '0{1,10}$')),
+                           str_length(str_extract(End, '0{1,10}$')))
+            name_reg = paste(
                 Chr,
                 case_when(
-                    is.na(name_reg) ~ paste0(Start,'bp_',End,'bp'),
-                    name_reg < 3 ~ paste0(Start,'bp_',End,'bp'),
-                    name_reg < 6 ~ paste0(Start/10^3,'Kb_',End/10^3,'Kb'),
-                    name_reg >= 6 ~ paste0(Start/10^6,'Mb_',End/10^6,'Mb')
-           ) )
-
-           
+                    is.na(name_reg) ~ paste0(Start, 'bp_', End, 'bp'),
+                    name_reg < 3 ~ paste0(Start, 'bp_', End, 'bp'),
+                    name_reg < 6 ~ paste0(Start / 10 ^ 3, 'Kb_', End / 10 ^
+                                              3, 'Kb'),
+                    name_reg >= 6 ~ paste0(Start / 10 ^ 6, 'Mb_', End /
+                                               10 ^ 6, 'Mb')
+                )
+            )
+            
+            
             track_toplot = signal_smoothed %>%
                 filter(
                     chr %in% Chr,
@@ -997,10 +1012,12 @@ if (opt$plot) {
                 
                 if ('referenceRT' %in% names(opt)) {
                     RT_toplot = Reference_RT %>%
-                        filter(chr %in% Chr,
-                               (start >= Start & end <= End) |
-                                   (start <= Start & end >= Start) |
-                                   (start <= End & end >= End)) %>%
+                        filter(
+                            chr %in% Chr,
+                            (start >= Start & end <= End) |
+                                (start <= Start & end >= Start) |
+                                (start <= End & end >= End)
+                        ) %>%
                         mutate(
                             RT = RT ,
                             start = ifelse(start < Start, Start, start),
@@ -1069,53 +1086,79 @@ if (opt$plot) {
             }
         }
     } else{
-        if(file.exists(opt$region)){
+        if (file.exists(opt$region)) {
             #load bed file if exist
-            opt$region =read_tsv(opt$region,col_names = c('chr','start','end') )%>%
+            opt$region = read_tsv(opt$region, col_names = c('chr', 'start', 'end')) %>%
                 mutate(
-                    n_0_start=str_length(str_extract(start,'0{1,10}$')),
-                    n_0_end=str_length(str_extract(end,'0{1,10}$')),
-                    unit=min(factor(case_when(
-                        is.na(n_0_start) ~'bp',
-                        n_0_start < 3 ~ 'bp',
-                        n_0_start < 6 ~'Kb',
-                        n_0_start >= 6 ~ 'Mp'),levels = c('bp','Kb','Mp'), ordered=TRUE),
-                        factor(case_when(
-                            is.na(n_0_end) ~'bp',
-                            n_0_end < 3 ~ 'bp',
-                            n_0_end < 6 ~'Kb',
-                            n_0_end >= 6 ~ 'Mp'),levels = c('bp','Kb','Mp'), ordered=TRUE
-                        )),
-                    name_reg=paste(
+                    n_0_start = str_length(str_extract(start, '0{1,10}$')),
+                    n_0_end = str_length(str_extract(end, '0{1,10}$')),
+                    unit = min(
+                        factor(
+                            case_when(
+                                is.na(n_0_start) ~ 'bp',
+                                n_0_start < 3 ~ 'bp',
+                                n_0_start < 6 ~ 'Kb',
+                                n_0_start >= 6 ~ 'Mp'
+                            ),
+                            levels = c('bp', 'Kb', 'Mp'),
+                            ordered = TRUE
+                        ),
+                        factor(
+                            case_when(
+                                is.na(n_0_end) ~ 'bp',
+                                n_0_end < 3 ~ 'bp',
+                                n_0_end < 6 ~ 'Kb',
+                                n_0_end >= 6 ~ 'Mp'
+                            ),
+                            levels = c('bp', 'Kb', 'Mp'),
+                            ordered = TRUE
+                        )
+                    ),
+                    name_reg = paste(
                         chr,
                         case_when(
-                            unit == 'bp' ~ paste0(start,unit,'_',end,unit),
-                            unit == 'Kb' ~ paste0(start/10^3,unit,'_',end/10^3,unit),
-                            unit == 'Mb' ~ paste0(start/10^6,unit,'_',end/10^6,unit)
-                        ),sep = '_' ))%>%
-                dplyr::select(-unit,-n_0_start,-n_0_end)
-        }else{
+                            unit == 'bp' ~ paste0(start, unit, '_', end, unit),
+                            unit == 'Kb' ~ paste0(start / 10 ^ 3, unit, '_', end /
+                                                      10 ^ 3, unit),
+                            unit == 'Mb' ~ paste0(start / 10 ^ 6, unit, '_', end /
+                                                      10 ^ 6, unit)
+                        ),
+                        sep = '_'
+                    )
+                ) %>%
+                dplyr::select(-unit, -n_0_start, -n_0_end)
+        } else{
             #reshape regions
             opt$region = tibble(coord = str_split(opt$region, pattern = ',')[[1]]) %>%
-                mutate(name_reg=str_replace_all(coord,pattern = '[-:]',replacement = '_'))%>%
+                mutate(name_reg = str_replace_all(
+                    coord,
+                    pattern = '[-:]',
+                    replacement = '_'
+                )) %>%
                 separate(coord, c('chr', 'pos'), ':') %>%
-                separate(pos, c('start', 'end'), '-')%>%
+                separate(pos, c('start', 'end'), '-') %>%
                 mutate(
-                    start_unit=str_extract(start,pattern = '.{2}$'),
-                    start=as.numeric(str_remove(start, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]")) * case_when(
-                        grepl(x =start_unit,pattern =  '[Kk][Bb]') ~ 1000,
-                        grepl(x =start_unit, pattern = '[Mm][Bb]') ~ 1000000,
-                        grepl(x =start_unit, pattern = '[Bp][Pp]') ~ 1,
-                        grepl(x = start_unit,pattern =  '[0-9][0-9]') ~ 1
-                    ),            end_unit=str_extract(end,pattern = '.{2}$'),
+                    start_unit = str_extract(start, pattern = '.{2}$'),
+                    start = as.numeric(str_remove(
+                        start, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]"
+                    )) * case_when(
+                        grepl(x = start_unit, pattern =  '[Kk][Bb]') ~ 1000,
+                        grepl(x = start_unit, pattern = '[Mm][Bb]') ~ 1000000,
+                        grepl(x = start_unit, pattern = '[Bp][Pp]') ~ 1,
+                        grepl(x = start_unit, pattern =  '[0-9][0-9]') ~ 1
+                    ),
+                    end_unit = str_extract(end, pattern = '.{2}$'),
                     
-                    end=as.numeric(str_remove(end, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]")) * case_when(
-                        grepl(x =end_unit,pattern =  '[Kk][Bb]') ~ 1000,
-                        grepl(x =end_unit, pattern = '[Mm][Bb]') ~ 1000000,
-                        grepl(x =end_unit, pattern = '[Bp][Pp]') ~ 1,
-                        grepl(x = end_unit,pattern =  '[0-9][0-9]') ~ 1
-                    ))%>%
-                dplyr::select(-start_unit,-end_unit)
+                    end = as.numeric(str_remove(
+                        end, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]"
+                    )) * case_when(
+                        grepl(x = end_unit, pattern =  '[Kk][Bb]') ~ 1000,
+                        grepl(x = end_unit, pattern = '[Mm][Bb]') ~ 1000000,
+                        grepl(x = end_unit, pattern = '[Bp][Pp]') ~ 1,
+                        grepl(x = end_unit, pattern =  '[0-9][0-9]') ~ 1
+                    )
+                ) %>%
+                dplyr::select(-start_unit, -end_unit)
         }
         
         
@@ -1193,10 +1236,12 @@ if (opt$plot) {
                 
                 if ('referenceRT' %in% names(opt)) {
                     RT_toplot = Reference_RT %>%
-                        filter(chr %in% Chr,
-                               (start >= Start & end <= End) |
-                                   (start <= Start & end >= Start) |
-                                   (start <= End & end >= End)) %>%
+                        filter(
+                            chr %in% Chr,
+                            (start >= Start & end <= End) |
+                                (start <= Start & end >= Start) |
+                                (start <= End & end >= End)
+                        ) %>%
                         mutate(
                             RT = RT ,
                             start = ifelse(start < Start, Start, start),
@@ -1250,7 +1295,7 @@ if (opt$plot) {
                             ))
                         )
                 }
-                plot = plot + facet_wrap( ~ basename)
+                plot = plot + facet_wrap(~ basename)
                 suppressMessages(ggsave(
                     plot,
                     filename = paste0(
@@ -1275,8 +1320,10 @@ if ('referenceRT' %in% names(opt)) {
             dplyr::select(chr, start, end, RT, basename),
         
         Reference_RT %>%
-            mutate(RT = RT / max(RT, na.rm = T),
-                   basename = opt$ref_name)
+            mutate(
+                RT = RT / max(RT, na.rm = T),
+                basename = opt$ref_name
+            )
     )
 } else{
     RTs =  s50 %>%
@@ -1363,42 +1410,43 @@ if (length(RT_type) != 1) {
 }
 
 #joing s50 with relative signals
-signal_smoothed = signal_smoothed%>%
-    dplyr::select(basename,chr,start,end,CN_bg,mean_CN) %>%
+signal_smoothed = signal_smoothed %>%
+    dplyr::select(basename, chr, start, end, CN_bg, mean_CN) %>%
     inner_join(s50, by = c("basename", "chr", "start", "end"))  %>%
     group_by(basename) %>%
-    mutate(CN_bg = 10 * (CN_bg - quantile(CN_bg, c(0.01))[[1]]) / (quantile(CN_bg, c(0.99))[[1]] - quantile(CN_bg, c(0.01))[[1]]),
-           RT = 10*RT,
-           mean_CN=round(mean_CN))
+    mutate(
+        CN_bg = 10 * (CN_bg - quantile(CN_bg, c(0.01))[[1]]) / (quantile(CN_bg, c(0.99))[[1]] - quantile(CN_bg, c(0.01))[[1]]),
+        RT = 10 * RT,
+        mean_CN = round(mean_CN)
+    )
 
 #test multiple time windows
 cl <- makeCluster(opt$cores)
 registerDoSNOW(cl)
 
-x = foreach(
-    bs = unique(s50$basename),
-    .combine = 'rbind'
-)%do%{
-    sub=signal_smoothed %>%
-        filter(basename==bs)
-
-   tmp= foreach(
-        seq = seq(0, 10, 0.05),
-        .combine = 'rbind',
-        .packages = c('tidyverse')
-    )%dopar% {
-        sub %>%
-        mutate(rep = CN_bg <= seq) %>%
-        group_by(chr, start, end, basename,RT,mean_CN) %>%
-        summarise(percentage = mean(rep))%>%
-        group_by(chr, start, end, basename,RT) %>%
-        summarise(percentage = mean(percentage)) %>%
-        mutate(time = RT - seq)%>%
-            filter(time < 10 ,
-                   time > -10)
-    
-    }
-   tmp}
+x = foreach(bs = unique(s50$basename),
+            .combine = 'rbind') %do% {
+                sub = signal_smoothed %>%
+                    filter(basename == bs)
+                
+                tmp = foreach(
+                    seq = seq(0, 10, 0.05),
+                    .combine = 'rbind',
+                    .packages = c('tidyverse')
+                ) %dopar% {
+                    sub %>%
+                        mutate(rep = CN_bg <= seq) %>%
+                        group_by(chr, start, end, basename, RT, mean_CN) %>%
+                        summarise(percentage = mean(rep)) %>%
+                        group_by(chr, start, end, basename, RT) %>%
+                        summarise(percentage = mean(percentage)) %>%
+                        mutate(time = RT - seq) %>%
+                        filter(time < 10 ,
+                               time > -10)
+                    
+                }
+                tmp
+            }
 
 # calculate distance in time per bin
 s50_bin = x %>%
@@ -1434,48 +1482,51 @@ x = x %>%
     )
 
 
-TW=x%>%
-    group_by(chr,start,end,basename)%>%
-    mutate(t25=abs(percentage-0.25),
-           t75=abs(percentage-0.75),
-           t25=t25==min(t25),
-           t75=t75==min(t75))%>%
-    gather(points,filter_colums,t25,t75)%>%
-    filter(filter_colums)%>%
-    group_by(chr,start,end,basename,points)%>%
-    summarise(time=min(time))%>%
-    spread(points,time)%>%
-    mutate(TW=abs(t75-t25))%>%
-    dplyr::select(chr,start,end,basename,TW)
+TW = x %>%
+    group_by(chr, start, end, basename) %>%
+    mutate(
+        t25 = abs(percentage - 0.25),
+        t75 = abs(percentage - 0.75),
+        t25 = t25 == min(t25),
+        t75 = t75 == min(t75)
+    ) %>%
+    gather(points, filter_colums, t25, t75) %>%
+    filter(filter_colums) %>%
+    group_by(chr, start, end, basename, points) %>%
+    summarise(time = min(time)) %>%
+    spread(points, time) %>%
+    mutate(TW = abs(t75 - t25)) %>%
+    dplyr::select(chr, start, end, basename, TW)
 
-   plot= TW%>%
-        inner_join(s50, by = c("chr", "start", "end", "basename"))%>%
-    ggplot()+
-       geom_point(aes(x=RT,y=TW),color='red',alpha=0.2)+
-       geom_smooth(aes(x=RT,y=TW))+
-        facet_wrap(~basename)
+plot = TW %>%
+    inner_join(s50, by = c("chr", "start", "end", "basename")) %>%
+    ggplot() +
+    geom_point(aes(x = RT, y = TW, color = 'basename'), alpha = 0.2) +
+    geom_smooth(aes(x = RT, y = TW), color = 'black') +
+    facet_wrap( ~ basename)
 
-   suppressMessages(ggsave(
-       plot,
-       filename = paste0(
-           opt$out,
-           '/',
-           opt$output_file_base_name,
-           '_variability_plot_all_bins.pdf'
-       )
-   ))
-    write_delim(TW,
-        path = paste0(
-            opt$out,
-            '/',
-            opt$output_file_base_name,
-            '_calculated_Twhith_',
-            opt$binsSize,
-            '.tsv'
-        ),
-        delim = '\t',
-        col_names = T
+suppressMessages(ggsave(
+    plot,
+    filename = paste0(
+        opt$out,
+        '/',
+        opt$output_file_base_name,
+        '_variability_plot_all_bins.pdf'
     )
+))
+write_delim(
+    TW,
+    path = paste0(
+        opt$out,
+        '/',
+        opt$output_file_base_name,
+        '_calculated_Twhith_',
+        opt$binsSize,
+        '.tsv'
+    ),
+    delim = '\t',
+    col_names = T
+)
 
 x = rbind(x, x %>%
               mutate(Cat_RT = factor(
@@ -1500,15 +1551,21 @@ x %>%
 
 #T25_75 function
 T25_75 = function(df, name, EL) {
-    model = tryCatch(nls(percentage ~ SSlogis(time, Asym, xmid, scal),
-                         data = df[, c('percentage', 'time')]),
-    #If the data cannot be fitted with a Gauss-Newton algorithm, try the
-    #Golub and Pereyra algorithm for the solution of a nonlinear least squares
-    #problem which assumes a number of the parameters are linear.
-    #Also, add a higher tolerance (1e-04 Vs 1e-05).
-                error = function(e) nls(percentage ~ SSlogis(time, Asym, xmid, scal),
-                data = df[, c('percentage', 'time')], algorithm = 'plinear',
-                control = nls.control(tol = 1e-04, warnOnly = T) ) )
+    model = tryCatch(
+        nls(percentage ~ SSlogis(time, Asym, xmid, scal),
+            data = df[, c('percentage', 'time')]),
+        #If the data cannot be fitted with a Gauss-Newton algorithm, try the
+        #Golub and Pereyra algorithm for the solution of a nonlinear least squares
+        #problem which assumes a number of the parameters are linear.
+        #Also, add a higher tolerance (1e-04 Vs 1e-05).
+        error = function(e)
+            nls(
+                percentage ~ SSlogis(time, Asym, xmid, scal),
+                data = df[, c('percentage', 'time')],
+                algorithm = 'plinear',
+                control = nls.control(tol = 1e-04, warnOnly = T)
+            )
+    )
     min = min(df$time)
     max = max(df$time)
     data = predict(model,
@@ -1532,7 +1589,7 @@ T25_75 = function(df, name, EL) {
         ) %>%
         dplyr::select(basename, time, percentage, t75, t25)  %>%
         mutate(Cat_RT = EL)
-
+    
     return(t)
 }
 
@@ -1547,9 +1604,8 @@ fitted_data = foreach(
         .combine = 'rbind',
         .packages = c('tidyverse', 'foreach')
     ) %dopar% {
-        
         t = T25_75(df = x[x$basename == basename &
-                              x$Cat_RT == EL,], basename, EL)
+                              x$Cat_RT == EL, ], basename, EL)
     }
     temp
 }
@@ -1617,7 +1673,7 @@ p = ggplot() +
     facet_grid(basename ~ Cat_RT) +
     ggplot2::scale_x_reverse() +
     scale_y_continuous(labels = scales::percent_format()) +
-    ylab('Replicated Bins')+
+    ylab('Replicated Bins') +
     theme(legend.position = 'top')
 
 suppressMessages(ggsave(
@@ -1642,41 +1698,41 @@ suppressMessages(ggsave(
 
 
 if (opt$Var_against_reference) {
-
     #joing s50 with relative signals
     signal_smoothed = signal_smoothed %>%
         dplyr::select(-RT) %>%
         inner_join(Reference_RT, by = c("chr", "start", "end")) %>%
         group_by(basename) %>%
-        mutate(CN_bg = 10 * (CN_bg - quantile(CN_bg, c(0.01))[[1]]) / (quantile(CN_bg, c(0.99))[[1]] - quantile(CN_bg, c(0.01))[[1]]),
-               RT = 10 * RT)
+        mutate(
+            CN_bg = 10 * (CN_bg - quantile(CN_bg, c(0.01))[[1]]) / (quantile(CN_bg, c(0.99))[[1]] - quantile(CN_bg, c(0.01))[[1]]),
+            RT = 10 * RT
+        )
     
     
     #test multiple time windows
-    x = foreach(
-        bs = unique(s50$basename),
-        .combine = 'rbind'
-    )%do%{
-        sub=signal_smoothed %>%
-            filter(basename==bs)
-        
-        tmp= foreach(
-            seq = seq(0, 10, 0.05),
-            .combine = 'rbind',
-            .packages = c('tidyverse')
-        )%dopar% {
-            sub %>%
-                mutate(rep = CN_bg <= seq) %>%
-                group_by(chr, start, end, basename,RT,mean_CN) %>%
-                summarise(percentage = mean(rep))%>%
-                group_by(chr, start, end, basename,RT) %>%
-                summarise(percentage = mean(percentage)) %>%
-                mutate(time = RT - seq)%>%
-                filter(time < 10 ,
-                       time > -10)
-            
-        }
-        tmp}
+    x = foreach(bs = unique(s50$basename),
+                .combine = 'rbind') %do% {
+                    sub = signal_smoothed %>%
+                        filter(basename == bs)
+                    
+                    tmp = foreach(
+                        seq = seq(0, 10, 0.05),
+                        .combine = 'rbind',
+                        .packages = c('tidyverse')
+                    ) %dopar% {
+                        sub %>%
+                            mutate(rep = CN_bg <= seq) %>%
+                            group_by(chr, start, end, basename, RT, mean_CN) %>%
+                            summarise(percentage = mean(rep)) %>%
+                            group_by(chr, start, end, basename, RT) %>%
+                            summarise(percentage = mean(percentage)) %>%
+                            mutate(time = RT - seq) %>%
+                            filter(time < 10 ,
+                                   time > -10)
+                        
+                    }
+                    tmp
+                }
     
     
     # calculate distance in time per bin
@@ -1713,26 +1769,28 @@ if (opt$Var_against_reference) {
         )
     
     
-    TW=x%>%
-        group_by(chr,start,end,basename)%>%
-        mutate(t25=abs(percentage-0.25),
-               t75=abs(percentage-0.75),
-               t25=t25==min(t25),
-               t75=t75==min(t75))%>%
-        gather(points,filter_colums,t25,t75)%>%
-        filter(filter_colums)%>%
-        group_by(chr,start,end,basename,points)%>%
-        summarise(time=min(time))%>%
-        spread(points,time)%>%
-        mutate(TW=abs(t75-t25))%>%
-        dplyr::select(chr,start,end,basename,TW)
+    TW = x %>%
+        group_by(chr, start, end, basename) %>%
+        mutate(
+            t25 = abs(percentage - 0.25),
+            t75 = abs(percentage - 0.75),
+            t25 = t25 == min(t25),
+            t75 = t75 == min(t75)
+        ) %>%
+        gather(points, filter_colums, t25, t75) %>%
+        filter(filter_colums) %>%
+        group_by(chr, start, end, basename, points) %>%
+        summarise(time = min(time)) %>%
+        spread(points, time) %>%
+        mutate(TW = abs(t75 - t25)) %>%
+        dplyr::select(chr, start, end, basename, TW)
     
-    plot= TW%>%
-        inner_join(Reference_RT, by = c("chr", "start", "end", "basename"))%>%
-        ggplot()+
-        geom_point(aes(x=RT,y=TW),color='red',alpha=0.2)+
-        geom_smooth(aes(x=RT,y=TW))+
-        facet_wrap(~basename)
+    plot = TW %>%
+        inner_join(Reference_RT, by = c("chr", "start", "end")) %>%
+        ggplot() +
+        geom_point(aes(x = RT, y = TW, color = 'basename'), alpha = 0.2) +
+        geom_smooth(aes(x = RT, y = TW), color = 'black') +
+        facet_wrap( ~ basename)
     
     suppressMessages(ggsave(
         plot,
@@ -1743,24 +1801,25 @@ if (opt$Var_against_reference) {
             '_variability_plot_all_bins_over_reference_RT.pdf'
         )
     ))
-    write_tsv(TW,
-              path = paste0(
-                  opt$out,
-                  '/',
-                  opt$output_file_base_name,
-                  '_calculated_Twhith_over_reference_RT',
-                  opt$binsSize,
-                  '.tsv'
-              ),
-              delim = '\t',
-              col_names = T
+    write_delim(
+        TW,
+        path = paste0(
+            opt$out,
+            '/',
+            opt$output_file_base_name,
+            '_calculated_Twhith_over_reference_RT',
+            opt$binsSize,
+            '.tsv'
+        ),
+        delim = '\t',
+        col_names = T
     )
     
     
     
     x = rbind(x, x %>%
-                  mutate(
-                      Cat_RT = 'All',
+                  mutate(Cat_RT = factor(
+                      'All',
                       levels = c(
                           'All',
                           '1 - Very Early',
@@ -1769,7 +1828,7 @@ if (opt$Var_against_reference) {
                           '4 - Late',
                           '5 - Very Late'
                       )
-                  ))
+                  )))
     x %>%
         write_tsv(
             paste0(
@@ -1792,7 +1851,7 @@ if (opt$Var_against_reference) {
             .packages = c('tidyverse', 'foreach')
         ) %dopar% {
             t = T25_75(df = x[x$basename == basename &
-                                  x$Cat_RT == EL,], basename, EL)
+                                  x$Cat_RT == EL, ], basename, EL)
         }
         temp
     }
@@ -1864,7 +1923,7 @@ if (opt$Var_against_reference) {
         facet_grid(basename ~ Cat_RT) +
         ggplot2::scale_x_reverse() +
         scale_y_continuous(labels = scales::percent_format()) +
-        ylab('Percentage of cells')+
+        ylab('Percentage of cells') +
         theme(legend.position = 'top')
     
     suppressMessages(ggsave(
