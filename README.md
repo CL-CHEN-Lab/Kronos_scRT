@@ -153,6 +153,7 @@ Run the script
     ./Kronos RT [options]
 
     Options:
+    -K CHARACTER, --Kronos_conf_file=CHARACTER          Kronos setting file. If provided -F,-T,-S,-b and -g are ignored. Tab file containing: Per cell stat file /t tracks file /t settings file /t basename (optional) /t group (optional)
     -F CHARACTER, --file=CHARACTER                      Per cell stat file , if multiple files are provided they have to be separated by a comma
     -T CHARACTER, --tracks=CHARACTER                    Tracks file,  if multiple files are provided they have to be separated by a comma
     -R CHARACTER, --referenceRT=CHARACTER               Reference RT min=Late, max=Early, only one reference is allowed
