@@ -106,6 +106,8 @@ opt = parse_args(OptionParser(option_list = option_list),
 suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
 suppressPackageStartupMessages(library(Rbowtie2, quietly = TRUE))
 suppressPackageStartupMessages(library(Rsamtools, quietly = TRUE))
+suppressPackageStartupMessages(library(doSNOW, quietly = TRUE))
+suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 
 options(scipen = 9999)
 
@@ -161,7 +163,7 @@ system(
 
 #load check inputs
 if ('fastq_list' %in% names(opt)) {
-    fastqs = read_tsv(opt$fastq_list, col_names = F)
+    fastqs = read_tsv(opt$fastq_list, col_names = F,col_types = cols())
     
     if (length(fastqs) == 2) {
         opt$sam_file_basename = fastqs$X1
@@ -208,10 +210,10 @@ cl <-
     makeCluster(ifelse(opt$cores > length(opt$one), length(opt$one), opt$cores))
 registerDoSNOW(cl)
 
-tmp=foreach(i = 1:length(opt$one)) %dopar% {
+tmp=foreach(i = 1:length(opt$one),.combine = 'rbind',.packages = c('tidyverse','Rbowtie2','Rsamtools')) %dopar% {
     if (SE) {
         #cut adapters
-        system(
+       system(
             paste0(
                 opt$path_to_trim_galore,
                 ' ',
@@ -225,7 +227,7 @@ tmp=foreach(i = 1:length(opt$one)) %dopar% {
                 opt$trim_galore_extra_option
             )
         )
-        
+
         file_basename = str_remove(basename(opt$one[i]), pattern = '.fastq$|.fq$')
         input_bowtie = list.files(paste0(opt$output_dir, 'trimmed/'), pattern = file_basename)
         
@@ -277,6 +279,7 @@ tmp=foreach(i = 1:length(opt$one)) %dopar% {
         )
         
     } else {
+    
         #cut adapters
         system(
             paste0(
@@ -295,7 +298,6 @@ tmp=foreach(i = 1:length(opt$one)) %dopar% {
                 
             )
         )
-        
         
         file_basename_one = str_remove(basename(opt$one[i]),  pattern = '.fastq$|.fq$')
         file_basename_two = str_remove(basename(opt$two[i]),  pattern = '.fastq$|.fq$')
@@ -353,7 +355,11 @@ tmp=foreach(i = 1:length(opt$one)) %dopar% {
         )
         
     }
-    i
+    read_tsv(paste0(opt$output_dir,
+             'delDup/logs/',file_basename,'_delDupl.log'), skip = 6)%>%
+        mutate(LIBRARY=file_basename)
 }
+
+tmp%>%write_tsv(paste(opt$output_dir,'Single_cells_reads_info.tsv'))
 
 print('done')
