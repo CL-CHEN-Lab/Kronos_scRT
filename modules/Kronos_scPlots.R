@@ -43,7 +43,7 @@ option_list = list(
         c("--CNV_values"),
         type = "character",
         default = "B",
-        help = "What type of date to plot for the sigle cell traks: ('B'=Binarized, 'CNV'=Copy number variation or 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells) 'all'= one file per option) [default= %default]",
+        help = "What type of date to plot for the sigle cell traks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells) or 'all'= one file per option) [default= %default]",
         metavar = "character"
     ),
     make_option(
