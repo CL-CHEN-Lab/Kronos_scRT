@@ -69,12 +69,20 @@ elif [ "$1" == "compare" ] && [ "$2" == "RT" ];then
        Rscript $DIR/modules/Kronos_compare_RT.R "${@:3}"
     fi
 
-elif [ "$1" == "compare" ] && [ "$2" == "TW" ];then
-    if test "$#" == 2 ; then
-        echo Usage: Kronos compare TW [options]
-        Rscript $DIR/modules/Kronos_compare_TW.R -h | grep -v Kronos_compare
+elif [ "$1" == "compare" ] && [ "$2" == "TW" ] && [ "$3" == "categorical" ];then
+    if test "$#" == 3 ; then
+        echo Usage: Kronos compare TW categorical [options]
+        Rscript $DIR/modules/Kronos_compare_TW_categorical.R -h | grep -v Kronos_compare
     else
-       Rscript $DIR/modules/Kronos_compare_TW.R "${@:3}"
+       Rscript $DIR/modules/Kronos_compare_TW_categorical.R "${@:4}"
+    fi
+    
+elif [ "$1" == "compare" ] && [ "$2" == "TW" ] && [ "$3" == "numerical" ];then
+    if test "$#" == 3 ; then
+        echo Usage: Kronos compare TW numerical [options]
+        Rscript $DIR/modules/Kronos_compare_TW_numerical.R -h | grep -v Kronos_compare
+    else
+       Rscript $DIR/modules/Kronos_compare_TW_numerical.R "${@:4}"
     fi
     
 elif [ "$1" == "population" ] && [ "$2" == "RT" ];then
@@ -84,22 +92,32 @@ elif [ "$1" == "population" ] && [ "$2" == "RT" ];then
     else
        Rscript $DIR/modules/Kronos_population_RT.R "${@:3}"
     fi
+    
+elif [ "$1" == "scPlots" ];then
+    if test "$#" == 1 ; then
+        echo Usage: Kronos scPlots [options]
+        Rscript $DIR/modules/Kronos_scPlots.R -h | grep -v Kronos_cnv
+    else
+       Rscript $DIR/modules/Kronos_scPlots.R "${@:2}"
+    fi
 else
 
 echo -e "\nProgram: Kronos (Tools for the single cell analysis of the replication timing program)\n
 Usage: Kronos <command> [options]\n
 commands:\n
-\t InstRpacks \t Install all the required R packages
-\t fastqtoBAM \t Trims and maps reads
-\t binning    \t Calculates mappability and gc content for bins to be used with Kronos CNV
-\t CNV        \t Calculates copy number variation 
-\t 10xtoKronos\t Converts 10X genomics files in a format that Kronos can use
-\t WhoIsWho \t Manually assign cell cycle stage
-\t diagnostic \t Plotting tools to identify appropriate tresholds for Kronos RT
-\t RT         \t Calculates scReplication profiles and scRT
-\t compare RT    \t Compares RT results from multiple experiments
-\t compare TW \t Compares variability from multiple experiments and/or over multiple regions
-\t population RT \t Calcualtes population RT starting from single cell BAM files and Kronos diagnostic outputs
+\t InstRpacks \t\t Install all the required R packages
+\t fastqtoBAM \t\t Trims and maps reads
+\t binning    \t\t Calculates mappability and gc content for bins to be used with Kronos CNV
+\t CNV        \t\t Calculates copy number variation 
+\t 10xtoKronos\t\t Converts 10X genomics files in a format that Kronos can use
+\t WhoIsWho \t\t Manually assign cell cycle stage
+\t diagnostic \t\t Plotting tools to identify appropriate tresholds for Kronos RT
+\t RT         \t\t Calculates scReplication profiles and scRT
+\t compare RT    \t\t Compares RT results from multiple experiments
+\t compare TW categorical\t Allowes to investigate variability using a categorical annotation of the genome (for example binding sites or genes of interest)
+\t compare TW numerical\t Allowes to investigate variability using a numerical annotation of the genome (for example bedgraph of ChIP seq data)
+\t population RT \t\t Calcualtes population RT starting from single cell BAM files and Kronos diagnostic outputs
+\t scPlots \t\t scRT/TW plots
 "
 
 fi

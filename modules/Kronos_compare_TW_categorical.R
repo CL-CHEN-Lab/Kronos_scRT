@@ -48,13 +48,6 @@ option_list = list(
         default = "out",
         help = "Base name for the output file [default= %default]",
         metavar = "character"
-    ),
-    make_option(
-        c("-c", "--cores"),
-        type = "integer",
-        default = 3,
-        help = "Numbers of parallel jobs to run [default= %default] ",
-        metavar = "integer"
     )
 )
 
@@ -90,7 +83,7 @@ data <-
 
 if ('regions' %in% names(opt)) {
     Annotation_file = read_tsv(opt$regions,
-                               col_names = c('chr', 'start', 'end', 'annotation')) %>%
+                               col_names = c('chr', 'start', 'end', 'annotation'), col_types = cols()) %>%
         makeGRangesFromDataFrame(
             keep.extra.columns = T,
             seqnames.field = 'chr',
@@ -151,7 +144,7 @@ if ('regions' %in% names(opt)) {
         if ('regions2' %in% opt) {
             
             Annotation_file = read_tsv(opt$regions2,
-                                       col_names = c('chr', 'start', 'end', 'annotation')) %>%
+                                       col_names = c('chr', 'start', 'end', 'annotation'), col_types = cols()) %>%
                 makeGRangesFromDataFrame(
                     keep.extra.columns = T,
                     seqnames.field = 'chr',

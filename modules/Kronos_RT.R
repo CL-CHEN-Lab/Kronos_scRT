@@ -51,7 +51,7 @@ option_list = list(
         c("-r", "--region"),
         type = "character",
         default = NULL,
-        help = "Region to plot  chr:start-end (multiple regins can be separated by a comma)",
+        help = "Region to plot  chr:start-end (multiple regins can be separated by a comma) or provided as a bed file",
         metavar = "character"
     ),
     make_option(
@@ -154,7 +154,7 @@ if('Kronos_conf_file' %in% names(opt)) {
             basename=ifelse(is.na(basename),paste0('exp',row_number()),basename),
             groups=ifelse(is.na(groups),basename,groups)
         ),
-        error=function(e){stop('Settings file does not exitst')},
+        error=function(e){stop('Settings file does not exitst. See script usage (--help)')},
         warning=function(w){
             tmp=suppressWarnings(
             read_tsv(opt$Kronos_conf_file,col_names = c('file','traks','settings','basename','groups'),col_types = cols())%>%
