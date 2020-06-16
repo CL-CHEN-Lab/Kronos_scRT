@@ -199,7 +199,6 @@ Run the script
     -b, --both_annotations                              Plot Twidth divided by both annotations
     -r CHARACTER, --regions2=CHARACTER                  Second genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header. If option b is activated it substiutes the RT division.
     -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
-    -c INTEGER, --cores=INTEGER                         Numbers of parallel jobs to run [default= 3] 
     -f CHARACTER, --output_file_base_name=CHARACTER     Base name for the output file [default= out]
     -h, --help                                          Show this help message and exit
     
