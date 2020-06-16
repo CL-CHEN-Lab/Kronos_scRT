@@ -241,7 +241,7 @@ Run the script
     -T CHARACTER, --scTW_Tracks=CHARACTER           *calculated_Twhith* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma. Alternative to -L option.
     -C CHARACTER, --scCNV=CHARACTER                 *single_cells_CNV* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.  Alternative to -L option..
     -s CHARACTER, --order=CHARACTER                 basenames separated by a comma in the desired order for plotting.
-    --CNV_values=CHARACTER                          What type of date to plot for the sigle cell traks: ('B'=Binarized, 'CNV'=Copy number variation or 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells) 'all'= one file per option) [default= B]
+    --CNV_values=CHARACTER                          What type of date to plot for the sigle cell traks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells) or 'all'= one file per option) [default= B]
     -r CHARACTER, --region=CHARACTER                Region to plot  chr:start-end (multiple regins can be separated by a comma) or provided as a bed file
     -o CHARACTER, --out=CHARACTER                   Output directory [default= output]
     -f CHARACTER, --output_file_base_name=CHARACTER Base name for the output file [default= out]
