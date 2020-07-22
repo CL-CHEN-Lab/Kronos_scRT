@@ -48,6 +48,13 @@ option_list = list(
         default = "out",
         help = "Base name for the output file [default= %default]",
         metavar = "character"
+    ),
+    make_option(
+        c("-m", "--min_overlap"),
+        type = "numeric",
+        default = 100,
+        help = "min overlap to apply the annotation [default= %default]",
+        metavar = "numeric"
     )
 )
 
@@ -103,7 +110,7 @@ if ('regions' %in% names(opt)) {
         )
     
     #find overlaps
-    hits = findOverlaps(Bin, Annotation_file)
+    hits = findOverlaps(Bin, Annotation_file,minoverlap = opt$min_overlap)
     
     #indo about overlapping regins
     overlaps <-
@@ -141,7 +148,7 @@ if ('regions' %in% names(opt)) {
         inner_join(Annotation, by = c("chr" = "seqnames", "start", "end"))
     
     if (opt$both_annotations) {
-        if ('regions2' %in% opt) {
+        if ('regions2' %in% names(opt)) {
             
             Annotation_file = read_tsv(opt$regions2,
                                        col_names = c('chr', 'start', 'end', 'annotation'), col_types = cols()) %>%
@@ -152,7 +159,7 @@ if ('regions' %in% names(opt)) {
                     start.field = 'start'
                 )
             
-            hits = findOverlaps(Bin, Annotation_file)
+            hits = findOverlaps(Bin, Annotation_file,minoverlap = opt$min_overlap)
             
             overlaps <-
                 pintersect(Annotation_file[subjectHits(hits)], Bin[queryHits(hits)])
@@ -193,7 +200,10 @@ if ('regions' %in% names(opt)) {
             rbind(data %>%
                       mutate(Cat_RT = 'ALL'),
                   data %>%
-                      mutate(old_Cat_RT = 'ALL'))
+                      mutate(old_Cat_RT = 'ALL'),
+                  data %>%
+                      mutate(Cat_RT = 'ALL',
+                             old_Cat_RT = 'ALL'))
         
         # New Category and RT
         #calculate tresholds 25% 75% replication keeping in account early and late domains
@@ -298,82 +308,9 @@ if ('regions' %in% names(opt)) {
                               '_Twidths_2_categories.pdf')
         ))
         
-        counts = data %>% select(chr, start, Cat_RT, old_Cat_RT, basename) %>%
-            unique() %>%
-            group_by(Cat_RT, old_Cat_RT, basename) %>%
-            summarise(n = n())
-        
-        p = ggplot() +
-            stat_density_2d(
-                data = data,
-                geom = "polygon",
-                aes(
-                    alpha = ..level..,
-                    fill = basename,
-                    y = percentage,
-                    x = time
-                )
-            ) +
-            geom_line(
-                data = fitted_data,
-                aes(y = percentage, x = time),
-                color = 'blue',
-                inherit.aes = F
-            ) +
-            geom_hline(yintercept = c(0.75, 0.25), color = 'yellow') +
-            geom_vline(data = t,
-                       aes(xintercept = t25),
-                       color = 'red') +
-            geom_vline(data = t,
-                       aes(xintercept = t75),
-                       color = 'red') +
-            geom_text(
-                data = t,
-                aes(
-                    label = paste('Twidth ~', round((t25 - t75), 1), 'h'),
-                    x = (t25 + (t75 - t25) / 2),
-                    y = Inf,
-                    vjust = 1
-                ),
-                color = 'black',
-                inherit.aes = F
-            ) +
-            facet_grid(basename + old_Cat_RT ~ Cat_RT) +
-            ggplot2::scale_x_reverse() +
-            scale_y_continuous(labels = scales::percent_format()) +
-            ylab('Percentage of cells') +
-            geom_text(data = counts,
-                      aes(
-                          label = paste('N bins: ', n),
-                          x = 0,
-                          y = -Inf
-                      ),
-                      vjust = 0)
-        
-        suppressMessages(ggsave(
-            p,
-            filename = paste0(
-                opt$out,
-                '/',
-                opt$output_file_base_name,
-                '_variability_2_categories.pdf'
-            )
-        ))
-        
-        suppressMessages(ggsave(
-            p,
-            filename = paste0(
-                opt$out,
-                '/',
-                opt$output_file_base_name,
-                '_variability_2_categories.jpg'
-            )
-        ))
-        
-        
     }
     
-}
+}else{
 
 data = data %>%
     rbind(data %>%
@@ -490,76 +427,6 @@ suppressMessages(ggsave(
                       '_Twidths_1_category.pdf')
 ))
 
-counts = data %>% select(chr, start, Cat_RT, basename) %>%
-    unique() %>%
-    group_by(Cat_RT, basename) %>%
-    summarise(n = n())
 
-p = ggplot() +
-    stat_density_2d(
-        data = data,
-        geom = "polygon",
-        aes(
-            alpha = ..level..,
-            fill = basename,
-            y = percentage,
-            x = time
-        )
-    ) +
-    geom_line(
-        data = fitted_data,
-        aes(y = percentage, x = time),
-        color = 'blue',
-        inherit.aes = F
-    ) +
-    geom_hline(yintercept = c(0.75, 0.25), color = 'yellow') +
-    geom_vline(data = t,
-               aes(xintercept = t25),
-               color = 'red') +
-    geom_vline(data = t,
-               aes(xintercept = t75),
-               color = 'red') +
-    geom_text(
-        data = t,
-        aes(
-            label = paste('Twidth ~', round((t25 - t75), 1), 'h'),
-            x = (t25 + (t75 - t25) / 2),
-            y = Inf,
-            vjust = 1
-        ),
-        color = 'black',
-        inherit.aes = F
-    ) +
-    facet_grid(basename ~ Cat_RT) +
-    ggplot2::scale_x_reverse() +
-    scale_y_continuous(labels = scales::percent_format()) +
-    ylab('Percentage of cells') +
-    geom_text(data = counts,
-              aes(
-                  label = paste('N bins: ', n),
-                  x = 0,
-                  y = -Inf
-              ),
-              vjust = 0)
-
-suppressMessages(ggsave(
-    p,
-    filename = paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_variability_1_category.pdf'
-    )
-))
-
-suppressMessages(ggsave(
-    p,
-    filename = paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_variability_1_category.pdf'
-    )
-))
-
+}
 print('done')
