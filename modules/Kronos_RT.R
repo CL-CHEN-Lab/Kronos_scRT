@@ -1682,65 +1682,6 @@ suppressMessages(ggsave(
                       '_Twidths.pdf')
 ))
 
-p = ggplot() +
-    stat_density_2d(
-        data = x,
-        geom = "polygon",
-        aes(
-            alpha = ..level..,
-            fill = basename,
-            y = percentage,
-            x = time
-        )
-    ) +
-    geom_line(
-        data = fitted_data,
-        aes(y = percentage, x = time),
-        color = 'blue',
-        inherit.aes = F
-    ) +
-    geom_hline(yintercept = c(0.75, 0.25), color = 'yellow') +
-    geom_vline(data = t,
-               aes(xintercept = t25),
-               color = 'red') +
-    geom_vline(data = t,
-               aes(xintercept = t75),
-               color = 'red') +
-    geom_text(
-        data = t,
-        aes(
-            label = paste('Twidth ~', round((t25 - t75), 1), 'h'),
-            x = (t25 + (t75 - t25) / 2),
-            y = Inf,
-            vjust = 1
-        ),
-        color = 'black',
-        inherit.aes = F
-    ) +
-    facet_grid(basename ~ Cat_RT) +
-    ggplot2::scale_x_reverse() +
-    scale_y_continuous(labels = scales::percent_format()) +
-    ylab('Replicated Bins') +
-    theme(legend.position = 'top')
-
-suppressMessages(ggsave(
-    p,
-    filename = paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_variability_plot.pdf'
-    )
-))
-
-suppressMessages(ggsave(
-    p,
-    filename = paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_variability_plot.jpg'
-    )
 ))
 
 
@@ -1932,66 +1873,6 @@ if (opt$Var_against_reference) {
         )
     ))
     
-    p = ggplot() +
-        stat_density_2d(
-            data = x,
-            geom = "polygon",
-            aes(
-                alpha = ..level..,
-                fill = basename,
-                y = percentage,
-                x = time
-            )
-        ) +
-        geom_line(
-            data = fitted_data,
-            aes(y = percentage, x = time),
-            color = 'blue',
-            inherit.aes = F
-        ) +
-        geom_hline(yintercept = c(0.75, 0.25), color = 'yellow') +
-        geom_vline(data = t,
-                   aes(xintercept = t25),
-                   color = 'red') +
-        geom_vline(data = t,
-                   aes(xintercept = t75),
-                   color = 'red') +
-        geom_text(
-            data = t,
-            aes(
-                label = paste('Twidth ~', round((t25 - t75), 1), 'h'),
-                x = (t25 + (t75 - t25) / 2),
-                y = Inf,
-                vjust = 1
-            ),
-            color = 'black',
-            inherit.aes = F
-        ) +
-        facet_grid(basename ~ Cat_RT) +
-        ggplot2::scale_x_reverse() +
-        scale_y_continuous(labels = scales::percent_format()) +
-        ylab('Percentage of cells') +
-        theme(legend.position = 'top')
-    
-    suppressMessages(ggsave(
-        p,
-        filename = paste0(
-            opt$out,
-            '/',
-            opt$output_file_base_name,
-            '_variability_plot_Early_Late_ref_RT.pdf'
-        )
-    ))
-    
-    suppressMessages(ggsave(
-        p,
-        filename = paste0(
-            opt$out,
-            '/',
-            opt$output_file_base_name,
-            '_variability_plot_Early_Late_ref_RT.jpg'
-        )
-    ))
     
 }
 
