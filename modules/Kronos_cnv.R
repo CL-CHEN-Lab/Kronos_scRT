@@ -72,6 +72,13 @@ option_list = list(
         type = "numeric",
         help = "user extimated ploidy",
         metavar = "numeric"
+    ),
+    make_option(
+        c("-M", "--max_CNV_accepted"),
+        type = "numeric",
+        help = "Max mean CNV accepted as result. [default= %default]",
+        default = 8,
+        metavar = "numeric"
     )
 )
 
@@ -450,7 +457,7 @@ mapd = foreach (
     }else{
     possible_factors = possible_factors %>%
         filter(possible_factors %in% min,
-               mean_cn < 8)
+               mean_cn < opt$max_CNV_accepted)
     
     if (Var < 5) {
         selected = possible_factors$X[possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
