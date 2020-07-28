@@ -45,6 +45,7 @@ Run the script
     
     InstRpacks      Install all the required R packages
     fastqtoBAM      Trims and maps reads
+    suggests 		Suggests parameters for binning, cell filtering and RT resolution starting from fastqtoBAM report or manual input
     binning         Calculates mappability and gc content for bins to be used with Kronos CNV
     CNV             Calculates copy number variation 
     10xtoKronos     Converts 10X genomics files in a format that Kronos can use
@@ -74,6 +75,17 @@ Run the script
     --path_to_cutadapt=CHARACTER                        Path to cutadapt
     --path_to_java=CHARACTER                            Path to java
     --path_to_picard=CHARACTER                          Path to picard
+    -h, --help                                          Show this help message and exit
+
+-- suggests module
+
+    ./Kronos suggests [options]
+
+
+    Options:
+	-R CHARACTER, --single_cell_reads_info=CHARACTER    Single cell reads info file produced by Kronos fastqtoBAM or mean reads number followed by PE or SE ( for example: 100PE ). 
+    -G NUMERIC, --genome_size=NUMERIC                   Genome size in MB [default= 2900]
+    -P NUMERIC, --expected_ploidy=NUMERIC               Expected ploidy [default= 2]
     -h, --help                                          Show this help message and exit
 
 -- binning module
