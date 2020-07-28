@@ -12,6 +12,14 @@ elif [ "$1" == "10xtoKronos" ];then
         Rscript $DIR/modules/10XtoKronos.R "${@:2}"
     fi
     
+    elif  [ "$1" == "suggests" ];then
+    if test "$#" == 1 ; then
+        echo Usage: Kronos suggests [options]
+        Rscript $DIR/modules/Kronos_suggests.R -h | grep -v Kronos_suggests
+    else
+       Rscript $DIR/modules/Kronos_suggests.R "${@:2}"
+    fi
+    
 elif  [ "$1" == "binning" ];then
     if test "$#" == 1 ; then
         echo Usage: Kronos binning [options]
@@ -107,6 +115,7 @@ Usage: Kronos <command> [options]\n
 commands:\n
 \t InstRpacks \t\t Install all the required R packages
 \t fastqtoBAM \t\t Trims and maps reads
+\t suggests \t\t Suggests parameters for binning, cell filtering and RT resolution starting from fastqtoBAM report or manual input
 \t binning    \t\t Calculates mappability and gc content for bins to be used with Kronos CNV
 \t CNV        \t\t Calculates copy number variation 
 \t 10xtoKronos\t\t Converts 10X genomics files in a format that Kronos can use
