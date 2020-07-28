@@ -45,7 +45,7 @@ Run the script
     
     InstRpacks      Install all the required R packages
     fastqtoBAM      Trims and maps reads
-    suggests 		Suggests parameters for binning, cell filtering and RT resolution starting from fastqtoBAM report or manual input
+    suggests        Suggests parameters for binning, cell filtering and RT resolution starting from fastqtoBAM report or manual input
     binning         Calculates mappability and gc content for bins to be used with Kronos CNV
     CNV             Calculates copy number variation 
     10xtoKronos     Converts 10X genomics files in a format that Kronos can use
