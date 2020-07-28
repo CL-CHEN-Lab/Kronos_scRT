@@ -314,7 +314,7 @@ tibble(
     threshold_G1G2phase = opt$threshold_G1G2phase,
     Sphase_first_part=distributions$A,
     Sphase_second_part=distributions$B,
-    RPM_TH=round(112*median_ploidy_not_noisy)
+    RPM_TH=round(opt$min_n_reads*median_ploidy_not_noisy)
 )%>%
     write_tsv(paste0(opt$out,opt$base_name, '_settings.txt'))
 
