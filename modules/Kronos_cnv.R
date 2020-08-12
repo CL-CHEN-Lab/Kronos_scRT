@@ -359,7 +359,7 @@ mapd = foreach (
             gc_corrected_reads = sum(gc_corrected_reads, na.rm = T)
         )
     
-    coverage = files[files$file==file,] %>%
+    CovReadsMega = files[files$file==file,] %>%
         summarise(coverage = 1000000 * count_reads / genome_size) %>%
         pull(coverage)
     
@@ -377,7 +377,8 @@ mapd = foreach (
             normalized_mapd = median(abs(normalized_mapd - median(normalized_mapd))),
             coverage = 1000000 * sum(gc_corrected_reads) / genome_size,
             normalized_dimapd = normalized_mapd * sqrt(coverage)
-        )
+        )%>%
+        mutate( CovReadsMega =  CovReadsMega )
     #spread data for segmentation
     data = data %>%
         filter(mappability_th) %>%
@@ -554,7 +555,7 @@ while (T) {
 mapd %>%
     mutate(
         is_noisy = ifelse(is_high_dimapd | ploidy_confidence < 2, T, F),
-        coverage_per_1Mbp = coverage,
+        coverage_per_1Mbp = CovReadsMega,
         Cell = str_remove(Cell, '.tmp$')
     ) %>%
     dplyr::select(
@@ -595,3 +596,4 @@ files=foreach (file=files[-1])%do%{
 }
 
 print('done')
+
