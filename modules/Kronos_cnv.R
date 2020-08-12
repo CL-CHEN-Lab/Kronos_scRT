@@ -36,7 +36,7 @@ option_list = list(
         metavar = "logical"
     ),
     make_option(
-        c("-m", "--min_n_reads"),
+        c("-n", "--min_n_reads"),
         type = "double",
         default = 200000,
         action = 'store',
@@ -71,6 +71,13 @@ option_list = list(
         c("-p", "--ploidy"),
         type = "numeric",
         help = "user extimated ploidy",
+        metavar = "numeric"
+    ),
+    make_option(
+        c("-m", "--min_CNV_accepted"),
+        type = "numeric",
+        help = "Min mean CNV accepted as result. [default= %default]",
+        default = 0,
         metavar = "numeric"
     ),
     make_option(
@@ -458,7 +465,8 @@ mapd = foreach (
     }else{
     possible_factors = possible_factors %>%
         filter(possible_factors %in% min,
-               mean_cn < opt$max_CNV_accepted)
+               mean_cn <= opt$max_CNV_accepted,
+               mean_cn >= opt$min_CNV_accepted)
     
     if (Var < 5) {
         selected = possible_factors$X[possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
