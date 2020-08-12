@@ -117,11 +117,13 @@ Run the script
     -B CHARACTER, --bins=CHARACTER                      File with bins produced by Kronos binning
     -X, --keep_X                                        Keep X chromosomes [default= FALSE]
     -Y, --keep_Y                                        Keep Y chromosome [default= FALSE]
-    -m DOUBLE, --min_n_reads=DOUBLE                     Min n of reads to keep a cell in the analysis [default= 2e+05]
+    -n DOUBLE, --min_n_reads=DOUBLE                     Min n of reads to keep a cell in the analysis [default= 2e+05]
     -c INTEGER, --cores=INTEGER                         Number of cores to use. [default= 3]
     -o CHARACTER, --output_dir=CHARACTER                Output folder. [default= output/]
     -e CHARACTER, --ExpName=CHARACTER                   Experiment name. [default= Exp]
     -p NUMERIC, --ploidy=NUMERIC                        User extimated ploidy (optional)
+    -m NUMERIC, --min_CNV_accepted=NUMERIC              Min mean CNV accepted as result. [default= 0]
+    -M NUMERIC, --max_CNV_accepted=NUMERIC              Max mean CNV accepted as result. [default= 8]
     -h, --help                                          Show this help message and exit
 
 -- 10xtoKronos module
