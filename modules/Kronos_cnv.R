@@ -451,17 +451,16 @@ mapd = foreach (
     
     if('ploidy' %in% names(opt)){
         possible_factors = possible_factors %>%
-            filter(possible_factors %in% min,
-                   mean_cn < opt$ploidy * 1.7,
-                   mean_cn > opt$ploidy / 1.7
-                   ) 
+            filter(possible_factors %in% min)
+        
         selected = possible_factors$X[possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
-                                                                             2) == min(abs(possible_factors$mean_cn - 2)))]]
+                                                                             opt$ploidy) == min(abs(possible_factors$mean_cn - opt$ploidy)))]]
         
         mean_cn = possible_factors$mean_cn[possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
-                                                                                  2) == min(abs(possible_factors$mean_cn - 2)))]]
+                                                                                  opt$ploidy) == min(abs(possible_factors$mean_cn - opt$ploidy)))]]
         
-        PloConf = -100
+        PloConf = ifelse(mean_cn >= opt$ploidy/1.7 &
+                             mean_cn <= opt$ploidy*1.7,-100,-200)
     }else{
     possible_factors = possible_factors %>%
         filter(possible_factors %in% min,
