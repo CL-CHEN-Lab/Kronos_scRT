@@ -248,7 +248,7 @@ distributions = foreach(
 stopCluster(cl)
 
 #select the minimum value of d
-if (length(distributions)==0){
+if (nrow(distributions)==0){
    stop('S phase correction parameters could not be established, please provide manual ones') 
 }else{
 distributions=distributions%>%
