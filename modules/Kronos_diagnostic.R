@@ -62,7 +62,7 @@ option_list = list(
     make_option(
         c("-m", "--min_n_reads"),
         type = "double",
-        default = 112,
+        default = 56,
         action = 'store',
         help = "Min n of reads per million per aploid genome to keep a cell in the analysis [default= %default]",
         metavar = "double"
