@@ -453,14 +453,14 @@ mapd = foreach (
         possible_factors = possible_factors %>%
             filter(possible_factors %in% min)
         
-        selected = possible_factors$X[possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
-                                                                             opt$ploidy) == min(abs(possible_factors$mean_cn - opt$ploidy)))]]
+        selected = possible_factors$X[which(abs(possible_factors$mean_cn -
+                                                                             opt$ploidy) == min(abs(possible_factors$mean_cn - opt$ploidy)))]
         
-        mean_cn = possible_factors$mean_cn[possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
-                                                                                  opt$ploidy) == min(abs(possible_factors$mean_cn - opt$ploidy)))]]
+        mean_cn = possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
+                                                                                  opt$ploidy) == min(abs(possible_factors$mean_cn - opt$ploidy)))]
         
-        PloConf = ifelse(mean_cn >= opt$ploidy/1.7 &
-                             mean_cn <= opt$ploidy*1.7,-100,-200)
+        PloConf = ifelse(mean_cn >= opt$ploidy/1.5 &
+                             mean_cn <= opt$ploidy*2,-100,-200)
     }else{
     possible_factors = possible_factors %>%
         filter(possible_factors %in% min,
@@ -468,10 +468,10 @@ mapd = foreach (
                mean_cn >= opt$min_CNV_accepted)
     
     if (Var < 5) {
-        selected = possible_factors$X[possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
-                                                                             2) == min(abs(possible_factors$mean_cn - 2)))]]
-        mean_cn = possible_factors$mean_cn[possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
-                                                                                  2) == min(abs(possible_factors$mean_cn - 2)))]]
+        selected = possible_factors$X[which(abs(possible_factors$mean_cn -
+                                                                             2) == min(abs(possible_factors$mean_cn - 2)))]
+        mean_cn = possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
+                                                                                  2) == min(abs(possible_factors$mean_cn - 2)))]
         PloConf = -2
     } else{
         selected = min(possible_factors$possible_factors)
