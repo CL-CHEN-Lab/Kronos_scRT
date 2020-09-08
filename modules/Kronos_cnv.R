@@ -561,7 +561,7 @@ while (T) {
 #write file
 mapd %>%
     mutate(
-        is_noisy = ifelse(is_high_dimapd | (ploidy_confidence < 2 & ploidy_confidence =! -100), T, F),
+        is_noisy = ifelse(is_high_dimapd | (ploidy_confidence < 2 & ploidy_confidence != -100), T, F),
         coverage_per_1Mbp = CovReadsMega,
         Cell = str_remove(Cell, '.tmp$')
     ) %>%
