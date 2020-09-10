@@ -1372,6 +1372,8 @@ if ('referenceRT' %in% names(opt)) {
                 basename = opt$ref_name
             )
     )
+    
+    
 } else{
     RTs =  s50 %>%
         ungroup() %>%
@@ -1385,7 +1387,7 @@ pdf(
         '/',
         opt$output_file_base_name
         ,
-        '_RT_distribution_plot_calculated_RT_vs_reference.pdf'
+        '_RT_distribution_plot.pdf'
     )
 )
 
@@ -1458,135 +1460,59 @@ if (length(RT_type) != 1) {
 
 #joing s50 with relative signals
 signal_smoothed = signal_smoothed %>%
-    dplyr::select(basename, chr, start, end, CN_bg, mean_CN) %>%
+    dplyr::select(basename, chr, start, end, Rep, newIndex,mean_CN) %>%
     inner_join(s50, by = c("basename", "chr", "start", "end"))  %>%
-    group_by(basename) %>%
     mutate(
-        CN_bg = 10 * (CN_bg - quantile(CN_bg, c(0.01))[[1]]) / (quantile(CN_bg, c(0.99))[[1]] - quantile(CN_bg, c(0.01))[[1]]),
-        RT = 10 * RT,
-        mean_CN = round(mean_CN)
+        RT = 10 * RT ,
+        time = round(10 - RT - 10*mean_CN,1)
     )
+
 
 #test multiple time windows
 cl <- makeCluster(opt$cores)
 registerDoSNOW(cl)
 
-x = foreach(bs = unique(s50$basename),
-            .combine = 'rbind') %do% {
-                sub = signal_smoothed %>%
-                    filter(basename == bs)
-                
-                tmp = foreach(
-                    seq = seq(0, 10, 0.05),
-                    .combine = 'rbind',
-                    .packages = c('tidyverse')
-                ) %dopar% {
-                    sub %>%
-                        mutate(rep = CN_bg <= seq) %>%
-                        group_by(chr, start, end, basename, RT, mean_CN) %>%
-                        summarise(percentage = mean(rep)) %>%
-                        group_by(chr, start, end, basename, RT) %>%
-                        summarise(percentage = mean(percentage)) %>%
-                        mutate(time = RT - seq) %>%
-                        filter(time < 10 ,
-                               time > -10)
-                    
-                }
-                tmp
-            }
-
-# calculate distance in time per bin
-s50_bin = x %>%
-    mutate(dist = abs(0.5 - percentage)) %>%
-    group_by(basename, chr, start, end) %>%
-    filter(dist == min(dist)) %>%
-    mutate(time50 = median(time)) %>%
-    dplyr::select(-dist, -time, -percentage, -RT)
-
-x = x %>%
-    inner_join(s50_bin, by = c("chr", "start", "end", "basename")) %>%
-    group_by(basename) %>%
+x = rbind(signal_smoothed  %>%
     mutate(
-        time = time - time50,
         Cat_RT = case_when(
-            RT < 2 ~ '5 - Very Late',
-            RT >= 2 & RT < 4 ~ '4 - Late',
-            RT >= 4 & RT < 6 ~ '3 - Mid',
-            RT >= 6 & RT < 8 ~ '2 - Early',
-            RT >= 8 ~ '1 - Very Early'
+            RT < 2 ~ '1 - Very Early',
+            RT >= 2 & RT < 4  ~ '2 - Early',
+            RT >= 4 & RT < 6 ~ '3 - Mid ',
+            RT >= 6 & RT < 8 ~ '4 - Late',
+            RT >= 8  ~ '5 - Very Late'
         ),
         Cat_RT = factor(
             Cat_RT,
             levels = c(
-                'All',
+                '0 - All',
                 '1 - Very Early',
                 '2 - Early',
-                '3 - Mid',
+                '3 - Mid ',
                 '4 - Late',
                 '5 - Very Late'
             )
         )
-    )
-
-
-TW = x %>%
-    group_by(chr, start, end, basename) %>%
-    mutate(
-        t25 = abs(percentage - 0.25),
-        t75 = abs(percentage - 0.75),
-        t25 = t25 == min(t25),
-        t75 = t75 == min(t75)
-    ) %>%
-    gather(points, filter_colums, t25, t75) %>%
-    filter(filter_colums) %>%
-    group_by(chr, start, end, basename, points) %>%
-    summarise(time = min(time)) %>%
-    spread(points, time) %>%
-    mutate(TW = abs(t75 - t25)) %>%
-    dplyr::select(chr, start, end, basename, TW)
-
-plot = TW %>%
-    inner_join(s50, by = c("chr", "start", "end", "basename")) %>%
-    ggplot() +
-    geom_point(aes(x = RT, y = TW, color = basename), alpha = 0.2) +
-    geom_smooth(aes(x = RT, y = TW), color = 'black') +
-    facet_wrap( ~ basename)
-
-suppressMessages(ggsave(
-    plot,
-    filename = paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_variability_plot_all_bins.pdf'
-    )
-))
-write_delim(
-    TW,
-    path = paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_calculated_Twhith_',
-        opt$binsSize,
-        '.tsv'
     ),
-    delim = '\t',
-    col_names = T
-)
+    signal_smoothed%>%
+    mutate(
+        Cat_RT = '0 - All',
+        Cat_RT = factor(
+            Cat_RT,
+            levels = c(
+                '0 - All',
+                '1 - Very Early',
+                '2 - Early',
+                '3 - Mid ',
+                '4 - Late',
+                '5 - Very Late'
+            )
+        )
+    ))
 
-x = rbind(x, x %>%
-              mutate(Cat_RT = factor(
-                  'All',
-                  levels = c(
-                      'All',
-                      '1 - Very Early',
-                      '2 - Early',
-                      '3 - Mid',
-                      '4 - Late',
-                      '5 - Very Late'
-                  )
-              )))
+
+x=x%>%
+    group_by(basename,time,Cat_RT)%>%
+    summarise(percentage=mean(Rep))
 
 x %>%
     write_tsv(paste0(
@@ -1600,7 +1526,13 @@ x %>%
 T25_75 = function(df, name, EL) {
     model = tryCatch(
         nls(percentage ~ SSlogis(time, Asym, xmid, scal),
-            data = df[, c('percentage', 'time')]),
+            data = df[, c('percentage', 'time')]%>%
+                add_row(percentage=1,time=-10)%>%
+                add_row(percentage=0,time=10),
+            control = nls.control(maxiter = 100),
+            algorithm = 'port',
+            lower = c(Asym=1,xmid=0,scal=-1.5)
+            ),
         #If the data cannot be fitted with a Gauss-Newton algorithm, try the
         #Golub and Pereyra algorithm for the solution of a nonlinear least squares
         #problem which assumes a number of the parameters are linear.
@@ -1608,9 +1540,11 @@ T25_75 = function(df, name, EL) {
         error = function(e)
             nls(
                 percentage ~ SSlogis(time, Asym, xmid, scal),
-                data = df[, c('percentage', 'time')],
+                data = df[, c('percentage', 'time')]%>%
+                    add_row(percentage=1,time=-10)%>%
+                    add_row(percentage=0,time=10),
                 algorithm = 'plinear',
-                control = nls.control(tol = 1e-04, warnOnly = T)
+                control = nls.control(maxiter = 100,tol = 1e-04, warnOnly = T)
             )
     )
     min = min(df$time)
@@ -1644,12 +1578,14 @@ T25_75 = function(df, name, EL) {
 fitted_data = foreach(
     basename = unique(x$basename),
     .combine = 'rbind',
-    .packages = c('tidyverse', 'foreach')
+    .packages = c('tidyverse', 'foreach'),
+    .errorhandling = 'remove'
 ) %do% {
     temp = foreach(
-        EL = unique(x$Cat_RT),
+            EL = unique(x$Cat_RT),
         .combine = 'rbind',
-        .packages = c('tidyverse', 'foreach')
+        .packages = c('tidyverse', 'foreach'),
+        .errorhandling = 'remove'
     ) %dopar% {
         t = T25_75(df = x[x$basename == basename &
                               x$Cat_RT == EL, ], basename, EL)
@@ -1670,6 +1606,26 @@ t %>% write_tsv(paste0(opt$out,
                        '_Twidth.tsv'))
 
 
+plot=ggplot(x) +
+    geom_point(aes(time,percentage,color=basename))+
+    geom_line(data=fitted_data,aes(time,percentage),color='blue')+
+    scale_x_reverse()+
+    geom_vline(data=t,aes(xintercept=t25),color='red')+
+    geom_vline(data=t,aes(xintercept=t75),color='red')+
+    geom_text(data=t,aes(label=paste('TW\n',Twidth)),x=Inf,y=0.5, hjust=1)+
+    facet_grid(basename~Cat_RT)
+
+ncat=length(unique(x$Cat_RT))
+nbasen=length(unique(x$basename))
+suppressMessages(ggsave(
+    plot,
+    filename = paste0(opt$out,
+                      '/',
+                      opt$output_file_base_name,
+                      '_Twidths_extended.pdf'),width = 2.2*ncat,height = 8*nbasen
+))
+
+
 p = ggplot(t) +
     geom_col(aes(Cat_RT, Twidth, fill = basename), position = 'dodge') +
     ylab('Twidth') + xlab('')
@@ -1682,141 +1638,60 @@ suppressMessages(ggsave(
                       '_Twidths.pdf')
 ))
 
-))
-
-
 if (opt$Var_against_reference) {
     #joing s50 with relative signals
     signal_smoothed = signal_smoothed %>%
         dplyr::select(-RT) %>%
-        inner_join(Reference_RT, by = c("chr", "start", "end")) %>%
-        group_by(basename) %>%
+        dplyr::select(basename, chr, start, end, Rep, newIndex,mean_CN) %>%
+        inner_join(s50, by = c("basename", "chr", "start", "end"))  %>%
         mutate(
-            CN_bg = 10 * (CN_bg - quantile(CN_bg, c(0.01))[[1]]) / (quantile(CN_bg, c(0.99))[[1]] - quantile(CN_bg, c(0.01))[[1]]),
-            RT = 10 * RT
+            RT = 10 * RT ,
+            time = round(10 - RT - 10*mean_CN,1)
         )
     
     
-    #test multiple time windows
-    x = foreach(bs = unique(s50$basename),
-                .combine = 'rbind') %do% {
-                    sub = signal_smoothed %>%
-                        filter(basename == bs)
-                    
-                    tmp = foreach(
-                        seq = seq(0, 10, 0.05),
-                        .combine = 'rbind',
-                        .packages = c('tidyverse')
-                    ) %dopar% {
-                        sub %>%
-                            mutate(rep = CN_bg <= seq) %>%
-                            group_by(chr, start, end, basename, RT, mean_CN) %>%
-                            summarise(percentage = mean(rep)) %>%
-                            group_by(chr, start, end, basename, RT) %>%
-                            summarise(percentage = mean(percentage)) %>%
-                            mutate(time = RT - seq) %>%
-                            filter(time < 10 ,
-                                   time > -10)
-                        
-                    }
-                    tmp
-                }
-    
-    
-    # calculate distance in time per bin
-    RT_ref_bins = x %>%
-        mutate(dist = abs(0.5 - percentage)) %>%
-        group_by(basename, chr, start, end) %>%
-        filter(dist == min(dist)) %>%
-        mutate(time50 = median(time)) %>%
-        dplyr::select(-dist, -time, -percentage, -RT)
-    
-    x = x %>%
-        inner_join(RT_ref_bins, by = c("chr", "start", "end", "basename")) %>%
-        group_by(basename) %>%
-        mutate(
-            time = time - time50,
-            Cat_RT = case_when(
-                RT < 2 ~ '5 - Very Late',
-                RT >= 2 & RT < 4 ~ '4 - Late',
-                RT >= 4 & RT < 6 ~ '3 - Mid',
-                RT >= 6 & RT < 8 ~ '2 - Early',
-                RT >= 8 ~ '1 - Very Early'
-            ),
-            Cat_RT = factor(
-                Cat_RT,
-                levels = c(
-                    'All',
-                    '1 - Very Early',
-                    '2 - Early',
-                    '3 - Mid',
-                    '4 - Late',
-                    '5 - Very Late'
-                )
-            )
-        )
-    
-    
-    TW = x %>%
-        group_by(chr, start, end, basename) %>%
-        mutate(
-            t25 = abs(percentage - 0.25),
-            t75 = abs(percentage - 0.75),
-            t25 = t25 == min(t25),
-            t75 = t75 == min(t75)
-        ) %>%
-        gather(points, filter_colums, t25, t75) %>%
-        filter(filter_colums) %>%
-        group_by(chr, start, end, basename, points) %>%
-        summarise(time = min(time)) %>%
-        spread(points, time) %>%
-        mutate(TW = abs(t75 - t25)) %>%
-        dplyr::select(chr, start, end, basename, TW)
-    
-    plot = TW %>%
-        inner_join(Reference_RT, by = c("chr", "start", "end")) %>%
-        ggplot() +
-        geom_point(aes(x = RT, y = TW, color = basename), alpha = 0.2) +
-        geom_smooth(aes(x = RT, y = TW), color = 'black') +
-        facet_wrap( ~ basename)
-    
-    suppressMessages(ggsave(
-        plot,
-        filename = paste0(
-            opt$out,
-            '/',
-            opt$output_file_base_name,
-            '_variability_plot_all_bins_over_reference_RT.pdf'
-        )
-    ))
-    write_delim(
-        TW,
-        path = paste0(
-            opt$out,
-            '/',
-            opt$output_file_base_name,
-            '_calculated_Twhith_over_reference_RT',
-            opt$binsSize,
-            '.tsv'
-        ),
-        delim = '\t',
-        col_names = T
-    )
-    
-    
-    
-    x = rbind(x, x %>%
-                  mutate(Cat_RT = factor(
-                      'All',
-                      levels = c(
-                          'All',
-                          '1 - Very Early',
-                          '2 - Early',
-                          '3 - Mid',
-                          '4 - Late',
-                          '5 - Very Late'
+    x = rbind(signal_smoothed  %>%
+                  mutate(
+                      Cat_RT = case_when(
+                          RT < 2 ~ '1 - Very Early',
+                          RT >= 2 & RT < 4  ~ '2 - Early',
+                          RT >= 4 & RT < 6 ~ '3 - Mid ',
+                          RT >= 6 & RT < 8 ~ '4 - Late',
+                          RT >= 8  ~ '5 - Very Late'
+                      ),
+                      Cat_RT = factor(
+                          Cat_RT,
+                          levels = c(
+                              '0 - All',
+                              '1 - Very Early',
+                              '2 - Early',
+                              '3 - Mid ',
+                              '4 - Late',
+                              '5 - Very Late'
+                          )
                       )
-                  )))
+                  ),
+              signal_smoothed%>%
+                  mutate(
+                      Cat_RT = '0 - All',
+                      Cat_RT = factor(
+                          Cat_RT,
+                          levels = c(
+                              '0 - All',
+                              '1 - Very Early',
+                              '2 - Early',
+                              '3 - Mid ',
+                              '4 - Late',
+                              '5 - Very Late'
+                          )
+                      )
+                  ))
+    
+    
+    x=x%>%
+        group_by(basename,time,Cat_RT)%>%
+        summarise(percentage=mean(Rep))
+    
     x %>%
         write_tsv(
             paste0(
@@ -1827,16 +1702,19 @@ if (opt$Var_against_reference) {
             )
         )
     
+    
     #calculate tresholds 25% 75% replication keeping in account early and late domains
     fitted_data = foreach(
         basename = unique(x$basename),
         .combine = 'rbind',
-        .packages = c('tidyverse', 'foreach')
+        .packages = c('tidyverse', 'foreach'),
+        .errorhandling = 'remove'
     ) %do% {
         temp = foreach(
             EL = unique(x$Cat_RT),
             .combine = 'rbind',
-            .packages = c('tidyverse', 'foreach')
+            .packages = c('tidyverse', 'foreach'),
+            .errorhandling = 'remove'
         ) %dopar% {
             t = T25_75(df = x[x$basename == basename &
                                   x$Cat_RT == EL, ], basename, EL)
@@ -1851,13 +1729,30 @@ if (opt$Var_against_reference) {
         spread(t, time) %>%
         mutate(Twidth = abs(t75 - t25))
     
-    t %>% write_tsv(paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_Twidth_ref_RT.tsv'
-    ))
+    t %>% write_tsv(paste0(opt$out,
+                           '/',
+                           opt$output_file_base_name,
+                           '_Twidth_ref_RT.tsv'))
     
+    
+    plot=ggplot(x) +
+        geom_point(aes(time,percentage,color=basename))+
+        geom_line(data=fitted_data,aes(time,percentage),color='blue')+
+        scale_x_reverse()+
+        geom_vline(data=t,aes(xintercept=t25),color='red')+
+        geom_vline(data=t,aes(xintercept=t75),color='red')+
+        geom_text(data=t,aes(label=paste('TW\n',Twidth)),x=Inf,y=0.5, hjust=1)+
+        facet_grid(~Cat_RT)
+    
+    ncat=length(unique(x$Cat_RT))
+    nbasen=length(unique(x$basename))
+    suppressMessages(ggsave(
+        plot,
+        filename = paste0(opt$out,
+                          '/',
+                          opt$output_file_base_name,
+                          '_Twidths_extended_ref_RT.pdf'),width = 2.2*ncat,height = 8*nbasen
+    ))
     
     p = ggplot(t) +
         geom_col(aes(Cat_RT, Twidth, fill = basename), position = 'dodge') +
@@ -1865,14 +1760,11 @@ if (opt$Var_against_reference) {
     
     suppressMessages(ggsave(
         p,
-        filename = paste0(
-            opt$out,
-            '/',
-            opt$output_file_base_name,
-            '_Twidths_ref_RT.pdf'
-        )
+        filename = paste0(opt$out,
+                          '/',
+                          opt$output_file_base_name,
+                          '_Twidths_ref_RT.pdf')
     ))
-    
     
 }
 

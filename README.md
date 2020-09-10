@@ -203,29 +203,20 @@ Run the script
     -f CHARACTER, --basename_filter=CHARACTER           Filter out unwanted samples for RT files
     -h, --help                                          Show this help message and exit
 
--- compare  TW categorical module
+-- compare  TW  module
 
-    ./Kronos compare TW categorical [options]
+    ./Kronos compare TW [options]
 
     Options:
-    -F CHARACTER, --file=CHARACTER                      Variability file produced by Kronos RT, if multiple files are provided they have to be separated by a comma
+    -C CHARACTER, --CNV=CHARACTER                       scCNV file produced by Kronos RT, if multiple files are provided they have to be separated by a comma
+    -T CHARACTER, --RT=CHARACTER                        RT file produced by Kronos RT, if multiple files are provided they have to be separated by a comma
     -R CHARACTER, --regions=CHARACTER                   Genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header.
     -b, --both_annotations                              Plot Twidth divided by both annotations
     -r CHARACTER, --regions2=CHARACTER                  Second genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header. If option b is activated it substiutes the RT division.
     -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
     -f CHARACTER, --output_file_base_name=CHARACTER     Base name for the output file [default= out]
     -h, --help                                          Show this help message and exit
-    
--- compare  TW numerical module
-
-    ./Kronos compare TW numerical [options]
-
-    Options:
-    -F CHARACTER, --file=CHARACTER                      *calculated_Twhith* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.
-    -A CHARACTER, --annotation=CHARACTER                BedGraph file. No header.
-    -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
-    -f CHARACTER, --output_file_base_name=CHARACTER     Base name for the output file [default= out]
-    -h, --help                                          Show this help message and exit
+                                      Show this help message and exit
 
 -- Kronos population RT module
 
@@ -250,9 +241,8 @@ Run the script
     ./Kronos_scPlots.R [options]
 
     Options:
-    -L CHARACTER, --List=CHARACTER                  A Tab separated file containing in each colum scRT_Tracks,scTW_Tracks and scCNV files paths. Alternative to -R,-T and -C options.
+    -L CHARACTER, --List=CHARACTER                  A Tab separated file containing in each colum scRT_Tracks and scCNV files paths. Alternative to -R,-T and -C options.
     -R CHARACTER, --scRT_Tracks=CHARACTER           *calculated_replication_timing* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.  Alternative to -L option.
-    -T CHARACTER, --scTW_Tracks=CHARACTER           *calculated_Twhith* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma. Alternative to -L option.
     -C CHARACTER, --scCNV=CHARACTER                 *single_cells_CNV* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.  Alternative to -L option..
     -s CHARACTER, --order=CHARACTER                 basenames separated by a comma in the desired order for plotting.
     --CNV_values=CHARACTER                          What type of date to plot for the sigle cell traks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells) or 'all'= one file per option) [default= B]

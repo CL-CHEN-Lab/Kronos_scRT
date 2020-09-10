@@ -259,7 +259,7 @@ if (!'region' %in% names(opt)) {
         # prepare name file 
         name_reg=min( str_length(str_extract(to_plot$start,'0{1,10}$')), str_length(str_extract(to_plot$end,'0{1,10}$')))
         name_reg= paste(
-            Chr,
+            to_plot$chr,
             case_when(
                 is.na(name_reg) ~ paste0(to_plot$start,'bp_',to_plot$end,'bp'),
                 name_reg < 3 ~ paste0(to_plot$start,'bp_',to_plot$end,'bp'),
