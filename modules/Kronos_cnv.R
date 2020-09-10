@@ -455,7 +455,7 @@ mapd = foreach (
         
         
         if(sum((possible_factors$mean_cn >= opt$ploidy/1.5 &
-               possible_factors$mean_cn <= opt$ploidy*2)) <= 1){
+               possible_factors$mean_cn <= opt$ploidy*2)) == 0){
         
         selected = possible_factors$X[which(abs(possible_factors$mean_cn -
                                                                              opt$ploidy) == min(abs(possible_factors$mean_cn - opt$ploidy)))]
