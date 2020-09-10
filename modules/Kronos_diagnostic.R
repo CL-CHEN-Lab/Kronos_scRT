@@ -126,7 +126,8 @@ if (!'threshold_Sphase' %in% names(opt)){
                 'unknown cells' = 'darkorange'
             )
         ) +
-        theme(legend.position = 'top', legend.title = element_blank())
+        theme(legend.position = 'top', legend.title = element_blank())+
+         xlab('Ploidy') + ylab('Variability')
     
     system(paste('mkdir -p ', opt$out))
     suppressMessages( ggsave(p, filename = paste0(opt$out, '/', opt$base_name, '_plot.pdf')))

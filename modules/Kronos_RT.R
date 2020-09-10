@@ -730,8 +730,8 @@ stopCluster(cl)
 # bin cells in order to have not unballance RT
 signal_smoothed = signal_smoothed %>%
     group_by(index, group) %>%
-    mutate(mean_CN = mean(Rep),
-           groups = ceiling(mean_CN * 10))
+    mutate(PercentageReplication = mean(Rep),
+           groups = ceiling(PercentageReplication * 10))
 
 #plot profile binning
 plot = signal_smoothed %>%
@@ -920,7 +920,7 @@ signal_smoothed = signal_smoothed %>%
                   CN_bg,
                   th,
                   Rep,
-                  mean_CN,
+                  PercentageReplication,
                   groups,
                   basename,
                   newIndex)
@@ -1460,11 +1460,11 @@ if (length(RT_type) != 1) {
 
 #joing s50 with relative signals
 signal_smoothed = signal_smoothed %>%
-    dplyr::select(basename, chr, start, end, Rep, newIndex,mean_CN) %>%
+    dplyr::select(basename, chr, start, end, Rep, newIndex,PercentageReplication) %>%
     inner_join(s50, by = c("basename", "chr", "start", "end"))  %>%
     mutate(
         RT = 10 * RT ,
-        time = round(10 - RT - 10*mean_CN,1)
+        time = round(10 - RT - 10*PercentageReplication,1)
     )
 
 
@@ -1472,7 +1472,24 @@ signal_smoothed = signal_smoothed %>%
 cl <- makeCluster(opt$cores)
 registerDoSNOW(cl)
 
-x = rbind(signal_smoothed  %>%
+x = signal_smoothed%>%
+    group_by(basename,time,RT,chr,start,end)%>%
+    summarise(percentage=mean(Rep))
+
+
+x %>%
+    ungroup()%>%
+    dplyr::select(-RT)%>%
+    write_tsv(
+        paste0(
+            opt$out,
+            '/',
+            opt$output_file_base_name,
+            '_scRT_variability.tsv'
+        )
+    )
+
+x = rbind(x  %>%
     mutate(
         Cat_RT = case_when(
             RT < 2 ~ '1 - Very Early',
@@ -1493,7 +1510,7 @@ x = rbind(signal_smoothed  %>%
             )
         )
     ),
-    signal_smoothed%>%
+    x%>%
     mutate(
         Cat_RT = '0 - All',
         Cat_RT = factor(
@@ -1512,15 +1529,7 @@ x = rbind(signal_smoothed  %>%
 
 x=x%>%
     group_by(basename,time,Cat_RT)%>%
-    summarise(percentage=mean(Rep))
-
-x %>%
-    write_tsv(paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_scRT_variability.tsv'
-    ))
+    summarise(percentage=mean(percentage))
 
 #T25_75 function
 T25_75 = function(df, name, EL) {
@@ -1641,16 +1650,32 @@ suppressMessages(ggsave(
 if (opt$Var_against_reference) {
     #joing s50 with relative signals
     signal_smoothed = signal_smoothed %>%
-        dplyr::select(-RT) %>%
-        dplyr::select(basename, chr, start, end, Rep, newIndex,mean_CN) %>%
-        inner_join(s50, by = c("basename", "chr", "start", "end"))  %>%
+        dplyr::select(basename, chr, start, end, Rep, newIndex,PercentageReplication) %>%
+        inner_join(Reference_RT, by = c("chr", "start", "end"))  %>%
         mutate(
             RT = 10 * RT ,
-            time = round(10 - RT - 10*mean_CN,1)
+            time = round(10 - RT - 10*PercentageReplication,1)
         )
     
     
-    x = rbind(signal_smoothed  %>%
+    x = signal_smoothed%>%
+        group_by(basename,time,RT,chr,start,end)%>%
+        summarise(percentage=mean(Rep))
+        
+        
+    x %>%
+        ungroup()%>%
+        dplyr::select(-RT)%>%
+        write_tsv(
+            paste0(
+                opt$out,
+                '/',
+                opt$output_file_base_name,
+                '_scRT_variability_on_reference.tsv'
+            )
+        )
+    
+    x= rbind(x  %>%
                   mutate(
                       Cat_RT = case_when(
                           RT < 2 ~ '1 - Very Early',
@@ -1671,7 +1696,7 @@ if (opt$Var_against_reference) {
                           )
                       )
                   ),
-              signal_smoothed%>%
+              x%>%
                   mutate(
                       Cat_RT = '0 - All',
                       Cat_RT = factor(
@@ -1687,21 +1712,9 @@ if (opt$Var_against_reference) {
                       )
                   ))
     
-    
     x=x%>%
         group_by(basename,time,Cat_RT)%>%
-        summarise(percentage=mean(Rep))
-    
-    x %>%
-        write_tsv(
-            paste0(
-                opt$out,
-                '/',
-                opt$output_file_base_name,
-                '_scRT_variability_on_reference.tsv'
-            )
-        )
-    
+        summarise(percentage=mean(percentage)) 
     
     #calculate tresholds 25% 75% replication keeping in account early and late domains
     fitted_data = foreach(

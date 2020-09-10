@@ -208,15 +208,13 @@ Run the script
     ./Kronos compare TW [options]
 
     Options:
-    -C CHARACTER, --CNV=CHARACTER                       scCNV file produced by Kronos RT, if multiple files are provided they have to be separated by a comma
-    -T CHARACTER, --RT=CHARACTER                        RT file produced by Kronos RT, if multiple files are provided they have to be separated by a comma
-    -R CHARACTER, --regions=CHARACTER                   Genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header.
+    -F CHARACTER, --file=CHARACTER                      Variability file produced by Kronos RT, if multiple files are provided they have to be separated by a comma
+    -R CHARACTER, --Annotation=CHARACTER                Genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header.
     -b, --both_annotations                              Plot Twidth divided by both annotations
-    -r CHARACTER, --regions2=CHARACTER                  Second genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header. If option b is activated it substiutes the RT division.
+    -r CHARACTER, --Annotation2=CHARACTER               Second genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header.
     -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
     -f CHARACTER, --output_file_base_name=CHARACTER     Base name for the output file [default= out]
     -h, --help                                          Show this help message and exit
-                                      Show this help message and exit
 
 -- Kronos population RT module
 
