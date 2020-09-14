@@ -1467,7 +1467,7 @@ signal_smoothed = signal_smoothed %>%
     dplyr::select(basename, chr, start, end, Rep, newIndex,PercentageReplication) %>%
     inner_join(s50, by = c("basename", "chr", "start", "end"))  %>%
     mutate(
-        RT = 10 * RT ,
+        RT = 10 * (1-RT) ,
         time = round(10 - RT - 10*PercentageReplication,1)
     )
 
