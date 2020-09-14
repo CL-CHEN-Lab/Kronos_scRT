@@ -425,7 +425,7 @@ Annotation_file = read_tsv(opt$Annotation,
             filename = paste0(opt$out,
                               '/',
                               opt$output_file_base_name,
-                              '_Twidths_extended.pdf'),width = 2.2*ncat,height = 8*nbasen
+                              '_Twidths_extended.pdf'),width = 2.2*ncat,height = 4*nbasen
         ))
         
         

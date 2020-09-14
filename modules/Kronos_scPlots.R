@@ -10,7 +10,7 @@ option_list = list(
         c("-L", "--List"),
         type = "character",
         default = NULL,
-        help = "A Tab separated file containing in each colum scRT_Tracks,scTW_Tracks and scCNV files paths. Alternative to -R,-T and -C options.",
+        help = "A Tab separated file containing in each colum scRT_Tracks and scCNV files paths. Alternative to -R and -C options.",
         metavar = "character"
     ), make_option(
         c("-R", "--scRT_Tracks"),
@@ -18,18 +18,26 @@ option_list = list(
         default = NULL,
         help = "*calculated_replication_timing* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.  Alternative to -L option.",
         metavar = "character"
-    ),make_option(
-        c("-T", "--scTW_Tracks"),
-        type = "character",
-        default = NULL,
-        help = "*calculated_Twhith* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma. Alternative to -L option.",
-        metavar = "character"
     ),
     make_option(
         c("-C", "--scCNV"),
         type = "character",
         default = NULL,
         help = "*single_cells_CNV* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.  Alternative to -L option..",
+        metavar = "character"
+    ),
+    make_option(
+        c("-E", "--extra_RT_track"),
+        type = "character",
+        default = NULL,
+        help = "A reference RT track.",
+        metavar = "character"
+    ),
+    make_option(
+        c("--extra_RT_name"),
+        type = "character",
+        default = "Reference",
+        help = "Name for the reference track [default= %default]",
         metavar = "character"
     ),
     make_option(
@@ -87,22 +95,17 @@ if('List' %in% names(opt)) {
     )
     
     opt$scRT_Tracks = opt$List$X1
-    opt$scTW_Tracks = opt$List$X2
-    opt$scCNV = opt$List$X3
+    opt$scCNV = opt$List$X2
     
 } else{
     if (!'scRT_Tracks' %in% names(opt)) {
         stop("scRT_Tracks file must be provided. See script usage (--help)")
-    }
-    if (!'scTW_Tracks' %in% names(opt)) {
-        stop("scTW_Tracks file must be provided. See script usage (--help)")
     }
     if (!'scCNV' %in% names(opt)) {
         stop("scCNV file must be provided. See script usage (--help)")
     }
     
     opt$scRT_Tracks = str_split(opt$scRT_Tracks, ',')[[1]]
-    opt$scTW_Tracks = str_split(opt$scTW_Tracks, ',')[[1]]
     opt$scCNV = str_split(opt$scCNV, ',')[[1]]
     
 }
@@ -118,13 +121,14 @@ if('order'%in% names(opt)){
 }
 
 
-scRT_TW=foreach(i=1:length(opt$scRT_Tracks),.packages = 'tidyverse',.combine = 'rbind')%do%{
-    tmp=inner_join(read_tsv(opt$scRT_Tracks[i],col_types = cols()),
-    read_tsv(opt$scTW_Tracks[i],col_types = cols()), by = c("chr", "start", "end", "basename"))
+scRT=foreach(i=1:length(opt$scRT_Tracks),.packages = 'tidyverse',.combine = 'rbind')%do%{
+    tmp=read_tsv(opt$scRT_Tracks[i],col_types = cols())%>%
+        mutate(Line=basename)
     if('order'%in% names(opt)){
         tmp%>%
             mutate(
-                basename=factor(basename, levels=opt$order)
+                basename=factor(basename, levels=opt$order),
+                Line=basename
                 ) 
         
     }else{
@@ -149,6 +153,16 @@ scCNV=foreach(i=1:length(opt$scCNV),.packages = 'tidyverse',.combine = 'rbind')%
 if (str_extract(opt$out, '.$') != '/') {
     opt$out = paste0(opt$out, '/')
 }
+
+#load reference if provided
+
+if('extra_RT_track' %in% names(opt)){
+    opt$extra_RT_track=read_tsv(opt$extra_RT_track,col_types = cols())%>%
+        mutate(Line=opt$extra_RT_name)
+    
+}
+
+
 system(paste0('mkdir -p ', opt$out, '/regions'))
     
 if (file.exists(opt$region)) {
@@ -223,19 +237,35 @@ if (file.exists(opt$region)) {
             ) %>%
             dplyr::select(-start_unit, -end_unit)
     }
-    
+
+
+
 if(!opt$CNV_values %in% c('B','CNV','Log2','all')){
     opt$CNV_values='B'
     warning('unrecognized CNV value to plot. Binarized tracks restored')
 }
-    max_TW=max(scRT_TW$TW)
 for (i in 1:length(opt$region$chr)) {
     Chr = opt$region$chr[i]
     Start = opt$region$start[i]
     End = opt$region$end[i]
     name_reg = opt$region$name_reg[i]
     
-    scRT_TW_toplot = scRT_TW %>%
+    
+    if('extra_RT_track' %in% names(opt)){
+        Ref_to_plot=opt$extra_RT_track%>%
+            filter(
+                chr %in% Chr,
+                (start >= Start & end <= End) |
+                    (start <= Start & end >= Start) |
+                    (start <= End & end >= End)
+            ) %>%
+            mutate(start = ifelse(start < Start, Start, start),
+                   end = ifelse(end > End , End, end))%>%
+            filter(start!=end)
+        
+    }
+    
+    scRT_toplot = scRT %>%
         filter(
             chr %in% Chr,
             (start >= Start & end <= End) |
@@ -243,7 +273,8 @@ for (i in 1:length(opt$region$chr)) {
                 (start <= End & end >= End)
         ) %>%
         mutate(start = ifelse(start < Start, Start, start),
-               end = ifelse(end > End , End, end))
+               end = ifelse(end > End , End, end))%>%
+        filter(start!=end)
     
     scCNV_toplot = scCNV %>%
         filter(
@@ -253,14 +284,37 @@ for (i in 1:length(opt$region$chr)) {
                 (start <= End & end >= End)
         ) %>%
         mutate(start = ifelse(start < Start, Start, start),
-               end = ifelse(end > End , End, end))
+               end = ifelse(end > End , End, end))%>%
+        filter(start!=end)
     
-    if (length(scRT_TW_toplot$chr) != 0) {
+
+    if (length(scRT_toplot$chr) != 0) {
         Maxi = max(scCNV_toplot$newIndex)
         n=str_count(Maxi)
+        
+        if('extra_RT_track' %in% names(opt)){
+            plot=
+                ggplot() + geom_path(
+                    data = Ref_to_plot %>%
+                        mutate(
+                            mid = (start + end) / 2,
+                            RT = RT * Maxi / 6 + Maxi /
+                                20
+                        ) %>%
+                        gather(what, pos, start, end) %>%
+                        arrange(mid, pos),
+                    aes(pos, RT, color=Line)
+                )
+            
+        }else{
+            plot=ggplot()
+        }
+        
+        
+        
         if (opt$CNV_values == 'B') {
-            p1 = ggplot() + geom_line(
-                data = scRT_TW_toplot %>%
+            p1 = plot + geom_line(
+                data = scRT_toplot %>%
                     mutate(
                         mid = (start + end) / 2,
                         RT = RT * Maxi / 6 + Maxi /
@@ -268,7 +322,7 @@ for (i in 1:length(opt$region$chr)) {
                     ) %>%
                     gather(what, pos, start, end) %>%
                     arrange(mid, pos),
-                aes(pos, RT, color = TW)
+                aes(pos, RT,color=Line)
             ) +
                 geom_rect(
                     data = scCNV_toplot %>%
@@ -296,10 +350,7 @@ for (i in 1:length(opt$region$chr)) {
                 scale_fill_manual(values = c(
                     "Replicated" = 'green',
                     "Unreplicated" = 'red'
-                )) +
-                scale_color_gradient(low = '#236AB9',
-                                     high = '#FC7307',
-                                     limits = c(0,max_TW)) +
+                ))+
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
                     labels = c('Early - 1', 'Mind - 0.5', 'Late - 0'),
@@ -342,8 +393,8 @@ for (i in 1:length(opt$region$chr)) {
                 ))
         } else if (opt$CNV_values == 'CNV') {
             x = median(scCNV_toplot$background)
-            p1 = ggplot() + geom_line(
-                data = scRT_TW_toplot %>%
+            p1 = plot + geom_line(
+                data = scRT_toplot %>%
                     mutate(
                         mid = (start + end) / 2,
                         RT = RT * Maxi / 6 +
@@ -351,7 +402,7 @@ for (i in 1:length(opt$region$chr)) {
                     ) %>%
                     gather(what, pos, start, end) %>%
                     arrange(mid, pos),
-                aes(pos, RT, color = TW)
+                aes(pos, RT,color=Line)
             ) +
                 geom_rect(
                     data = scCNV_toplot,
@@ -373,9 +424,6 @@ for (i in 1:length(opt$region$chr)) {
                     fill = 'white'
                 ) +
                 facet_grid( ~ basename) +
-                scale_color_gradient(low = '#236AB9',
-                                     high = '#FC7307',
-                                     limits = c(0,max_TW)) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
                     labels = c('Early - 1', 'Mind - 0.5', 'Late - 0'),
@@ -423,8 +471,8 @@ for (i in 1:length(opt$region$chr)) {
                 ))
             
         } else if (opt$CNV_values == 'log2') {
-            p1 = ggplot() + geom_line(
-                data = scRT_TW_toplot %>%
+            p1 = plot+ geom_line(
+                data = scRT_toplot %>%
                     mutate(
                         mid = (start + end) / 2,
                         RT = RT * Maxi / 6 + Maxi /
@@ -432,7 +480,7 @@ for (i in 1:length(opt$region$chr)) {
                     ) %>%
                     gather(what, pos, start, end) %>%
                     arrange(mid, pos),
-                aes(pos, RT, color = TW)
+                aes(pos, RT,color=Line)
             ) +
                 geom_rect(
                     data = scCNV_toplot ,
@@ -454,9 +502,6 @@ for (i in 1:length(opt$region$chr)) {
                     fill = 'white'
                 ) +
                 facet_grid( ~ basename) +
-                scale_color_gradient(low = '#236AB9',
-                                     high = '#FC7307',
-                                     limits = c(0,max_TW)) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
                     labels = c('Early - 1', 'Mind - 0.5', 'Late - 0'),
@@ -510,8 +555,8 @@ for (i in 1:length(opt$region$chr)) {
                 ))
             
         }else{
-            p1 = ggplot() + geom_line(
-                data = scRT_TW_toplot %>%
+            p1 = plot+ geom_line(
+                data = scRT_toplot %>%
                     mutate(
                         mid = (start + end) / 2,
                         RT = RT * Maxi / 6 + Maxi /
@@ -519,7 +564,7 @@ for (i in 1:length(opt$region$chr)) {
                     ) %>%
                     gather(what, pos, start, end) %>%
                     arrange(mid, pos),
-                aes(pos, RT, color = TW)
+                aes(pos, RT,color=Line)
             ) +
                 geom_rect(
                     data = scCNV_toplot %>%
@@ -548,9 +593,6 @@ for (i in 1:length(opt$region$chr)) {
                     "Replicated" = 'green',
                     "Unreplicated" = 'red'
                 )) +
-                scale_color_gradient(low = '#236AB9',
-                                     high = '#FC7307',
-                                     limits = c(0,max_TW)) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
                     labels = c('Early - 1', 'Mind - 0.5', 'Late - 0'),
@@ -583,8 +625,8 @@ for (i in 1:length(opt$region$chr)) {
                 ) + xlab(Chr)+labs(fill='')
             
             x = median(scCNV_toplot$background)
-            p2 = ggplot() + geom_line(
-                data = scRT_TW_toplot %>%
+            p2 = plot + geom_line(
+                data = scRT_toplot %>%
                     mutate(
                         mid = (start + end) / 2,
                         RT = RT * Maxi / 6 +
@@ -592,7 +634,7 @@ for (i in 1:length(opt$region$chr)) {
                     ) %>%
                     gather(what, pos, start, end) %>%
                     arrange(mid, pos),
-                aes(pos, RT, color = TW)
+                aes(pos, RT,color=Line)
             ) +
                 geom_rect(
                     data = scCNV_toplot,
@@ -614,9 +656,6 @@ for (i in 1:length(opt$region$chr)) {
                     fill = 'white'
                 ) +
                 facet_grid( ~ basename) +
-                scale_color_gradient(low = '#236AB9',
-                                     high = '#FC7307',
-                                     limits = c(0,max_TW)) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
                     labels = c('Early - 1', 'Mind - 0.5', 'Late - 0'),
@@ -653,8 +692,8 @@ for (i in 1:length(opt$region$chr)) {
                                     limits = c(0, 3 * x)) +
                 labs(fill= 'CNV')
             
-            p3 = ggplot() + geom_line(
-                data = scRT_TW_toplot %>%
+            p3 = plot+ geom_line(
+                data = scRT_toplot %>%
                     mutate(
                         mid = (start + end) / 2,
                         RT = RT * Maxi / 6 + Maxi /
@@ -662,7 +701,7 @@ for (i in 1:length(opt$region$chr)) {
                     ) %>%
                     gather(what, pos, start, end) %>%
                     arrange(mid, pos),
-                aes(pos, RT, color = TW)
+                aes(pos, RT,color=Line)
             ) +
                 geom_rect(
                     data = scCNV_toplot ,
@@ -684,9 +723,6 @@ for (i in 1:length(opt$region$chr)) {
                     fill = 'white'
                 ) +
                 facet_grid( ~ basename) +
-                scale_color_gradient(low = '#236AB9',
-                                     high = '#FC7307',
-                                     limits = c(0,max_TW)) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
                     labels = c('Early - 1', 'Mind - 0.5', 'Late - 0'),

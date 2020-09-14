@@ -1001,7 +1001,8 @@ if (opt$plot) {
                 mutate(
                     start = ifelse(start < Start, Start, start),
                     end = ifelse(end > End , End, end)
-                )
+                )%>%
+                filter(start!=end)
             
             if (length(track_toplot$chr) != 0) {
                 max_index = track_toplot %>% pull(newIndex) %>% max()
@@ -1018,7 +1019,8 @@ if (opt$plot) {
                         RT = RT ,
                         start = ifelse(start < Start, Start, start),
                         end = ifelse(end > End , End, end)
-                    )
+                    )%>%
+                    filter(start!=end)
                 
                 plot =  ggplot() +
                     geom_rect(
@@ -1293,7 +1295,9 @@ if (opt$plot) {
                             RT = RT ,
                             start = ifelse(start < Start, Start, start),
                             end = ifelse(end > End , End, end)
-                        )
+                        )%>%
+                        filter(start!=end)
+                    
                     if (length(RT_toplot$chr) != 0) {
                         plot = plot +
                             geom_rect(
@@ -1621,7 +1625,7 @@ plot=ggplot(x) +
     scale_x_reverse()+
     geom_vline(data=t,aes(xintercept=t25),color='red')+
     geom_vline(data=t,aes(xintercept=t75),color='red')+
-    geom_text(data=t,aes(label=paste('TW\n',Twidth)),x=Inf,y=0.5, hjust=1)+
+    geom_text(data=t,aes(label=paste('TW\n',Twidth)),x=Inf,y=0.5, hjust=1.25)+
     facet_grid(basename~Cat_RT)
 
 ncat=length(unique(x$Cat_RT))
@@ -1631,7 +1635,7 @@ suppressMessages(ggsave(
     filename = paste0(opt$out,
                       '/',
                       opt$output_file_base_name,
-                      '_Twidths_extended.pdf'),width = 2.2*ncat,height = 8*nbasen
+                      '_Twidths_extended.pdf'),width = 2.2*ncat,height = 4*nbasen
 ))
 
 
@@ -1754,7 +1758,7 @@ if (opt$Var_against_reference) {
         scale_x_reverse()+
         geom_vline(data=t,aes(xintercept=t25),color='red')+
         geom_vline(data=t,aes(xintercept=t75),color='red')+
-        geom_text(data=t,aes(label=paste('TW\n',Twidth)),x=Inf,y=0.5, hjust=1)+
+        geom_text(data=t,aes(label=paste('TW\n',Twidth)),x=Inf,y=0.5, hjust=1.25)+
         facet_grid(~Cat_RT)
     
     ncat=length(unique(x$Cat_RT))
@@ -1764,7 +1768,7 @@ if (opt$Var_against_reference) {
         filename = paste0(opt$out,
                           '/',
                           opt$output_file_base_name,
-                          '_Twidths_extended_ref_RT.pdf'),width = 2.2*ncat,height = 8*nbasen
+                          '_Twidths_extended_ref_RT.pdf'),width = 2.2*ncat,height = 4*nbasen
     ))
     
     p = ggplot(t) +
