@@ -1653,8 +1653,8 @@ if (opt$Var_against_reference) {
         dplyr::select(basename, chr, start, end, Rep, newIndex,PercentageReplication) %>%
         inner_join(Reference_RT, by = c("chr", "start", "end"))  %>%
         mutate(
-            RT = 10 * RT ,
-            time = round(10 - RT - 10*PercentageReplication,1)
+            RT = 10 * (1-RT) ,
+            time = round(RT - 10*PercentageReplication,1)
         )
     
     
