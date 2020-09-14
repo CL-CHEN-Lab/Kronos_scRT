@@ -1622,7 +1622,7 @@ t %>% write_tsv(paste0(opt$out,
 plot=ggplot(x) +
     geom_point(aes(time,percentage,color=basename))+
     geom_line(data=fitted_data,aes(time,percentage),color='blue')+
-    scale_x_reverse()+
+    scale_x_reverse()+scale_y_continuous(labels = scales::percent)+
     geom_vline(data=t,aes(xintercept=t25),color='red')+
     geom_vline(data=t,aes(xintercept=t75),color='red')+
     geom_text(data=t,aes(label=paste('TW\n',Twidth)),x=Inf,y=0.5, hjust=1.25)+
@@ -1755,7 +1755,7 @@ if (opt$Var_against_reference) {
     plot=ggplot(x) +
         geom_point(aes(time,percentage,color=basename))+
         geom_line(data=fitted_data,aes(time,percentage),color='blue')+
-        scale_x_reverse()+
+        scale_x_reverse()+scale_y_continuous(labels = scales::percent)+
         geom_vline(data=t,aes(xintercept=t25),color='red')+
         geom_vline(data=t,aes(xintercept=t75),color='red')+
         geom_text(data=t,aes(label=paste('TW\n',Twidth)),x=Inf,y=0.5, hjust=1.25)+
