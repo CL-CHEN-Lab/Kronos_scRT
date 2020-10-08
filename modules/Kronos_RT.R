@@ -1759,7 +1759,7 @@ if (opt$Var_against_reference) {
         geom_vline(data=t,aes(xintercept=t25),color='red')+
         geom_vline(data=t,aes(xintercept=t75),color='red')+
         geom_text(data=t,aes(label=paste('TW\n',Twidth)),x=Inf,y=0.5, hjust=1.25)+
-        facet_grid(~Cat_RT)
+        facet_grid(basename~Cat_RT)
     
     ncat=length(unique(x$Cat_RT))
     nbasen=length(unique(x$basename))

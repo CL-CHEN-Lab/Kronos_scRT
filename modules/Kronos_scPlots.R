@@ -364,7 +364,7 @@ for (i in 1:length(opt$region$chr)) {
                                                 seq(
                                                     1, round(Maxi / 10 ^ (n - 2)), 1
                                                 ) * 10 ^ (n - 2))),
-                        name = 'Single Cells tracks ordered by S-phase progression'
+                        name = 'Single Cell tracks ordered by S-phase progression'
                     )
                 ) +
                 scale_x_continuous(
@@ -437,7 +437,7 @@ for (i in 1:length(opt$region$chr)) {
                                                 seq(
                                                     1, round(Maxi / 10 ^ (n - 2)), 1
                                                 ) * 10 ^ (n - 2))),
-                        name = 'Single Cells tracks ordered by S-phase progression'
+                        name = 'Single Cell tracks ordered by S-phase progression'
                     )
                 ) +
                 scale_x_continuous(
@@ -515,7 +515,7 @@ for (i in 1:length(opt$region$chr)) {
                                                 seq(
                                                     1, round(Maxi / 10 ^ (n - 2)), 1
                                                 ) * 10 ^ (n - 2))),
-                        name = 'Single Cells tracks ordered by S-phase progression'
+                        name = 'Single Cell tracks ordered by S-phase progression'
                     )
                 ) +
                 scale_x_continuous(
@@ -606,7 +606,7 @@ for (i in 1:length(opt$region$chr)) {
                                                 seq(
                                                     1, round(Maxi / 10 ^ (n - 2)), 1
                                                 ) * 10 ^ (n - 2))),
-                        name = 'Single Cells tracks ordered by S-phase progression'
+                        name = 'Single Cell tracks ordered by S-phase progression'
                     )
                 ) +
                 scale_x_continuous(
@@ -669,7 +669,7 @@ for (i in 1:length(opt$region$chr)) {
                                                 seq(
                                                     1, round(Maxi / 10 ^ (n - 2)), 1
                                                 ) * 10 ^ (n - 2))),
-                        name = 'Single Cells tracks ordered by S-phase progression'
+                        name = 'Single Cell tracks ordered by S-phase progression'
                     )
                 ) +
                 scale_x_continuous(
@@ -736,7 +736,7 @@ for (i in 1:length(opt$region$chr)) {
                                                 seq(
                                                     1, round(Maxi / 10 ^ (n - 2)), 1
                                                 ) * 10 ^ (n - 2))),
-                        name = 'Single Cells tracks ordered by S-phase progression'
+                        name = 'Single Cell tracks ordered by S-phase progression'
                     )
                 ) +
                 scale_x_continuous(
