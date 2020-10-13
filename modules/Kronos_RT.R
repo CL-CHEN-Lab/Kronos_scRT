@@ -95,11 +95,19 @@ option_list = list(
         metavar = "character"
     ),
     make_option(
-        c("-k", "--keepXY"),
+        c("-X", "--keep_X"),
         type = "logical",
         default = FALSE,
         action = "store_true",
-        help = "keep XY chromosomes in the analysis",
+        help = "keep X chromosomes in the analysis",
+        metavar = "logical"
+    ),
+    make_option(
+        c("-Y", "--keep_Y"),
+        type = "logical",
+        default = FALSE,
+        action = "store_true",
+        help = "keep Y chromosomes in the analysis",
         metavar = "logical"
     ),
     make_option(
@@ -107,6 +115,13 @@ option_list = list(
         type = "integer",
         default = 3,
         help = "Numbers of parallel jobs to run [default= %default] ",
+        metavar = "integer"
+    ),
+    make_option(
+        c("-N", "--N_of_RT_groups"),
+        type = "integer",
+        default = 5,
+        help = " number of RT groups: either 2,3 or 5",
         metavar = "integer"
     ),
     make_option(
@@ -281,24 +296,12 @@ if (length(opt$groups) != length(opt$file)) {
 }
 
 #load genome sizes
-if (!opt$keepXY) {
-    Chr_Size <-
-        read_delim(
-            opt$chrSizes,
-            delim = '\t',
-            col_names = c('chr', 'size'),
-            col_types = cols()
-        ) %>%
-        filter(!chr %in% c('chrX', 'chrY'))
-} else{
-    Chr_Size <-
-        read_delim(
-            opt$chrSizes,
-            delim = '\t',
-            col_names = c('chr', 'size'),
-            col_types = cols()
-        )
-}
+Chr_Size=read_tsv(opt$chrSizes,col_names =c('chr','size'),col_types = cols())%>%
+    filter(case_when(
+        !opt$keep_X & chr=='chrX' ~ F,
+        !opt$keep_Y & chr=='chrY' ~ F,
+        T~T
+    ))
 
 #chr order
 chr_list = paste0('chr', c(1:100, 'X', 'Y'))
@@ -565,7 +568,7 @@ signal_smoothed = cbind(
         `colnames<-`(c('chr', 'start', 'end')),
     as_tibble(overlaps) %>% dplyr::select(-seqnames, -start, -end)
 ) %>%
-    group_by(index, basename, group, chr, start, end) %>%
+    group_by(Cell,index, basename, group, chr, start, end) %>%
     summarise(CN = weightedMedian(x = copy_number_corrected, w =
                                       width, na.rm = T)) %>%
     ungroup()
@@ -680,7 +683,7 @@ selecte_th = foreach(
                           summary = sub_sig %>%
                               mutate(Rep = ifelse(CN_bg >= i, T, F),
                                      Error = (Rep - CN_bg) ^ 2) %>%
-                              group_by(index, basename, group)  %>%
+                              group_by(Cell,index, basename, group)  %>%
                               summarise(summary = sum(Error))
                           
                           data.frame(
@@ -706,30 +709,29 @@ signal_smoothed = signal_smoothed %>%
 
 #identify new distribution in the S phase based the ammount of replicated bins
 new_index_list = signal_smoothed %>%
-    group_by(index, basename, group) %>%
+    group_by(Cell,index, basename, group) %>%
     summarise(perc_replication = mean(Rep)) %>%
     ungroup() %>%
     arrange(perc_replication) %>%
     group_by(group) %>%
     mutate(newIndex = 1:n()) %>%
-    dplyr::select(index, basename, newIndex, group)
-
+    dplyr::select(oldIndex=index, newIndex,Cell, basename, group)
 
 write_tsv(new_index_list,paste0(
     opt$out,
     '/',
     opt$output_file_base_name,
-    '_new_old_index_correspondance.txt'
+    '_new_old_index_correspondance_before_filtering'
 ))
 
 signal_smoothed = signal_smoothed %>%
-    inner_join(new_index_list, by = c('index', 'basename', 'group'))
+    inner_join(new_index_list, by = c('Cell','index'='oldIndex', 'basename','group')) 
 
 stopCluster(cl)
 
 # bin cells in order to have not unballance RT
 signal_smoothed = signal_smoothed %>%
-    group_by(index, group) %>%
+    group_by(Cell,index, group) %>% 
     mutate(PercentageReplication = mean(Rep),
            groups = ceiling(PercentageReplication * 10))
 
@@ -879,11 +881,11 @@ invisible(dev.off())
 #filter out samples that don't correlate ans save
 signal_smoothed = signal_smoothed %>%
     filter(index %in% Index) %>%
-    separate(index, c('basename', 'index'), sep = ' _ ') %>%
-    mutate(basename = factor(basename, level = unique(opt$groups)))
+    separate(index, c('group', 'index'), sep = ' _ ') %>% 
+    mutate(group = factor(group, level = unique(opt$groups)))
 
 rep_percentage = signal_smoothed %>%
-    group_by(basename, index) %>%
+    group_by(Cell,basename,group, index) %>%
     summarise(Rep_percentage = mean(Rep))
 
 plot = rep_percentage %>%
@@ -905,13 +907,21 @@ suppressMessages(ggsave(
 new_index_list = rep_percentage %>%
     ungroup() %>%
     arrange(Rep_percentage) %>%
-    group_by(basename) %>%
+    group_by(group) %>%
     mutate(newIndex = 1:n()) %>%
-    dplyr::select(index, newIndex, basename)
+    arrange(group,newIndex) %>%
+    dplyr::select(oldIndex=index, newIndex,Cell,basename,group)
+
+write_tsv(new_index_list,paste0(
+    opt$out,
+    '/',
+    opt$output_file_base_name,
+    '_new_old_index_correspondance_after_filtering.txt'
+))
 
 signal_smoothed = signal_smoothed %>%
     ungroup() %>%
-    inner_join(new_index_list, by = c('index', 'basename')) %>%
+    inner_join(new_index_list, by = c('Cell','index'='oldIndex', 'basename','group')) %>% 
     dplyr::select(chr,
                   start,
                   end,
@@ -921,8 +931,10 @@ signal_smoothed = signal_smoothed %>%
                   th,
                   Rep,
                   PercentageReplication,
-                  groups,
+                  RepGroup=groups,
+                  Cell,
                   basename,
+                  group,
                   newIndex)
 
 
@@ -940,14 +952,37 @@ write_delim(
     col_names = T
 )
 
+#select used data and save the new per cell files
+used_cells=  rbind( new_index_list%>%
+                        dplyr::select(Cell,basename,group )%>%ungroup(),
+                    G1_G2_cells%>%
+                        dplyr::select(Cell,basename,group )%>%ungroup())
+
+
+data=data%>%inner_join(used_cells,Joining, by = c("Cell", "basename", "group"))
+system(paste0('mkdir -p ', opt$out, '/Cells_used_in_the_analysis_info'))
+
+bs=foreach(i=unique(data$basename))%do%{
+    data%>%
+        filter(basename==i)%>%
+        dplyr::select(Cell,normalized_dimapd,mean_ploidy,ploidy_confidence,is_high_dimapd,is_noisy,coverage_per_1Mbp)%>%
+        write_csv(paste0(opt$out, '/Cells_used_in_the_analysis_info/',i,'_per_Cell_summary_metrics.csv'))
+    i
+    
+}
+
+rm('bs')
+rm('G1_G2_cells')
+rm('new_index_list')
+
 #calculate replication timing normalizing each bin by the number of cells in each bin and then calculating the average of the average
 s50 = signal_smoothed %>%
-    group_by(chr, start, end, groups, basename) %>%
+    group_by(chr, start, end, RepGroup, group) %>%
     summarise(Rep = mean(Rep)) %>%
     ungroup() %>%
-    group_by(chr, start, end, basename) %>%
+    group_by(chr, start, end, group) %>%
     summarise(RT = mean(Rep)) %>%
-    group_by(basename) %>%
+    group_by(group) %>%
     mutate(RT = (RT - min(RT)) / (max(RT) - min(RT)))
 
 write_delim(
@@ -1043,7 +1078,7 @@ if (opt$plot) {
                         ),
                         inherit.aes = F
                     ) +
-                    facet_grid(chr ~ basename, scale = 'free') +
+                    facet_grid(chr ~ group, scale = 'free') +
                     scale_fill_gradient(
                         low = 'blue',
                         high = 'red',
@@ -1266,7 +1301,7 @@ if (opt$plot) {
                         ),
                         inherit.aes = F
                     ) +
-                    facet_grid(chr ~ basename, scale = 'free') +
+                    facet_grid(chr ~ group, scale = 'free') +
                     scale_fill_gradient(
                         low = 'blue',
                         high = 'red',
@@ -1346,7 +1381,7 @@ if (opt$plot) {
                             ))
                         )
                 }
-                plot = plot + facet_wrap(~ basename)
+                plot = plot + facet_wrap(~ group)
                 suppressMessages(ggsave(
                     plot,
                     filename = paste0(
@@ -1368,21 +1403,19 @@ if ('referenceRT' %in% names(opt)) {
     RTs = rbind(
         s50 %>%
             ungroup() %>%
-            dplyr::select(chr, start, end, RT, basename),
+            dplyr::select(chr, start, end, RT, group),
         
         Reference_RT %>%
             mutate(
                 RT = RT / max(RT, na.rm = T),
-                basename = opt$ref_name
+                group = opt$ref_name
             )
     )
     
     
 } else{
-    RTs =  s50 %>%
-        ungroup() %>%
-        dplyr::select(chr, start, end, RT, basename) %>%
-        mutate(RT = RT)
+    RTs =  s50 
+    
 }
 
 pdf(
@@ -1396,14 +1429,16 @@ pdf(
 )
 
 RTs %>%
-    ggplot(aes(RT, fill = basename)) + geom_density(alpha = 0.2, aes(y = ..count.. /
+    ggplot(aes(RT, fill = group)) + geom_density(alpha = 0.2, aes(y = ..count.. /
                                                                          sum(..count..))) +
     xlab('RT') + ylab('density')
 
 invisible(dev.off())
 
+rm('RTs')
+
 ##### Correlation Calculated RT and reference
-RT_type = unique(RTs$basename)
+RT_type = unique(RTs$group)
 
 if (length(RT_type) != 1) {
     results = matrix(
@@ -1413,7 +1448,7 @@ if (length(RT_type) != 1) {
     )
     
     RTs = RTs %>%
-        spread(key = basename, value = RT) %>%
+        spread(key = group, value = RT) %>%
         filter(complete.cases(.))
     
     for (i in RT_type) {
@@ -1464,8 +1499,8 @@ if (length(RT_type) != 1) {
 
 #joing s50 with relative signals
 signal_smoothed = signal_smoothed %>%
-    dplyr::select(basename, chr, start, end, Rep, newIndex,PercentageReplication) %>%
-    inner_join(s50, by = c("basename", "chr", "start", "end"))  %>%
+    dplyr::select(group, chr, start, end, Rep,PercentageReplication) %>%
+    inner_join(s50, by = c("group", "chr", "start", "end"))  %>%
     mutate(
         RT = 10 * (1-RT) ,
         time = round( RT - 10*PercentageReplication,1)
@@ -1477,7 +1512,7 @@ cl <- makeCluster(opt$cores)
 registerDoSNOW(cl)
 
 x = signal_smoothed%>%
-    group_by(basename,time,RT,chr,start,end)%>%
+    group_by(group,time,RT,chr,start,end)%>%
     summarise(percentage=mean(Rep))
 
 
@@ -1493,25 +1528,61 @@ x %>%
         )
     )
 
+# fucntion to assigne categories
+    split_into_categoreis=Vectorize(function(RT,number){
+            if(number==3){
+                return( case_when(
+                    RT < 3 ~ '1 - Early',
+                    RT >= 3 & RT < 6 ~ '2 - Mid ',
+                    RT >= 6  ~ '3 - Late'
+                ))
+            }else if (number==5){
+                return( case_when(
+                    RT < 2 ~ '1 - Very Early',
+                    RT >= 2 & RT < 4  ~ '2 - Early',
+                    RT >= 4 & RT < 6 ~ '3 - Mid ',
+                    RT >= 6 & RT < 8 ~ '4 - Late',
+                    RT >= 8  ~ '5 - Very Late'))
+            }else {
+                return( case_when(
+                    RT < 5 ~ '1 - Early',
+                    RT >= 5  ~ '2 - Late'
+                ))
+    }
+        },vectorize.args = 'RT' )
+    cat_levels=function(number){
+            if(number==3){
+                return( c(
+                    '0 - All',
+                    '1 - Early',
+                    '2 - Mid ',
+                    '3 - Late'
+                ))
+            }else if (number==5){
+                return( c(
+                    '0 - All',
+                    '1 - Very Early',
+                    '2 - Early',
+                    '3 - Mid ',
+                    '4 - Late',
+                    '5 - Very Late'
+                ))
+            }else {
+                return( c(
+                    '0 - All',
+                    '1 - Early',
+                    '2 - Late'
+                )
+                )
+            }
+        }
+
 x = rbind(x  %>%
     mutate(
-        Cat_RT = case_when(
-            RT < 2 ~ '1 - Very Early',
-            RT >= 2 & RT < 4  ~ '2 - Early',
-            RT >= 4 & RT < 6 ~ '3 - Mid ',
-            RT >= 6 & RT < 8 ~ '4 - Late',
-            RT >= 8  ~ '5 - Very Late'
-        ),
+        Cat_RT = split_into_categoreis(RT,number = opt$N_of_RT_groups),
         Cat_RT = factor(
             Cat_RT,
-            levels = c(
-                '0 - All',
-                '1 - Very Early',
-                '2 - Early',
-                '3 - Mid ',
-                '4 - Late',
-                '5 - Very Late'
-            )
+            levels = cat_levels( opt$N_of_RT_groups)
         )
     ),
     x%>%
@@ -1519,20 +1590,13 @@ x = rbind(x  %>%
         Cat_RT = '0 - All',
         Cat_RT = factor(
             Cat_RT,
-            levels = c(
-                '0 - All',
-                '1 - Very Early',
-                '2 - Early',
-                '3 - Mid ',
-                '4 - Late',
-                '5 - Very Late'
-            )
+            levels = cat_levels( opt$N_of_RT_groups)
         )
     ))
 
 
 x=x%>%
-    group_by(basename,time,Cat_RT)%>%
+    group_by(group,time,Cat_RT)%>%
     summarise(percentage=mean(percentage))
 
 #T25_75 function
@@ -1568,7 +1632,7 @@ T25_75 = function(df, name, EL) {
     result = data.frame(
         time = seq(min, max, 0.01),
         percentage = data,
-        basename = name
+        group = name
     )
     t = result %>%
         mutate(
@@ -1581,7 +1645,7 @@ T25_75 = function(df, name, EL) {
             t75 = distance75 == min75,
             t25 = distance25 == min25
         ) %>%
-        dplyr::select(basename, time, percentage, t75, t25)  %>%
+        dplyr::select(group, time, percentage, t75, t25)  %>%
         mutate(Cat_RT = EL)
     
     return(t)
@@ -1589,7 +1653,7 @@ T25_75 = function(df, name, EL) {
 
 #calculate tresholds 25% 75% replication keeping in account early and late domains
 fitted_data = foreach(
-    basename = unique(x$basename),
+    group = unique(x$group),
     .combine = 'rbind',
     .packages = c('tidyverse', 'foreach'),
     .errorhandling = 'remove'
@@ -1600,8 +1664,8 @@ fitted_data = foreach(
         .packages = c('tidyverse', 'foreach'),
         .errorhandling = 'remove'
     ) %dopar% {
-        t = T25_75(df = x[x$basename == basename &
-                              x$Cat_RT == EL, ], basename, EL)
+        t = T25_75(df = x[x$group == group &
+                              x$Cat_RT == EL, ], group, EL)
     }
     temp
 }
@@ -1620,16 +1684,16 @@ t %>% write_tsv(paste0(opt$out,
 
 
 plot=ggplot(x) +
-    geom_point(aes(time,percentage,color=basename))+
+    geom_point(aes(time,percentage,color=group))+
     geom_line(data=fitted_data,aes(time,percentage),color='blue')+
     scale_x_reverse()+scale_y_continuous(labels = scales::percent)+
     geom_vline(data=t,aes(xintercept=t25),color='red')+
     geom_vline(data=t,aes(xintercept=t75),color='red')+
     geom_text(data=t,aes(label=paste('TW\n',Twidth)),x=Inf,y=0.5, hjust=1.25)+
-    facet_grid(basename~Cat_RT)
+    facet_grid(group~Cat_RT)
 
 ncat=length(unique(x$Cat_RT))
-nbasen=length(unique(x$basename))
+nbasen=length(unique(x$group))
 suppressMessages(ggsave(
     plot,
     filename = paste0(opt$out,
@@ -1640,7 +1704,7 @@ suppressMessages(ggsave(
 
 
 p = ggplot(t) +
-    geom_col(aes(Cat_RT, Twidth, fill = basename), position = 'dodge') +
+    geom_col(aes(Cat_RT, Twidth, fill = group), position = 'dodge') +
     ylab('Twidth') + xlab('')
 
 suppressMessages(ggsave(
@@ -1654,7 +1718,7 @@ suppressMessages(ggsave(
 if (opt$Var_against_reference) {
     #joing s50 with relative signals
     signal_smoothed = signal_smoothed %>%
-        dplyr::select(basename, chr, start, end, Rep, newIndex,PercentageReplication) %>%
+        dplyr::select(group, chr, start, end, Rep,PercentageReplication) %>%
         inner_join(Reference_RT, by = c("chr", "start", "end"))  %>%
         mutate(
             RT = 10 * (1-RT) ,
@@ -1663,7 +1727,7 @@ if (opt$Var_against_reference) {
     
     
     x = signal_smoothed%>%
-        group_by(basename,time,RT,chr,start,end)%>%
+        group_by(group,time,RT,chr,start,end)%>%
         summarise(percentage=mean(Rep))
         
         
@@ -1681,23 +1745,10 @@ if (opt$Var_against_reference) {
     
     x= rbind(x  %>%
                   mutate(
-                      Cat_RT = case_when(
-                          RT < 2 ~ '1 - Very Early',
-                          RT >= 2 & RT < 4  ~ '2 - Early',
-                          RT >= 4 & RT < 6 ~ '3 - Mid ',
-                          RT >= 6 & RT < 8 ~ '4 - Late',
-                          RT >= 8  ~ '5 - Very Late'
-                      ),
+                      Cat_RT =  Cat_RT = split_into_categoreis(RT,number = opt$N_of_RT_groups),
                       Cat_RT = factor(
                           Cat_RT,
-                          levels = c(
-                              '0 - All',
-                              '1 - Very Early',
-                              '2 - Early',
-                              '3 - Mid ',
-                              '4 - Late',
-                              '5 - Very Late'
-                          )
+                          levels = cat_levels(number = opt$N_of_RT_groups)
                       )
                   ),
               x%>%
@@ -1717,12 +1768,12 @@ if (opt$Var_against_reference) {
                   ))
     
     x=x%>%
-        group_by(basename,time,Cat_RT)%>%
+        group_by(group,time,Cat_RT)%>%
         summarise(percentage=mean(percentage)) 
     
     #calculate tresholds 25% 75% replication keeping in account early and late domains
     fitted_data = foreach(
-        basename = unique(x$basename),
+        group = unique(x$group),
         .combine = 'rbind',
         .packages = c('tidyverse', 'foreach'),
         .errorhandling = 'remove'
@@ -1733,8 +1784,8 @@ if (opt$Var_against_reference) {
             .packages = c('tidyverse', 'foreach'),
             .errorhandling = 'remove'
         ) %dopar% {
-            t = T25_75(df = x[x$basename == basename &
-                                  x$Cat_RT == EL, ], basename, EL)
+            t = T25_75(df = x[x$group == group &
+                                  x$Cat_RT == EL, ], group, EL)
         }
         temp
     }
@@ -1753,16 +1804,16 @@ if (opt$Var_against_reference) {
     
     
     plot=ggplot(x) +
-        geom_point(aes(time,percentage,color=basename))+
+        geom_point(aes(time,percentage,color=group))+
         geom_line(data=fitted_data,aes(time,percentage),color='blue')+
         scale_x_reverse()+scale_y_continuous(labels = scales::percent)+
         geom_vline(data=t,aes(xintercept=t25),color='red')+
         geom_vline(data=t,aes(xintercept=t75),color='red')+
         geom_text(data=t,aes(label=paste('TW\n',Twidth)),x=Inf,y=0.5, hjust=1.25)+
-        facet_grid(basename~Cat_RT)
+        facet_grid(group~Cat_RT)
     
     ncat=length(unique(x$Cat_RT))
-    nbasen=length(unique(x$basename))
+    nbasen=length(unique(x$group))
     suppressMessages(ggsave(
         plot,
         filename = paste0(opt$out,
@@ -1772,7 +1823,7 @@ if (opt$Var_against_reference) {
     ))
     
     p = ggplot(t) +
-        geom_col(aes(Cat_RT, Twidth, fill = basename), position = 'dodge') +
+        geom_col(aes(Cat_RT, Twidth, fill = group), position = 'dodge') +
         ylab('Twidth') + xlab('')
     
     suppressMessages(ggsave(
