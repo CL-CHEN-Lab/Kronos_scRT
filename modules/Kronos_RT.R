@@ -1454,7 +1454,7 @@ if (length(unique(RTs$group)) != 1) {
         colors = c('#21908CFF', '#F0F921FF', '#BB3754FF')
     )
     
-    ggsave(
+    suppressMessages( ggsave(
         plot = plot,
         filename =paste0(
             opt$out,
@@ -1462,7 +1462,7 @@ if (length(unique(RTs$group)) != 1) {
             opt$output_file_base_name,
             '_correlation_plot_RTs.pdf'
         )
-    )
+    ))
  
  }
 

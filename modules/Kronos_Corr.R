@@ -51,11 +51,17 @@ if (!'File' %in% names(opt)) {
 } else{
     opt$File = str_split(opt$File, ',')[[1]]
 }
-if ('order' %in% names(opt)) {
+if ('sort' %in% names(opt)) {
     opt$sort = str_split(opt$sort, ',')[[1]]
     
 }
 
+#create directory
+if (str_extract(opt$out, '.$') != '/') {
+    opt$out = paste0(opt$out, '/')
+}
+
+system(paste0('mkdir -p ', opt$out))
 
 scRT = foreach(
     i = 1:length(opt$File),
@@ -63,9 +69,9 @@ scRT = foreach(
     .combine = 'rbind'
 ) %do% {
     tmp = read_tsv(opt$File[i], col_types = cols())
-    if ('order' %in% names(opt)) {
+    if ('sort' %in% names(opt)) {
         tmp %>%
-            mutate(group = factor(group, levels = opt$order))
+            mutate(group = factor(group, levels = opt$sort))
         
     } else{
         tmp
@@ -92,7 +98,7 @@ plot = ggcorrplot(
     colors = c('#21908CFF', '#F0F921FF', '#BB3754FF')
 )
 
-ggsave(
+suppressMessages(ggsave(
     plot = plot,
     filename = paste0(
         opt$out,
@@ -100,7 +106,7 @@ ggsave(
         'pearson_correlation',
         '.pdf'
     )
-)
+))
 
 print('done')
 
