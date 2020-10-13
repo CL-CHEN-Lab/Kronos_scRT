@@ -984,7 +984,8 @@ s50 = signal_smoothed %>%
     group_by(chr, start, end, group) %>%
     summarise(RT = mean(Rep)) %>%
     group_by(group) %>%
-    mutate(RT = (RT - min(RT)) / (max(RT) - min(RT)))
+    mutate(RT = (RT - min(RT)) / (max(RT) - min(RT)))%>%
+    dplyr::select(chr,start,end,RT,group)
 
 write_delim(
     x = s50,
@@ -1403,8 +1404,7 @@ if (opt$plot) {
 if ('referenceRT' %in% names(opt)) {
     RTs = rbind(
         s50 %>%
-            ungroup() %>%
-            dplyr::select(chr, start, end, RT, group),
+            ungroup() ,
         
         Reference_RT %>%
             mutate(
