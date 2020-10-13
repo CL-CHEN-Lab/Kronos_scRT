@@ -554,7 +554,6 @@ Sphase_tracks = all_tracks %>%
     )
 
 #free some memory
-rm('data')
 rm('all_tracks')
 
 #calculate median CNV across a bin for S cells
@@ -634,7 +633,8 @@ if ('referenceRT' %in% names(opt)) {
     
     #write output
     write_delim(
-        x = Reference_RT,
+        x = Reference_RT%>%
+            mutate(group=opt$ref_name),
         path = paste0(
             opt$out,
             '/',
@@ -1436,16 +1436,16 @@ RTs %>%
 
 invisible(dev.off())
 
-rm('RTs')
 
 ##### Correlation Calculated RT and reference
 
-if (unique(RTs$group) != 1) {
+if (length(unique(RTs$group)) != 1) {
     
-    RTs = RTs %>%
+    RTs = RTs %>% 
         spread(key = group, value = RT) %>%
         filter(complete.cases(.))%>%
-        dplyr::select(-chr,-start,-end)
+        dplyr::select(-chr,-start,-end)%>%
+        cor()
     
     plot = ggcorrplot(
         RTs,
@@ -1464,7 +1464,7 @@ if (unique(RTs$group) != 1) {
         )
     )
  
-}
+ }
 
 #joing s50 with relative signals
 signal_smoothed = signal_smoothed %>%
