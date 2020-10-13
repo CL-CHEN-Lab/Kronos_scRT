@@ -100,6 +100,14 @@ elif [ "$1" == "scPlots" ];then
     else
        Rscript $DIR/modules/Kronos_scPlots.R "${@:2}"
     fi
+    
+elif [ "$1" == "Corr" ];then
+    if test "$#" == 1 ; then
+        echo Usage: Kronos Corr [options]
+        Rscript $DIR/modules/Kronos_Corr.R -h | grep -v Kronos_Corr.R
+    else
+       Rscript $DIR/modules/Kronos_Corr.R "${@:2}"
+    fi
 else
 
 echo -e "\nProgram: Kronos (Tools for the single cell analysis of the replication timing program)\n
@@ -108,13 +116,14 @@ commands:\n
 \t InstRpacks \t\t Install all the required R packages
 \t fastqtoBAM \t\t Trims and maps reads
 \t suggests \t\t Suggests parameters for binning, cell filtering and RT resolution starting from fastqtoBAM report or manual input
-\t binning    \t\t Calculates mappability and gc content for bins to be used with Kronos CNV
-\t CNV        \t\t Calculates copy number variation 
+\t binning\t\t Calculates mappability and gc content for bins to be used with Kronos CNV
+\t CNV\t\t\t Calculates copy number variation 
 \t 10xtoKronos\t\t Converts 10X genomics files in a format that Kronos can use
 \t WhoIsWho \t\t Manually assign cell cycle stage
 \t diagnostic \t\t Plotting tools to identify appropriate tresholds for Kronos RT
-\t RT         \t\t Calculates scReplication profiles and scRT
-\t compare RT    \t\t Compares RT results from multiple experiments
+\t RT \t\t\t Calculates scReplication profiles and scRT
+\t Corr \t\t\t Calculates pearson correlation between multipe calculated replication timing/ rescaled reference RT files 
+\t compare RT \t\t Compares RT results from multiple experiments
 \t compare TW \t\t Allowes to investigate variability using a categorical annotation of the genome (for example binding sites or genes of interest)
 \t population RT \t\t Calcualtes population RT starting from single cell BAM files and Kronos diagnostic outputs
 \t scPlots \t\t scRT plots

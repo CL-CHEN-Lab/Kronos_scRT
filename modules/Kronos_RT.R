@@ -10,7 +10,7 @@ option_list = list(
         c("-K", "--Kronos_conf_file"),
         type = "character",
         default = NULL,
-        help = "Kronos setting file. If provided -F,-T,-S,-b and -g are ignored. Tab file containing: Per cell stat file /t tracks file /t settings file /t basename (optional) /t group (optional) ",
+        help = "Kronos setting file. If provided -F,-T,-S,-b and -g are ignored. Tab file containing: Per cell stat file <TAB> tracks file <TAB> settings file <TAB> basename (optional) <TAB> group (optional) ",
         metavar = "character"
     ),make_option(
         c("-F", "--file"),
@@ -154,6 +154,7 @@ opt = parse_args(object = OptionParser(option_list = option_list))
 
 #load libraries
 suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
+suppressPackageStartupMessages(library(ggcorrplot, quietly = TRUE))
 suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 suppressPackageStartupMessages(library(doSNOW, quietly = TRUE))
 suppressPackageStartupMessages(library(gplots, quietly = TRUE))
@@ -1438,63 +1439,31 @@ invisible(dev.off())
 rm('RTs')
 
 ##### Correlation Calculated RT and reference
-RT_type = unique(RTs$group)
 
-if (length(RT_type) != 1) {
-    results = matrix(
-        nrow = length(RT_type),
-        ncol = length(RT_type),
-        dimnames = list(RT_type, RT_type)
-    )
+if (unique(RTs$group) != 1) {
     
     RTs = RTs %>%
         spread(key = group, value = RT) %>%
-        filter(complete.cases(.))
+        filter(complete.cases(.))%>%
+        dplyr::select(-chr,-start,-end)
     
-    for (i in RT_type) {
-        for (h in RT_type) {
-            x = RTs[, i] %>%
-                pull()
-            y = RTs[, h] %>%
-                pull()
-            results[i, h] = cor.test(x = x,
-                                     y = y,
-                                     method = 'pearson')$estimate
-        }
-    }
-    
-    #preparing colors
-    color = colorRampPalette(colors = c('blue', 'green', 'yellow', 'orange', 'red'))
-    
-    pdf(paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_correlation_plot_RTs.pdf'
-    ))
-    heatmap.2(
-        results,
-        cellnote = round(results, 2),
-        notecex = 1,
-        notecol = 'black',
-        trace = "none",
-        dendrogram = 'none',
-        Colv = FALSE,
-        Rowv = FALSE,
-        cexRow = 1,
-        cexCol = 1,
-        lhei = c(1, 3),
-        lwid = c(1, 3),
-        breaks = seq(0, 1, length.out = 101),
-        srtCol = 90,
-        srtRow = 0,
-        adjRow = 0,
-        adjCol = 1,
-        density.info = 'density',
-        key.title = 'Pearson',
-        col = color(100)
+    plot = ggcorrplot(
+        RTs,
+        lab = T,
+        lab_col = 'white',legend.title = 'Pearson\ncorrelation',
+        colors = c('#21908CFF', '#F0F921FF', '#BB3754FF')
     )
-    invisible(dev.off())
+    
+    ggsave(
+        plot = plot,
+        filename =paste0(
+            opt$out,
+            '/',
+            opt$output_file_base_name,
+            '_correlation_plot_RTs.pdf'
+        )
+    )
+ 
 }
 
 #joing s50 with relative signals

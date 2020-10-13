@@ -117,7 +117,8 @@ if (!"directory" %in% names(opt)) {
 }
 
 # load bins and gc percentage
-bins = read_tsv(opt$bins, col_types = cols())
+bins = read_tsv(opt$bins, col_types = cols())%>%
+    arrange(chr,start)
 
 if (str_extract(opt$directory, '.$') != '/') {
     opt$directory = paste0(opt$directory, '/')

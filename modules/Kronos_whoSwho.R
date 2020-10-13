@@ -61,6 +61,6 @@ data%>%
     mutate(is_high_dimapd=ifelse(Phase=='S',T,F),
            is_noisy=ifelse(Phase=='S',T,F))%>%
     dplyr::select(-Phase)%>%
-    write.csv(paste0(opt$out,'phased_',basename(opt$file)))
+    write_csv(paste0(opt$out,'phased_',basename(opt$file)))
 
 print('done')

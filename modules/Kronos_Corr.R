@@ -1,0 +1,106 @@
+#!/usr/local/bin/Rscript --slave
+#parse input
+suppressPackageStartupMessages(library(optparse, quietly = TRUE))
+
+options(stringsAsFactors = FALSE)
+options(warn = 1, scipen = 999)
+
+option_list = list(
+    make_option(
+        c("-F", "--File"),
+        type = "character",
+        default = NULL,
+        help = "Replication timing files separated by a comma. Format: chr <TAB> start <TAB> end <TAB> group",
+        metavar = "character"
+    ),
+    make_option(
+        c("-s", "--sort"),
+        type = "character",
+        default = NULL,
+        help = "group names orders",
+        metavar = "character"
+    ),
+    make_option(
+        c("-o", "--out"),
+        type = "character",
+        default = "output",
+        help = "Output directory [default= %default]",
+        metavar = "character"
+    ),
+    make_option(
+        c("-f", "--output_file_base_name"),
+        type = "character",
+        default = "out",
+        help = "Base name for the output file [default= %default]",
+        metavar = "character"
+    )
+)
+
+#recover inputs
+opt = parse_args(object = OptionParser(option_list = option_list))
+
+#load module
+suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
+suppressPackageStartupMessages(library(ggcorrplot, quietly = TRUE))
+suppressPackageStartupMessages(library(foreach, quietly = TRUE))
+
+
+if (!'File' %in% names(opt)) {
+    stop("RT files were not provided. See script usage (--help)")
+    
+} else{
+    opt$File = str_split(opt$File, ',')[[1]]
+}
+if ('order' %in% names(opt)) {
+    opt$sort = str_split(opt$sort, ',')[[1]]
+    
+}
+
+
+scRT = foreach(
+    i = 1:length(opt$File),
+    .packages = 'tidyverse',
+    .combine = 'rbind'
+) %do% {
+    tmp = read_tsv(opt$File[i], col_types = cols())
+    if ('order' %in% names(opt)) {
+        tmp %>%
+            mutate(group = factor(group, levels = opt$order))
+        
+    } else{
+        tmp
+    }
+}
+
+
+#create directory
+if (str_extract(opt$out, '.$') != '/') {
+    opt$out = paste0(opt$out, '/')
+}
+
+
+
+scRT = scRT %>% spread(group, RT) %>%
+    drop_na() %>%
+    dplyr::select(-chr, -start, -end) %>%
+    cor()
+
+plot = ggcorrplot(
+    scRT,
+    lab = T,
+    lab_col = 'white',legend.title = 'Pearson\ncorrelation',
+    colors = c('#21908CFF', '#F0F921FF', '#BB3754FF')
+)
+
+ggsave(
+    plot = plot,
+    filename = paste0(
+        opt$out,
+        opt$output_file_base_name,
+        'pearson_correlation',
+        '.pdf'
+    )
+)
+
+print('done')
+
