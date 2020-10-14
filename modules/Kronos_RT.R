@@ -734,7 +734,7 @@ stopCluster(cl)
 signal_smoothed = signal_smoothed %>%
     group_by(Cell,index, group) %>% 
     mutate(PercentageReplication = mean(Rep),
-           groups = ceiling(PercentageReplication * 10))
+           groups = ceiling(PercentageReplication * 100))
 
 #plot profile binning
 plot = signal_smoothed %>%
@@ -1714,7 +1714,7 @@ if (opt$Var_against_reference) {
     
     x= rbind(x  %>%
                   mutate(
-                      Cat_RT =  Cat_RT = split_into_categoreis(RT,number = opt$N_of_RT_groups),
+                      Cat_RT = split_into_categoreis(RT,number = opt$N_of_RT_groups),
                       Cat_RT = factor(
                           Cat_RT,
                           levels = cat_levels(number = opt$N_of_RT_groups)
