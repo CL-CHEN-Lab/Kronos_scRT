@@ -234,8 +234,8 @@ if (opt$Var_against_reference) {
         opt$Var_against_reference = F
     }
 }
-# convert binsize to numeric
 
+# convert binsize to numeric
 extract_unit = str_extract(opt$binsSize, pattern = '.{2}$')
 resolution = as.numeric(str_remove(opt$binsSize, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]")) * case_when(
     grepl(x = extract_unit, pattern =  '[Kk][Bb]') ~ 1000,
@@ -683,7 +683,7 @@ selecte_th = foreach(
                       .packages = 'tidyverse') %do% {
                           summary = sub_sig %>%
                               mutate(Rep = ifelse(CN_bg >= i, T, F),
-                                     Error = (Rep - CN_bg) ^ 2) %>%
+                                     Error = (Rep - CN_bg)^2) %>%
                               group_by(Cell,index, basename, group)  %>%
                               summarise(summary = sum(Error))
                           
@@ -733,8 +733,7 @@ stopCluster(cl)
 # bin cells in order to have not unballance RT
 signal_smoothed = signal_smoothed %>%
     group_by(Cell,index, group) %>% 
-    mutate(PercentageReplication = mean(Rep),
-           groups = ceiling(PercentageReplication * 100))
+    mutate(PercentageReplication = mean(Rep))
 
 #plot profile binning
 plot = signal_smoothed %>%
@@ -831,7 +830,7 @@ invisible(dev.off())
 to_keep = foreach(i = 1:length(unique(basename_n))) %do% {
     sub_mat = results[basename_n == i, basename_n == i]
     diag(sub_mat) = 0
-    ! rowQuantiles(x = sub_mat, probs = 0.95) <= opt$min_correlation
+    ! rowQuantiles(x = sub_mat, probs = 0.60) <= opt$min_correlation
 }
 
 to_keep = unlist(to_keep)
@@ -890,7 +889,7 @@ rep_percentage = signal_smoothed %>%
     summarise(Rep_percentage = mean(Rep))
 
 plot = rep_percentage %>%
-    ggplot(aes(Rep_percentage, color = basename)) +
+    ggplot(aes(Rep_percentage, color = group)) +
     geom_density(aes(y = ..scaled..)) +
     scale_x_continuous(labels = scales::percent) +
     xlab('Percentage of the genome that has been replicated') +
@@ -932,7 +931,6 @@ signal_smoothed = signal_smoothed %>%
                   th,
                   Rep,
                   PercentageReplication,
-                  RepGroup=groups,
                   Cell,
                   basename,
                   group,
@@ -977,9 +975,81 @@ rm('G1_G2_cells')
 rm('new_index_list')
 
 #calculate replication timing normalizing each bin by the number of cells in each bin and then calculating the average of the average
-s50 = signal_smoothed %>%
+# select simmetrically distributed cells.
+
+rep_percentage = rep_percentage%>%
+    group_by(group)%>%
+    mutate(min_perc=1-max(Rep_percentage),
+           max_perc=1-min(Rep_percentage))%>%
+    filter(Rep_percentage >= round(min_perc,2),
+           Rep_percentage <= round(max_perc,2))%>%
+    mutate(min_perc=1-max(Rep_percentage),
+           max_perc=1-min(Rep_percentage))%>%
+    filter(Rep_percentage >= round(min_perc,2),
+           Rep_percentage <= round(max_perc,2))
+
+plot = rep_percentage %>%
+    ggplot(aes(Rep_percentage, color = group)) +
+    geom_density(aes(y = ..scaled..)) +
+    scale_x_continuous(labels = scales::percent) +
+    xlab('Percentage of the genome that has been replicated') +
+    ylab('density') + coord_cartesian(xlim = c(0, 1))
+
+suppressMessages(ggsave(
+    plot = plot,
+    filename = paste0(
+        opt$out,
+        opt$output_file_base_name,
+        '_percentage_of_replicating_cells_used_for_RT_calculation.pdf'
+    )
+))
+
+# bin the cells based on their percentage of replication in order have continuous bins with at least one cell.
+
+RT_binning = foreach(Group = unique(rep_percentage$group), .combine = 'rbind') %:%
+    foreach(bins = 1:10, .combine = 'rbind') %do% {
+        rep_group = rep_percentage %>%
+            ungroup() %>%
+            filter(group == Group) %>%
+            mutate(rep_group = ceiling(100 * Rep_percentage / bins)) %>%
+            arrange(rep_group) %>%
+            pull(rep_group) %>%
+            unique()
+        
+        cont_rep_group = min(rep_group):max(rep_group)
+        
+        if (length(cont_rep_group) == length(rep_group)) {
+            if (all(rep_group == cont_rep_group)) {
+                tibble(group = Group,
+                       Binning_step = bins)
+            } else{
+                tibble()
+            }
+        } else{
+            tibble()
+            
+        }
+    }
+
+RT_binning=RT_binning%>%
+    group_by(group)%>%
+    summarise(Binning_step=min(Binning_step))
+
+
+s50 =signal_smoothed%>%
+    group_by(group)%>%
+    mutate(min_perc=1-max(PercentageReplication),
+           max_perc=1-min(PercentageReplication)) %>%
+    filter(PercentageReplication >= min_perc,
+           PercentageReplication <= max_perc)%>%
+    mutate(min_perc=1-max(PercentageReplication),
+           max_perc=1-min(PercentageReplication)) %>%
+    filter(PercentageReplication >= min_perc,
+           PercentageReplication <= max_perc)%>%
+    inner_join(RT_binning, by = "group")%>%
+    mutate(RepGroup=(ceiling(100*PercentageReplication/Binning_step)))%>%
     group_by(chr, start, end, RepGroup, group) %>%
-    summarise(Rep = mean(Rep)) %>%
+    summarise(Rep = mean(Rep))%>%
     ungroup() %>%
     group_by(chr, start, end, group) %>%
     summarise(RT = mean(Rep)) %>%
