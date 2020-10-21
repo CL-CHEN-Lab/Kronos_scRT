@@ -278,11 +278,11 @@ plot_rt=function(data,mapping,...){
         gather('type', 'pos', start, end)
     data$fill=abs(data[as_label(mapping$x)]-data[as_label(mapping$y)])[,]
     data=data%>%
-        mutate(fill=ifelse(fill > ΔRT, paste('ΔRT >',ΔRT), paste('ΔRT <',ΔRT)),
-               fill=factor(fill, levels = c( paste('ΔRT <',opt$deltaRT_threshold),paste('ΔRT >',opt$deltaRT_threshold),'Column RT','Row RT')))
+        mutate(fill=ifelse(fill > ΔRT, paste('|ΔRT| >',ΔRT), paste('|ΔRT| <',ΔRT)),
+               fill=factor(fill, levels = c( paste('|ΔRT| <',opt$deltaRT_threshold),paste('|ΔRT| >',opt$deltaRT_threshold),'Column RT','Row RT')))
     
     scales=c(NA,'orange','blue','red')
-    names(scales)=c(paste('ΔRT <',opt$deltaRT_threshold),paste('ΔRT >',opt$deltaRT_threshold),'Column RT', 'Row RT')    
+    names(scales)=c(paste('|ΔRT| <',opt$deltaRT_threshold),paste('|ΔRT| >',opt$deltaRT_threshold),'Column RT', 'Row RT')    
     p= ggplot() +
         geom_hline(yintercept = 0.5) +
         geom_rect(data=data,mapping = mapping3, alpha=0.5)+
