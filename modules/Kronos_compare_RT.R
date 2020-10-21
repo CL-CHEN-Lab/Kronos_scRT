@@ -5,17 +5,10 @@ options(stringsAsFactors = FALSE,scipen = 999)
 options(warn = 1)
 option_list = list(
     make_option(
-        c("-S", "--S50s"),
+        c("-R", "--RTs"),
         type = "character",
         default = NULL,
         help = "RT files with same binning",
-        metavar = "character"
-    ),
-    make_option(
-        c("-R", "--referenceRT"),
-        type = "character",
-        default = NULL,
-        help = "Reference RT min=Late, max=Early, only one reference is allowed",
         metavar = "character"
     ),
     make_option(
@@ -23,21 +16,6 @@ option_list = list(
         type = "character",
         default = "output",
         help = "Output directory [default= %default]",
-        metavar = "character"
-    ),
-    make_option(
-        c("-k", "--keepXY"),
-        type = "logical",
-        default = FALSE,
-        action = "store_true",
-        help = "Keeps XY chr in the analysis",
-        metavar = "logical"
-    ),
-    make_option(
-        c("--Reference"),
-        type = "character",
-        action = "store",
-        help = "Base name to use as a reference, if not provided the first basename in the S50 file will be used or , if provided , the reference RT even if this option is selected",
         metavar = "character"
     ),
     make_option(
@@ -64,7 +42,7 @@ option_list = list(
         metavar = "character"
     ),
     make_option(
-        c("-f", "--basename_filter"),
+        c("-f", "--group_filter"),
         type = "character",
         default = NULL,
         help = "Filter out unwanted samples for RT files",
@@ -79,6 +57,7 @@ suppressPackageStartupMessages(library(foreach))
 suppressPackageStartupMessages(library(Cairo))
 suppressPackageStartupMessages(library(scales))
 suppressPackageStartupMessages(library(GenomicRanges))
+suppressPackageStartupMessages(library(GGally))
 
 #create output directory
 if (str_extract(opt$out,'.$')!='/'){
@@ -87,15 +66,15 @@ if (str_extract(opt$out,'.$')!='/'){
 
 system(paste0('mkdir -p ', opt$out))
 
-if (!'S50s' %in% names(opt)) {
-    stop("No S50 file has been provided. See script usage (--help)")
+if (!'RTs' %in% names(opt)) {
+    stop("No RT file has been provided. See script usage (--help)")
 }
 #load files
-opt$S50s = str_split(opt$S50s, ',', simplify = F)[[1]]
+opt$RTs = str_split(opt$RTs, ',', simplify = F)[[1]]
 
 data <-
     foreach(
-        i = opt$S50s,
+        i = opt$RTs,
         .combine = 'rbind',
         .packages = 'tidyverse'
     ) %do% {
@@ -103,163 +82,251 @@ data <-
                  col_types = cols())
     }
 
-if('basename_filter' %in% names(opt)){
-    opt$basename_filter=str_split(opt$basename_filter, ',', simplify = F)[[1]]
+if('group_filter' %in% names(opt)){
+    opt$group_filter=str_split(opt$group_filter, ',', simplify = F)[[1]]
     data=data%>%
-        filter(!basename %in% opt$basename_filter)
+        filter(!group %in% opt$group_filter)
 }
 
-if ('referenceRT' %in% names(opt)) {
-    referenceRT = read_tsv(opt$referenceRT,
-                           col_types = cols())
-    names(referenceRT) = c(names(referenceRT)[-4], 'referenceRT')
-    data = inner_join(data, referenceRT, by = c('chr', 'start', 'end'))
-    if (length(data$chr) == 0) {
-        stop('Reference RT and S50 files do not have the same binning')
-    }
-    opt$Reference = 'referenceRT'
-} else{
-    UB = unique(data$basename)
-    if ('Reference' %in% names(opt)) {
-        if (!opt$Reference %in% UB | !'Reference' %in% names(opt))
-            opt$Reference = UB[1]
-        warning(
-            paste0(
-                'Reference basename not found, ',
-                opt$Reference,
-                ' will be used as reference'
-            )
-        )
-        
-    }
-    data = spread(data, basename, RT) %>%
-        gather(key = 'basename', value = 'RT', UB[!UB %in% opt$Reference]) %>%
-        filter(complete.cases(.))
-}
+data=data%>%
+    spread(group,RT)%>%
+    drop_na()
 
 
-regions = data %>%
-    group_by(basename) %>%
-    summarise(n = n())
-
-percentages = foreach (i = seq(0, 1, 0.01),
+percentages = function(data,mapping,...){
+    x <- pull(data,var =  as_label(mapping$x))
+    y <- pull(data,var =  as_label(mapping$y))
+    tmp=foreach (i = seq(0, 1, 0.01),
                        .combine = 'rbind',
                        .packages = 'tidyverse') %do% {
                            type = function(RT.x, RT.y, i) {
                                RT.x = ((RT.x - min(RT.x)) / (max(RT.x) - min(RT.x))) - 0.5
                                RT.y = ((RT.y - min(RT.y)) / (max(RT.y) - min(RT.y))) - 0.5
                                delta = RT.x - RT.y
-                               result = ifelse((RT.x / RT.y < 0 &
-                                                    RT.y > 0 & abs(delta) > i),
-                                               'EtoL',
-                                               ifelse((RT.x / RT.y < 0 &
-                                                           RT.y < 0 & abs(delta) > i),
-                                                      'LtoE',
-                                                      ifelse((RT.x / RT.y >= 0 &
-                                                                  delta < -i),
-                                                             'toLater',
-                                                             ifelse((RT.x / RT.y >= 0 &
-                                                                         delta > i), 'toEarlier', 'unchanged')
-                                                      )
-                                               ))
+                               result = case_when(
+                                   (RT.x / RT.y < 0 & RT.y > 0 & abs(delta) > i) ~  'EtoL',
+                                   (RT.x / RT.y < 0 & RT.y < 0 & abs(delta) > i) ~  'LtoE',
+                                   (RT.x / RT.y >= 0 & delta < -i) ~ 'toLater',
+                                   (RT.x / RT.y >= 0 & delta > i) ~ 'toEarlier',
+                                   T ~ 'unchanged'
+                               )
                                return(result)
                            }
                            
-                           data %>%
-                               mutate(type = type(RT, select(., matches(opt$Reference)), i)) %>%
-                               group_by(basename, type) %>%
-                               summarise(counts = n()) %>%
-                               inner_join(regions, by = "basename") %>%
-                               mutate(percent = counts / n) %>%
-                               select(basename, type, percent) %>%
-                               mutate(th = i)
+                           tibble(X=x,Y=y,l=length(x)) %>%
+                               mutate(type = type(X, Y, i)) %>%
+                               group_by(type) %>%
+                               summarise(counts = n(),
+                                         l=unique(l)) %>%
+                               mutate(percent = round(counts / l,2)) %>%
+                               dplyr::select(type, percent) %>%
+                               mutate(th = i)%>%
+                               filter(type != 'unchanged')
                            
                        }
+    
+    mapping=ggplot2:::rename_aes(modifyList(mapping,aes(x = th,y = percent,color=type)))
+    p=ggplot(data=tmp,mapping=mapping,... = ...)+geom_line()+
+        scale_y_continuous(labels = scales::percent_format())+coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    
+ return(p)
+}
 
-p = percentages %>%
-    ungroup() %>%
-    spread(type, percent, fill = 0) %>%
-    gather(type, percent, -basename, -th) %>%
-    filter(type != 'unchanged') %>%
-    mutate(line = paste0('ΔRT = ', basename, ' - ', opt$Reference)) %>%
-    ggplot(aes(x = th, y = percent, color = type)) +
-    geom_line() +
-    facet_grid( ~ line) +
-    scale_fill_manual(values = c('#1b9e77', '#d95f02', '#7570b3', '#e7298a')) +
-    scale_color_manual(values = c('#1b9e77', '#d95f02', '#7570b3', '#e7298a')) +
-    ylab('% ofchanging bins') + xlab('ΔRT threshold')+
-    scale_y_continuous(labels = scales::percent_format())
+n_samples=length(names(data[-c(1:3)]))
+
+p=ggpairs(
+    data %>% dplyr::select(-chr, -start, -end),
+    upper =  list(continuous = percentages),
+    lower =  list(continuous = percentages),
+    title = 'ΔRT=RTx-RTy',
+    legend = c(1, 2),
+    xlab = 'ΔRT threshold',
+    ylab = '% ofchanging bins',
+    diag = list(
+        continuous = function(data, mapping)
+            ggplot() + theme_void() + annotate('text',x = 1,y=1,label=as_label(mapping$x))+
+            annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha=0.2)
+    ),columnLabels=NULL
+) +
+    ylab('% ofchanging bins') + xlab('ΔRT threshold')
+
 
 suppressMessages(
     ggsave(
     paste0(opt$out, '/changes_distribution.pdf'),
     plot = p,
     limitsize = FALSE,
-    device = cairo_pdf
+    device = cairo_pdf,
+    height = n_samples*1.2 ,
+    width = n_samples*1.2 
 )
 )
 
-
+# identify changing regions
 type = function(RT.x, RT.y, i) {
     RT.x = ((RT.x - min(RT.x)) / (max(RT.x) - min(RT.x))) - 0.5
     RT.y = ((RT.y - min(RT.y)) / (max(RT.y) - min(RT.y))) - 0.5
     delta = RT.x - RT.y
-    result = ifelse((RT.x / RT.y < 0 &
-                         RT.y > 0 & abs(delta) > i),
-                    'EtoL',
-                    ifelse((RT.x / RT.y < 0 &
-                                RT.y < 0 & abs(delta) > i),
-                           'LtoE',
-                           ifelse((RT.x / RT.y >= 0 &
-                                       delta < -i),
-                                  'toLater',
-                                  ifelse((RT.x / RT.y >= 0 &
-                                              delta > i), 'toEarlier', 'unchanged')
-                           )
-                    ))
+    result = case_when(
+        (RT.x / RT.y < 0 & RT.y > 0 & abs(delta) > i) ~  'EtoL',
+        (RT.x / RT.y < 0 & RT.y < 0 & abs(delta) > i) ~  'LtoE',
+        (RT.x / RT.y >= 0 & delta < -i) ~ 'toLater',
+        (RT.x / RT.y >= 0 & delta > i) ~ 'toEarlier',
+        T ~ 'unchanged'
+    )
     return(result)
 }
 
-changing = data %>%
-    mutate(
-        type = type(RT, select(., matches(opt$Reference)), opt$deltaRT_threshold),
-        ΔRT = opt$deltaRT_threshold
-    ) %>%
-    `colnames<-`(c(names(data), 'type', 'ΔRT')) %>%
-    filter(type != 'unchanged')
 
+changing = foreach(x = colnames(data)[-c(1:3)],
+                   .combine = function(x, y)
+                       inner_join(
+                           x,
+                           y,
+                           by = c("chr", "start", "end",  "ΔRT")
+                       )) %:%
+    foreach(
+        y = colnames(data)[-c(1:3)],
+        .combine = function(x, y)
+            inner_join(
+                x,
+                y,
+                by = c("chr", "start", "end", "ΔRT")
+            )
+    ) %do% {
+
+        if(x!=y){
+            data  %>%
+                mutate(
+                    type=type(RT.x = data[[x]],RT.y = data[[y]], i=opt$deltaRT_threshold),
+                    ΔRT = opt$deltaRT_threshold
+                ) %>%
+                dplyr::select(chr,start,end,ΔRT,type)%>%
+                rename(type=paste0('ΔRT=',x,'-',y))
+            
+           
+        }else{
+            data%>%
+                mutate( ΔRT = opt$deltaRT_threshold)%>%
+                dplyr::select(chr, start, end, ΔRT)
+        }
+        
+    }
+    
 write_tsv(changing, paste0(opt$out, '/changing_regions.tsv'))
 
-changing_names = changing
-changing = makeGRangesFromDataFrame(
-    df = changing,
-    keep.extra.columns = F ,
+changing_info=changing%>%
+    dplyr::select(-chr,-start,-end,-ΔRT)
+
+n=(length(names(data[-c(1:3)]))-1)*2
+changing_info = as.matrix(changing_info!='unchanged')
+
+changing_info=changing[rowSums(changing_info)==n,]
+
+
+specific_changes=foreach(i=names(data)[-c(1:3)],.combine = 'rbind')%do%{
+    x=changing_info%>%
+        dplyr::select(contains(i))
+    x= as.matrix(x!='unchanged')
+    x=changing_info[rowSums(x)==n,]
+    
+    x%>%
+        dplyr::select(chr,start,end)%>%
+        mutate(group=i)
+}
+
+specific_changes = specific_changes %>% makeGRangesFromDataFrame(
     seqnames.field = 'chr',
     start.field = 'start',
-    end.field = 'end'
+    end.field = 'end',
+    keep.extra.columns = T
 )
-changing = changing %>%
+
+specific_changes=GenomicRanges::split(specific_changes,specific_changes$group)%>%
     GenomicRanges::reduce(min.gapwidth=5000000) %>%
-    data.frame() %>%
-    select(seqnames, start, end) %>%
-    `colnames<-`(c('chr', 'start', 'end'))%>%
-    mutate(start=start,
-           end=end)
+    as_tibble() %>%
+    dplyr::select('chr'=seqnames, start, end, 'group'=group_name) 
+
+write_tsv(specific_changes, paste0(opt$out, '/cell_type_specific_changing_regions.tsv'))
+
+
+changing = 
+    changing%>%
+    gather(couple,change,-chr,-start,-end,-ΔRT)%>%
+    filter(change!='unchanged')%>%
+    makeGRangesFromDataFrame(
+    seqnames.field = 'chr',
+    start.field = 'start',
+    end.field = 'end',
+    keep.extra.columns=T
+)
+
+changing=GenomicRanges::split(changing,changing$couple)%>%
+        GenomicRanges::reduce(min.gapwidth=5000000) %>%
+    as_tibble() %>%
+    dplyr::select('chr'=seqnames, start, end) %>% 
+    mutate(chr=as.character(chr))
+
+# regions plot to feed to ggpairs
+plot_rt=function(data,mapping,...){
+    mapping1 = ggplot2:::rename_aes(modifyList(mapping,aes(x = pos)))
+    mapping2 = mapping1
+    mapping2$y= mapping$x
+    mapping3=aes(xmin=start,xmax=end,ymin=0,ymax=1,fill=fill)
+    data1=data%>%
+        gather('type', 'pos', start, end)
+    data$fill=abs(data[as_label(mapping$x)]-data[as_label(mapping$y)])[,]
+    data=data%>%
+        mutate(fill=ifelse(fill > ΔRT, paste('ΔRT >',ΔRT), paste('ΔRT <',ΔRT)),
+               fill=factor(fill, levels = c( paste('ΔRT <',opt$deltaRT_threshold),paste('ΔRT >',opt$deltaRT_threshold),'Column RT','Row RT')))
+    
+    scales=c(NA,'orange','blue','red')
+    names(scales)=c(paste('ΔRT <',opt$deltaRT_threshold),paste('ΔRT >',opt$deltaRT_threshold),'Column RT', 'Row RT')    
+    p= ggplot() +
+        geom_hline(yintercept = 0.5) +
+        geom_rect(data=data,mapping = mapping3, alpha=0.5)+
+        geom_line(data=data1,mapping = mapping1, color='red' ) +
+        geom_line(data=data1,mapping = mapping2, color='blue' )+ 
+        scale_x_continuous(
+            labels = trans_format(format = 'Mb',
+                                  trans = function(x) paste((x/1000000),'Mb',sep='')))+ 
+        theme(legend.title=element_blank(),axis.text.x = element_text(hjust = 1,angle = 45))+
+        scale_fill_manual(values = scales,drop=F)
+    return(p)
+}
+
+
 
 if (!'region' %in% names(opt)) {
+   
+     #limits for the extention of the plotting 
+    chr_limits=data%>%group_by(chr)%>%summarise(start_min=min(start),end_max=max(end))%>%ungroup()
+    
     for (i in sample(1:length(changing$chr), opt$n_regions)) {
-        to_plot=changing[i,]
-        if(to_plot$end-to_plot$start < 20000000){
-            add=20000000-(to_plot$end-to_plot$start)
+        
+        to_plot =changing[i,]
+        
+        if(to_plot$end-to_plot$start != 50000000){
+            add=50000000-(to_plot$end-to_plot$start)
             to_plot=to_plot%>%
                 mutate(start=start-add/2,
-                       end=end+add/2)
+                       end=end+add/2)%>%
+                inner_join(chr_limits, by = "chr")%>%
+                mutate(start=case_when(
+                    start < start_min ~ start_min,
+                    T~start
+                ),
+                end=case_when(
+                    end > end_max ~ end_max,
+                    T~end
+                ))
         }
         
         # prepare name file 
         name_reg=min( str_length(str_extract(to_plot$start,'0{1,10}$')), str_length(str_extract(to_plot$end,'0{1,10}$')))
-        name_reg= paste(
-            to_plot$chr,
+        name_reg= paste0(
+            to_plot$chr,"_",
             case_when(
                 is.na(name_reg) ~ paste0(to_plot$start,'bp_',to_plot$end,'bp'),
                 name_reg < 3 ~ paste0(to_plot$start,'bp_',to_plot$end,'bp'),
@@ -268,59 +335,33 @@ if (!'region' %in% names(opt)) {
             ) )
         
         p = data %>%
-            mutate(end = end - 1) %>%
+            mutate(end = end - 1,
+                   ΔRT=opt$deltaRT_threshold) %>%
             filter(
                 chr == to_plot$chr,
                 start >= to_plot$start ,
                 end <= to_plot$end 
-            ) %>%
-            gather('type', 'pos', start, end) %>%
-            ggplot() +
-            geom_hline(yintercept = 0.5) +
-            geom_line(aes_string(
-                x = 'pos',
-                y = opt$Reference,
-                color = shQuote(opt$Reference)
-            )) +
-            geom_line(aes(
-                x = pos,
-                y = RT,
-                color = basename
-            )) + facet_grid(basename ~ chr) +
-            geom_rect(
-                data = changing_names %>%
-                    filter(
-                        chr == to_plot$chr ,
-                        start >= to_plot$start  ,
-                        end <= to_plot$end 
-                    ),
-                aes(
-                    xmin = start,
-                    xmax = end,
-                    fill = type
-                ),
-                alpha = 0.2,
-                ymin = -Inf,
-                ymax = Inf,
-                inherit.aes = F
-            ) +
-            coord_cartesian(y = c(0, 1)) +
-            scale_fill_manual(
-                values = c(
-                    'EtoL' = 'darkgreen',
-                    'LtoE' = 'darkred',
-                    'toEarlier' = 'red',
-                    'toLater' = 'green'
-                )
-            )+
-            ylab('RT')+xlab('')+ 
-            scale_x_continuous(
-                labels = trans_format(format = 'Mb',
-                                      trans = function(x) paste((x/1000000),'Mb',sep='')))+ 
-            theme(legend.title=element_blank(),axis.text.x = element_text(hjust = 1,angle = 45),legend.position = 'top')
+            )
+        
+        p=p %>%
+            ggpairs(upper = NULL,lower  = list( continuous=plot_rt),columns = names(p)[!names(p) %in% c('chr','start','end','ΔRT')],
+                    title = name_reg,
+                    legend = c(2,1),
+                    xlab = '',
+                    ylab = 'RT',
+                    diag = list(
+                        continuous = function(data, mapping)
+                            ggplot() + theme_void()+
+                            geom_polygon(data=tibble(x=c(-1,-1,1),y=c(1,-1,1)), aes(x = x, y = y),fill='red',alpha=0.5)+
+                            geom_polygon(data=tibble(x=-c(-1,-1,1),y=-c(1,-1,1)), aes(x = x, y = y),fill='blue',alpha=0.5) + 
+                            annotate('text',x = 0,y=0,label=paste('bold(',as_label(mapping$x),')'),parse=T)
+                    ),columnLabels=NULL )
         p
         suppressMessages(
-        ggsave(p, filename = paste0(opt$out, '/changing_region_', name_reg, '.pdf'))
+        ggsave(p, filename = paste0(opt$out, '/changing_region_', name_reg, '.pdf'),
+               device = cairo_pdf,
+               height = n_samples*1.2 ,
+               width = n_samples*1.2 )
         )
     }
 } else{
@@ -375,54 +416,23 @@ if (!'region' %in% names(opt)) {
     
     for (i in 1:length(opt$region$chr)) {
         p = data %>%
-            mutate(start = start + 1) %>%
+            mutate(end = end - 1) %>%
             filter(chr == opt$region$chr[i],
                    start >= opt$region$start[i],
-                   end <= opt$region$end[i]) %>%
-            gather('type', 'pos', start, end) %>%
-            ggplot() +
-            geom_hline(yintercept = 0.5) +
-            geom_line(aes_string(
-                x = 'pos',
-                y = opt$Reference,
-                color = shQuote(opt$Reference)
-            )) +
-            geom_line(aes(
-                x = pos,
-                y = RT,
-                color = basename
-            )) + facet_grid(basename ~ chr) +
-            geom_rect(
-                data = changing_names %>%
-                    filter(
-                        chr == opt$region$chr[i] ,
-                        start >= opt$region$start[i] ,
-                        end <= opt$region$end[i]
-                    ),
-                aes(
-                    xmin = start,
-                    xmax = end,
-                    fill = type
-                ),
-                alpha = 0.2,
-                ymin = -Inf,
-                ymax = Inf,
-                inherit.aes = F
-            ) +
-            coord_cartesian(y = c(0, 1)) +
-            scale_fill_manual(
-                values = c(
-                    'EtoL' = 'darkgreen',
-                    'LtoE' = 'darkred',
-                    'toEarlier' = 'red',
-                    'toLater' = 'green'
-                )
-            )+
-            ylab('RT')+xlab('')+ 
-            scale_x_continuous(
-                labels = trans_format(format = 'Mb',
-                                      trans = function(x) paste((x/1000000),'Mb',sep='')))+ 
-            theme(legend.title=element_blank(),axis.text.x = element_text(hjust = 1,angle = 45),legend.position = 'top')
+                   end <= opt$region$end[i]) 
+        
+        p=p %>%
+            ggpairs(upper = NULL,lower  = list( continuous=plot_rt),columns = names(p)[!names(p) %in% c('chr','start','end','ΔRT')],
+                    title = opt$region$name_reg[i],
+                    xlab = '',
+                    ylab = 'RT',
+                    diag = list(
+                        continuous = function(data, mapping)
+                            ggplot() + theme_void()+
+                            geom_polygon(data=tibble(x=c(-1,-1,1),y=c(1,-1,1)), aes(x = x, y = y),fill='red',alpha=0.5)+
+                            geom_polygon(data=tibble(x=-c(-1,-1,1),y=-c(1,-1,1)), aes(x = x, y = y),fill='blue',alpha=0.5) + 
+                            annotate('text',x = 0,y=0,label=paste('bold(',as_label(mapping$x),')'),parse=T)
+                    ),columnLabels=NULL )
         
         suppressMessages(ggsave(p,
                filename = paste0(
@@ -430,10 +440,14 @@ if (!'region' %in% names(opt)) {
                    '/changing_region_',
                    opt$region$name_reg[i],
                    '.pdf'
-               )))
+               ),
+               device = cairo_pdf,
+               height = n_samples*1.2 ,
+               width = n_samples*1.2 ))
         
     }
     
 }
-                                      
+
+                          
 print('done')

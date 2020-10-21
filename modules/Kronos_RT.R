@@ -154,6 +154,7 @@ opt = parse_args(object = OptionParser(option_list = option_list))
 
 #load libraries
 suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
+suppressPackageStartupMessages(library(GGally, quietly = TRUE))
 suppressPackageStartupMessages(library(ggcorrplot, quietly = TRUE))
 suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 suppressPackageStartupMessages(library(doSNOW, quietly = TRUE))
@@ -1036,7 +1037,7 @@ RT_binning=RT_binning%>%
     summarise(Binning_step=min(Binning_step))
 
 
-s50 =signal_smoothed%>%
+scRT =signal_smoothed%>%
     group_by(group)%>%
     mutate(min_perc=1-max(PercentageReplication),
            max_perc=1-min(PercentageReplication)) %>%
@@ -1058,7 +1059,7 @@ s50 =signal_smoothed%>%
     dplyr::select(chr,start,end,RT,group)
 
 write_delim(
-    x = s50,
+    x = scRT,
     path = paste0(
         opt$out,
         '/',
@@ -1114,7 +1115,7 @@ if (opt$plot) {
             if (length(track_toplot$chr) != 0) {
                 max_index = track_toplot %>% pull(newIndex) %>% max()
                 
-                s50_toplot = s50 %>%
+                scRT_toplot = scRT %>%
                     ungroup() %>%
                     filter(
                         chr %in% Chr,
@@ -1140,7 +1141,7 @@ if (opt$plot) {
                             fill = as.numeric(Rep)
                         )
                     ) + geom_rect(
-                        data = s50_toplot,
+                        data = scRT_toplot,
                         aes(
                             xmin = start,
                             xmax = end,
@@ -1338,7 +1339,7 @@ if (opt$plot) {
             if (length(track_toplot$chr) != 0) {
                 max_index = track_toplot %>% pull(newIndex) %>% max()
                 
-                s50_toplot = s50 %>%
+                scRT_toplot = scRT %>%
                     ungroup() %>%
                     filter(
                         chr %in% Chr,
@@ -1363,7 +1364,7 @@ if (opt$plot) {
                             fill = as.numeric(Rep)
                         )
                     ) + geom_rect(
-                        data = s50_toplot,
+                        data = scRT_toplot,
                         aes(
                             xmin = start,
                             xmax = end,
@@ -1473,7 +1474,7 @@ if (opt$plot) {
 ##### RT distributions
 if ('referenceRT' %in% names(opt)) {
     RTs = rbind(
-        s50 %>%
+        scRT %>%
             ungroup() ,
         
         Reference_RT %>%
@@ -1485,7 +1486,7 @@ if ('referenceRT' %in% names(opt)) {
     
     
 } else{
-    RTs =  s50 
+    RTs =  scRT 
     
 }
 
@@ -1511,14 +1512,14 @@ invisible(dev.off())
 
 if (length(unique(RTs$group)) != 1) {
     
-    RTs = RTs %>% 
+    RTs = RTs%>%
         spread(key = group, value = RT) %>%
         filter(complete.cases(.))%>%
-        dplyr::select(-chr,-start,-end)%>%
-        cor()
+        dplyr::select(-chr,-start,-end)
     
     plot = ggcorrplot(
-        RTs,
+            RTs %>% 
+            cor(),
         lab = T,
         lab_col = 'white',legend.title = 'Pearson\ncorrelation',
         colors = c('#21908CFF', '#F0F921FF', '#BB3754FF')
@@ -1533,13 +1534,24 @@ if (length(unique(RTs$group)) != 1) {
             '_correlation_plot_RTs.pdf'
         )
     ))
+    
+    suppressMessages( ggsave(
+        plot = ggpairs(scRT, aes(alpha = 0.3),upper = list(continuous =function(data,mapping,...) ggplot()+geom_density2d(data=data,mapping=mapping,...))),
+        filename =paste0(
+            opt$out,
+            '/',
+            opt$output_file_base_name,
+            'pair_scatter_plot_RTs.pdf'
+        )
+    ))
+    
  
  }
 
-#joing s50 with relative signals
+#joing RTs with relative signals
 signal_smoothed = signal_smoothed %>%
     dplyr::select(group, chr, start, end, Rep,PercentageReplication) %>%
-    inner_join(s50, by = c("group", "chr", "start", "end"))  %>%
+    inner_join(scRT, by = c("group", "chr", "start", "end"))  %>%
     mutate(
         RT = 10 * (1-RT) ,
         time = round( RT - 10*PercentageReplication,1)
@@ -1755,7 +1767,7 @@ suppressMessages(ggsave(
 ))
 
 if (opt$Var_against_reference) {
-    #joing s50 with relative signals
+    #joing reference with relative signals
     signal_smoothed = signal_smoothed %>%
         dplyr::select(group, chr, start, end, Rep,PercentageReplication) %>%
         inner_join(Reference_RT, by = c("chr", "start", "end"))  %>%

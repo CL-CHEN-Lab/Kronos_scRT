@@ -41,6 +41,7 @@ opt = parse_args(object = OptionParser(option_list = option_list))
 
 #load module
 suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
+suppressPackageStartupMessages(library(GGally, quietly = TRUE))
 suppressPackageStartupMessages(library(ggcorrplot, quietly = TRUE))
 suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 
@@ -88,11 +89,11 @@ if (str_extract(opt$out, '.$') != '/') {
 
 scRT = scRT %>% spread(group, RT) %>%
     drop_na() %>%
-    dplyr::select(-chr, -start, -end) %>%
-    cor()
+    dplyr::select(-chr, -start, -end) 
 
 plot = ggcorrplot(
-    scRT,
+    scRT%>%
+        cor(),
     lab = T,
     lab_col = 'white',legend.title = 'Pearson\ncorrelation',
     colors = c('#21908CFF', '#F0F921FF', '#BB3754FF')
@@ -105,6 +106,15 @@ suppressMessages(ggsave(
         opt$output_file_base_name,
         'pearson_correlation',
         '.pdf'
+    )
+))
+suppressMessages( ggsave(
+    plot = ggpairs(scRT, aes(alpha = 0.3),lower = list(continuous = wrap("density", alpha = 0.5), combo = "box_no_facet"))+theme(axis.text.x = element_text(angle = 45,hjust=1,vjust=1)),
+    filename =paste0(
+        opt$out,
+        '/',
+        opt$output_file_base_name,
+        'pair_scatter_plot_RTs.pdf'
     )
 ))
 
