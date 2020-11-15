@@ -14,7 +14,7 @@ option_list = list(
         metavar = "character"
     ),
     make_option(
-        c("-R", "--regions"),
+        c("-R", "--Annotation"),
         type = "character",
         default = NULL,
         help = "Genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header.",
@@ -29,10 +29,10 @@ option_list = list(
         metavar = "logical"
     ),
     make_option(
-        c("-r", "--regions2"),
+        c("-r", "--Annotation2"),
         type = "character",
         default = NULL,
-        help = "Second genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header. If b option is activated it substiutes the RT division.",
+        help = "Second genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header.",
         metavar = "character"
     ),
     make_option(
@@ -50,11 +50,11 @@ option_list = list(
         metavar = "character"
     ),
     make_option(
-        c("-c", "--cores"),
-        type = "integer",
-        default = 3,
-        help = "Numbers of parallel jobs to run [default= %default] ",
-        metavar = "integer"
+        c("-m", "--min_overlap"),
+        type = "numeric",
+        default = 100,
+        help = "min overlap to apply the annotation [default= %default]",
+        metavar = "numeric"
     )
 )
 
@@ -69,28 +69,34 @@ suppressPackageStartupMessages(library(ggpubr, quietly = TRUE))
 if (!'file' %in% names(opt)) {
     stop("Variability file must be provided. See script usage (--help)")
 }
-
+if (!'Annotation' %in% names(opt)) {
+    stop("Annotation file must be provided. See script usage (--help)")
+}
 if (str_extract(opt$out, '.$') != '/') {
     opt$out = paste0(opt$out, '/')
 }
 
-system(paste0('mkdir -p ./', opt$out))
+system(paste0('mkdir -p ', opt$out))
 
 opt$file = str_split(opt$file, ',')[[1]]
 
-#load file
+#load files
 data <-
     foreach(file = opt$file,
             .combine = 'rbind',
             .packages = 'tidyverse') %do% {
-                read_tsv(file, col_types = cols()) %>%
-                    filter(Cat_RT != 'All')
+                read_tsv(file, col_types = cols())
             }
 
+Annotation1_file <-
+    foreach(file = opt$Annotation,
+            .combine = 'rbind',
+            .packages = 'tidyverse') %do% {
+                read_tsv(file, col_types = cols(),col_names = c( "chr", "start", "end",'Annotation'))
+            }
 
-if ('regions' %in% names(opt)) {
-    Annotation_file = read_tsv(opt$regions,
-                               col_names = c('chr', 'start', 'end', 'annotation')) %>%
+Annotation_file = read_tsv(opt$Annotation,
+                               col_names = c('chr', 'start', 'end', 'annotation'), col_types = cols())%>%
         makeGRangesFromDataFrame(
             keep.extra.columns = T,
             seqnames.field = 'chr',
@@ -110,48 +116,45 @@ if ('regions' %in% names(opt)) {
         )
     
     #find overlaps
-    hits = findOverlaps(Bin, Annotation_file)
+    hits = findOverlaps(Bin, Annotation_file,minoverlap = opt$min_overlap)
     
     #indo about overlapping regins
     overlaps <-
         pintersect(Annotation_file[subjectHits(hits)], Bin[queryHits(hits)])
     
-    #convert bins that have a notation and those that don't into df
-    changed = as_tibble(Bin[queryHits(hits)])
-    not_changed = as_tibble(Bin[-queryHits(hits)])
+    #Add annotation 1
+    add = as_tibble(Bin[queryHits(hits)])
+    not_add = as_tibble(Bin[-queryHits(hits)])
     
-    #Based on the overla define the predominant notation of each bin.
+    #Based on the overlap define the predominant notation of each bin.
     #A category to be chosen has to be predominant (at least 60% of the tatal overlaps in the bin)
     Annotation = bind_rows(
-        changed %>%
+        add %>%
             mutate(size = width(overlaps),
-                   Cat_RT = overlaps$annotation) %>%
-            group_by(seqnames, start, end, Cat_RT) %>%
+                   Cat1 = overlaps$annotation) %>%
+            group_by(seqnames, start, end, Cat1) %>%
             summarise(n = sum(size)) %>%
             ungroup() %>%
             group_by(seqnames, start, end) %>%
             mutate(
                 select = (n / sum(n) >= 0.6),
-                Cat_RT = ifelse(any(select), Cat_RT, '_Unknown_')
+                Cat1 = ifelse(any(select), Cat1, '_Unknown_')
             ) %>%
-            dplyr::select(seqnames, start, end, Cat_RT),
-        not_changed %>% mutate(Cat_RT = '_Unknown_') %>%
-            dplyr::select(seqnames, start, end, Cat_RT)
+            dplyr::select(seqnames, start, end, Cat1),
+        not_add %>% mutate(Cat1 = '_Unknown_') %>%
+            dplyr::select(seqnames, start, end, Cat1)
     )
     Annotation = Annotation %>%
         ungroup() %>%
         mutate(seqnames = as.character(seqnames))
     
     data = data %>%
-        mutate(old_Cat_RT = Cat_RT) %>%
-        dplyr::select(-Cat_RT) %>%
         inner_join(Annotation, by = c("chr" = "seqnames", "start", "end"))
     
-    if (opt$both_annotations) {
-        if ('regions2' %in% opt) {
+    if (opt$both_annotations &'Annotation2' %in% names(opt)) {
             
-            Annotation_file = read_tsv(opt$regions2,
-                                       col_names = c('chr', 'start', 'end', 'annotation')) %>%
+            Annotation_file = read_tsv(opt$Annotation2,
+                                       col_names = c('chr', 'start', 'end', 'annotation'), col_types = cols()) %>%
                 makeGRangesFromDataFrame(
                     keep.extra.columns = T,
                     seqnames.field = 'chr',
@@ -159,112 +162,134 @@ if ('regions' %in% names(opt)) {
                     start.field = 'start'
                 )
             
-            hits = findOverlaps(Bin, Annotation_file)
+            hits = findOverlaps(Bin, Annotation_file,minoverlap = opt$min_overlap)
             
             overlaps <-
                 pintersect(Annotation_file[subjectHits(hits)], Bin[queryHits(hits)])
             
-            changed = as_tibble(Bin[queryHits(hits)])
-            not_changed = as_tibble(Bin[-queryHits(hits)])
+            add = as_tibble(Bin[queryHits(hits)])
+            not_add = as_tibble(Bin[-queryHits(hits)])
             
             Annotation = bind_rows(
-                changed %>%
+                add %>%
                     mutate(
                         size = width(overlaps),
-                        old_Cat_RT = overlaps$annotation
+                        Cat2 = overlaps$annotation
                     ) %>%
-                    group_by(seqnames, start, end, old_Cat_RT) %>%
+                    group_by(seqnames, start, end, Cat2) %>%
                     summarise(n = sum(size)) %>%
                     ungroup() %>%
                     group_by(seqnames, start, end) %>%
                     mutate(
                         select = (n / sum(n) >= 0.6),
-                        old_Cat_RT = ifelse(any(select), old_Cat_RT, '_Unknown_')
+                        Cat2 = ifelse(any(select), Cat2, '_Unknown_')
                     ) %>%
-                    dplyr::select(seqnames, start, end, old_Cat_RT),
-                not_changed %>% mutate(old_Cat_RT = '_Unknown_') %>%
-                    dplyr::select(seqnames, start, end, old_Cat_RT)
+                    dplyr::select(seqnames, start, end, Cat2),
+                not_add %>% mutate(Cat2 = '_Unknown_') %>%
+                    dplyr::select(seqnames, start, end, Cat2)
             )
             Annotation = Annotation %>%
                 ungroup() %>%
                 mutate(seqnames = as.character(seqnames))
             
             data = data %>%
-                mutate(old_Cat_RT = Cat_RT) %>%
-                dplyr::select(-old_Cat_RT) %>%
                 inner_join(Annotation, by = c("chr" = "seqnames", "start", "end"))
             
-        }
         
         data = data %>%
             rbind(data %>%
-                      mutate(Cat_RT = 'ALL'),
+                      mutate(Cat1 = '_ALL_'),
                   data %>%
-                      mutate(old_Cat_RT = 'ALL'))
+                      mutate(Cat2 = '_ALL_'),
+                  data %>%
+                      mutate(Cat1 = '_ALL_',
+                             Cat2 = '_ALL_'))
         
-        # New Category and RT
+
         #calculate tresholds 25% 75% replication keeping in account early and late domains
+        
+        T25_75 = function(df, name, Cat1, Cat2) {
+            if (length(df$basename) != 0) {
+                model = tryCatch( nls(percentage ~ SSlogis(time, Asym, xmid, scal),
+                                      data = df[, c('percentage', 'time')]%>%
+                                          add_row(percentage=1,time=-10)%>%
+                                          add_row(percentage=0,time=10),
+                                      control = nls.control(maxiter = 100),
+                                      algorithm = 'port',
+                                      lower = c(Asym=1,xmid=0,scal=-1.5)
+                ),
+                  #If the data cannot be fitted with a Gauss-Cat2ton algorithm, try the
+                  #Golub and Pereyra algorithm for the solution of a nonlinear least squares
+                  #problem which assumes a number of the parameters are linear.
+                  #Also, add a higher tolerance (1e-04 Vs 1e-05).
+                              error = function(e) nls(percentage ~ SSlogis(time, Asym, xmid, scal),
+                              data = df[, c('percentage', 'time')], algorithm = 'plinear',
+                              control = nls.control(tol = 1e-04, warnOnly = T) ) )
+                min = min(df$time)
+                max = max(df$time)
+                data = predict(
+                    model,
+                    newdata = data.frame(time = seq(
+                        min, max, 0.01
+                    )),
+                    type = "l"
+                )
+                result = data.frame(
+                    time = seq(min, max, 0.01),
+                    percentage = data,
+                    basename = name
+                )
+                t = result %>%
+                    mutate(
+                        distance75 = abs(percentage - 0.75),
+                        distance25 = abs(percentage - 0.25)
+                    ) %>%
+                    mutate(
+                        min75 = min(distance75),
+                        min25 = min(distance25),
+                        t75 = distance75 == min75,
+                        t25 = distance25 == min25
+                    ) %>%
+                    dplyr::select(basename,
+                                  time,
+                                  percentage,
+                                  t75,
+                                  t25)  %>%
+                    mutate(Cat1 = Cat1,
+                           Cat2 = Cat2)
+                
+                return(t)
+            } else{
+                return(tibble())
+            }
+        }
+        
+        x=data%>%
+            group_by(basename,time,Cat1,Cat2)%>%
+            summarise(percentage=mean(percentage)) 
+        
         fitted_data = foreach(
-            basename = unique(data$basename),
+            basename = unique(x$basename),
             .combine = 'rbind',
-            .packages = c('tidyverse', 'foreach')
+            .packages = c('tidyverse', 'foreach'),
+            .errorhandling = 'remove'
         ) %do% {
             temp2 = foreach(
-                New = unique(data$Cat_RT),
+                Cat1 = unique(x$Cat1),
                 .combine = 'rbind',
-                .packages = c('tidyverse', 'foreach')
+                .packages = c('tidyverse', 'foreach'),
+                .errorhandling = 'remove'
             ) %do% {
                 temp = foreach(
-                    RT = unique(data$old_Cat_RT),
+                    Cat2 = unique(x$Cat2),
                     .combine = 'rbind',
-                    .packages = c('tidyverse', 'foreach')
+                    .packages = c('tidyverse', 'foreach'),
+                    .errorhandling = 'remove'
                 ) %do% {
-                    T25_75 = function(df, name, RT, New) {
-                        if (length(df$chr) != 0) {
-                            model = nls(percentage ~ SSlogis(time, Asym, xmid, scal),
-                                        data = df[, c('percentage', 'time')])
-                            min = -10
-                            max = 10
-                            data = predict(
-                                model,
-                                newdata = data.frame(time = seq(
-                                    min, max, 0.01
-                                )),
-                                type = "l"
-                            )
-                            result = data.frame(
-                                time = seq(min, max, 0.01),
-                                percentage = data,
-                                basename = name
-                            )
-                            t = result %>%
-                                mutate(
-                                    distance75 = abs(percentage - 0.75),
-                                    distance25 = abs(percentage - 0.25)
-                                ) %>%
-                                mutate(
-                                    min75 = min(distance75),
-                                    min25 = min(distance25),
-                                    t75 = distance75 == min75,
-                                    t25 = distance25 == min25
-                                ) %>%
-                                dplyr::select(basename,
-                                              time,
-                                              percentage,
-                                              t75,
-                                              t25)  %>%
-                                mutate(Cat_RT = New,
-                                       old_Cat_RT = RT)
-                            
-                            return(t)
-                        } else{
-                            return(tibble())
-                        }
-                    }
                     
-                    t = T25_75(df = data[data$basename == basename &
-                                             data$Cat_RT == New &
-                                             data$old_Cat_RT == RT, ], basename, RT, New)
+                    t = T25_75(df = x[x$basename == basename &
+                                          x$Cat1 == Cat1 &
+                                          x$Cat2 == Cat2, ], basename, Cat1, Cat2)
                 }
                 temp
             }
@@ -278,16 +303,13 @@ if ('regions' %in% names(opt)) {
             spread(t, time)%>%
             mutate(Twidth = abs(t75 - t25))
         
-        t %>%rename(Cat_RT='Annotation1'  , old_Cat_RT='Annotation2')%>%
-        write_tsv(paste0(opt$out,
+        t %>% write_tsv(paste0(opt$out,
                                '/',
                                opt$output_file_base_name,
-                               '_Twidth_2_categories.tsv'))
-        
-        
+                               '_Twidth_categories.tsv'))
         p = ggplot(t) +
             geom_col(aes(' ', Twidth, fill = basename), position = 'dodge') +
-            ylab('Twidth') + xlab('')+facet_grid(Cat_RT~old_Cat_RT)
+            ylab('Twidth') + xlab('')+facet_grid(Cat1~Cat2)
         
         suppressMessages(ggsave(
             p,
@@ -297,102 +319,41 @@ if ('regions' %in% names(opt)) {
                               '_Twidths_2_categories.pdf')
         ))
         
-        counts = data %>% select(chr, start, Cat_RT, old_Cat_RT, basename) %>%
-            unique() %>%
-            group_by(Cat_RT, old_Cat_RT, basename) %>%
-            summarise(n = n())
+    }else{
+        data = data %>%
+            rbind(data %>%
+                      mutate(Cat1 = '_All_'))
         
-        p = ggplot() +
-            stat_density_2d(
-                data = data,
-                geom = "polygon",
-                aes(
-                    alpha = ..level..,
-                    fill = basename,
-                    y = percentage,
-                    x = time
-                )
-            ) +
-            geom_line(
-                data = fitted_data,
-                aes(y = percentage, x = time),
-                color = 'blue',
-                inherit.aes = F
-            ) +
-            geom_hline(yintercept = c(0.75, 0.25), color = 'yellow') +
-            geom_vline(data = t,
-                       aes(xintercept = t25),
-                       color = 'red') +
-            geom_vline(data = t,
-                       aes(xintercept = t75),
-                       color = 'red') +
-            geom_text(
-                data = t,
-                aes(
-                    label = paste('Twidth ~', round((t25 - t75), 1), 'h'),
-                    x = (t25 + (t75 - t25) / 2),
-                    y = Inf,
-                    vjust = 1
-                ),
-                color = 'black',
-                inherit.aes = F
-            ) +
-            facet_grid(basename + old_Cat_RT ~ Cat_RT) +
-            ggplot2::scale_x_reverse() +
-            scale_y_continuous(labels = scales::percent_format()) +
-            ylab('Percentage of cells') +
-            geom_text(data = counts,
-                      aes(
-                          label = paste('N bins: ', n),
-                          x = 0,
-                          y = -Inf
-                      ),
-                      vjust = 0)
-        
-        suppressMessages(ggsave(
-            p,
-            filename = paste0(
-                opt$out,
-                '/',
-                opt$output_file_base_name,
-                '_variability_2_categories.pdf'
-            )
-        ))
-        
-        suppressMessages(ggsave(
-            p,
-            filename = paste0(
-                opt$out,
-                '/',
-                opt$output_file_base_name,
-                '_variability_2_categories.jpg'
-            )
-        ))
-        
-        
-    }
-    
-}
-
-data = data %>%
-    rbind(data %>%
-              mutate(Cat_RT = 'ALL'))
-
-fitted_data = foreach(
-    basename = unique(data$basename),
-    .combine = 'rbind',
-    .packages = c('tidyverse', 'foreach')
-) %do% {
-    temp = foreach(
-        EL = unique(data$Cat_RT),
-        .combine = 'rbind',
-        .packages = c('tidyverse', 'foreach')
-    ) %do% {
+        x=data%>%
+            group_by(basename,time,Cat1)%>%
+            summarise(percentage=mean(percentage)) 
+        #T25_75 function
         T25_75 = function(df, name, EL) {
-            model = nls(percentage ~ SSlogis(time, Asym, xmid, scal),
-                        data = df[, c('percentage', 'time')])
-            min = -10
-            max = 10
+            model = tryCatch(
+                nls(percentage ~ SSlogis(time, Asym, xmid, scal),
+                    data = df[, c('percentage', 'time')]%>%
+                        add_row(percentage=1,time=-10)%>%
+                        add_row(percentage=0,time=10),
+                    control = nls.control(maxiter = 100),
+                    algorithm = 'port',
+                    lower = c(Asym=1,xmid=0,scal=-1.5)
+                ),
+                #If the data cannot be fitted with a Gauss-Newton algorithm, try the
+                #Golub and Pereyra algorithm for the solution of a nonlinear least squares
+                #problem which assumes a number of the parameters are linear.
+                #Also, add a higher tolerance (1e-04 Vs 1e-05).
+                error = function(e)
+                    nls(
+                        percentage ~ SSlogis(time, Asym, xmid, scal),
+                        data = df[, c('percentage', 'time')]%>%
+                            add_row(percentage=1,time=-10)%>%
+                            add_row(percentage=0,time=10),
+                        algorithm = 'plinear',
+                        control = nls.control(maxiter = 100,tol = 1e-04, warnOnly = T)
+                    )
+            )
+            min = min(df$time)
+            max = max(df$time)
             data = predict(model,
                            newdata = data.frame(time = seq(min, max, 0.01)),
                            type = "l")
@@ -413,111 +374,78 @@ fitted_data = foreach(
                     t25 = distance25 == min25
                 ) %>%
                 dplyr::select(basename, time, percentage, t75, t25)  %>%
-                mutate(Cat_RT = EL)
+                mutate(Cat1 = EL)
             
             return(t)
         }
         
-        t = T25_75(df = data[data$basename == basename &
-                                 data$Cat_RT == EL, ], basename, EL)
+        #calculate tresholds 25% 75% replication keeping in account early and late domains
+        fitted_data = foreach(
+            basename = unique(x$basename),
+            .combine = 'rbind',
+            .packages = c('tidyverse', 'foreach')
+        ) %do% {
+            temp = foreach(
+                EL = unique(x$Cat1),
+                .combine = 'rbind',
+                .packages = c('tidyverse', 'foreach')
+            ) %do% {
+                t = T25_75(df = x[x$basename == basename &
+                                      x$Cat1 == EL, ], basename, EL)
+            }
+            temp
+        }
+        
+        t = fitted_data %>% filter(t75 | t25) %>%
+            gather('t', 'value', t25, t75) %>%
+            filter(value) %>%
+            dplyr::select(-percentage, -value) %>%
+            spread(t, time) %>%
+            mutate(Twidth = abs(t75 - t25))
+        
+        t %>% write_tsv(paste0(opt$out,
+                               '/',
+                               opt$output_file_base_name,
+                               '_Twidth.tsv'))
+        
+        
+        plot=ggplot(x) +
+            geom_point(aes(time,percentage,color=basename))+
+            geom_line(data=fitted_data,aes(time,percentage),color='blue')+
+            scale_x_reverse()+
+            geom_vline(data=t,aes(xintercept=t25),color='red')+
+            geom_vline(data=t,aes(xintercept=t75),color='red')+
+            geom_text(data=t,aes(label=paste('TW\n',Twidth)),x=Inf,y=0.5, hjust=1)+
+            facet_grid(basename~Cat1)
+        
+        ncat=length(unique(x$Cat1))
+        nbasen=length(unique(x$basename))
+        suppressMessages(ggsave(
+            plot,
+            filename = paste0(opt$out,
+                              '/',
+                              opt$output_file_base_name,
+                              '_Twidths_extended.pdf'),width = 2.2*ncat,height = 4*nbasen
+        ))
+        
+        
+        p = ggplot(t) +
+            geom_col(aes(Cat1, Twidth, fill = basename), position = 'dodge') +
+            ylab('Twidth') + xlab('')
+        
+        suppressMessages(ggsave(
+            p,
+            filename = paste0(opt$out,
+                              '/',
+                              opt$output_file_base_name,
+                              '_Twidths.pdf')
+        ))
+        
+        t %>% write_tsv(paste0(opt$out,
+                               '/',
+                               opt$output_file_base_name,
+                               '_Twidth.tsv'))
     }
-    temp
-}
+    
 
-t = fitted_data %>% filter(t75 | t25) %>%
-    gather('t', 'value', t25, t75) %>%
-    filter(value) %>%
-    dplyr::select(-percentage, -value) %>%
-    spread(t, time)%>%
-    mutate(Twidth = abs(t75 - t25))
-
-t %>% write_tsv(paste0(opt$out,
-                       '/',
-                       opt$output_file_base_name,
-                       '_Twidth_1_category.tsv'))
-
-
-p = ggplot(t) +
-    geom_col(aes(Cat_RT, Twidth, fill = basename), position = 'dodge') +
-    ylab('Twidth') + xlab('')
-
-suppressMessages(ggsave(
-    p,
-    filename = paste0(opt$out,
-                      '/',
-                      opt$output_file_base_name,
-                      '_Twidths_1_category.pdf')
-))
-
-counts = data %>% select(chr, start, Cat_RT, basename) %>%
-    unique() %>%
-    group_by(Cat_RT, basename) %>%
-    summarise(n = n())
-
-p = ggplot() +
-    stat_density_2d(
-        data = data,
-        geom = "polygon",
-        aes(
-            alpha = ..level..,
-            fill = basename,
-            y = percentage,
-            x = time
-        )
-    ) +
-    geom_line(
-        data = fitted_data,
-        aes(y = percentage, x = time),
-        color = 'blue',
-        inherit.aes = F
-    ) +
-    geom_hline(yintercept = c(0.75, 0.25), color = 'yellow') +
-    geom_vline(data = t,
-               aes(xintercept = t25),
-               color = 'red') +
-    geom_vline(data = t,
-               aes(xintercept = t75),
-               color = 'red') +
-    geom_text(
-        data = t,
-        aes(
-            label = paste('Twidth ~', round((t25 - t75), 1), 'h'),
-            x = (t25 + (t75 - t25) / 2),
-            y = Inf,
-            vjust = 1
-        ),
-        color = 'black',
-        inherit.aes = F
-    ) +
-    facet_grid(basename ~ Cat_RT) +
-    ggplot2::scale_x_reverse() +
-    scale_y_continuous(labels = scales::percent_format()) +
-    ylab('Percentage of cells') +
-    geom_text(data = counts,
-              aes(
-                  label = paste('N bins: ', n),
-                  x = 0,
-                  y = -Inf
-              ),
-              vjust = 0)
-
-suppressMessages(ggsave(
-    p,
-    filename = paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_variability_1_category.pdf'
-    )
-))
-
-suppressMessages(ggsave(
-    p,
-    filename = paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_variability_1_category.pdf'
-    )
-))
-
+print('done')

@@ -47,7 +47,7 @@ if (str_extract(opt$out,'.$')!='/'){
     opt$out=paste0(opt$out,'/')
 }
 
-system(paste0('mkdir -p ./', opt$out))
+system(paste0('mkdir -p ', opt$out))
 
 #load data
 data<-inner_join(read_csv(opt$file,
@@ -61,4 +61,6 @@ data%>%
     mutate(is_high_dimapd=ifelse(Phase=='S',T,F),
            is_noisy=ifelse(Phase=='S',T,F))%>%
     dplyr::select(-Phase)%>%
-    write.csv(paste0(opt$out,'phased_',basename(opt$file)))
+    write_csv(paste0(opt$out,'phased_',basename(opt$file)))
+
+print('done')

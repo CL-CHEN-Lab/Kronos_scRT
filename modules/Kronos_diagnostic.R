@@ -58,6 +58,14 @@ option_list = list(
         default = 3,
         help = "Numbers of parallel jobs to run [default= %default] ",
         metavar = "integer"
+    ),
+    make_option(
+        c("-m", "--min_n_reads"),
+        type = "double",
+        default = 56,
+        action = 'store',
+        help = "Min n of reads per million per aploid genome to keep a cell in the analysis [default= %default]",
+        metavar = "double"
     )
 )
 
@@ -78,7 +86,7 @@ if (str_extract(opt$out,'.$')!='/'){
     opt$out=paste0(opt$out,'/')
 }
 
-system(paste0('mkdir -p ./', opt$out))
+system(paste0('mkdir -p ', opt$out))
 
 #load data
 data<-read_csv(opt$file,
@@ -103,7 +111,7 @@ if (!'threshold_Sphase' %in% names(opt)){
                                          filter(is_noisy == F)%>%pull(mean_ploidy))
     
     data=data%>%
-        filter(coverage_per_1Mbp >= 112*median_ploidy_not_noisy,
+        filter(coverage_per_1Mbp >= opt$min_n_reads*median_ploidy_not_noisy,
                ploidy_confidence > 2 | ploidy_confidence==-100,
                 mean_ploidy > median_ploidy_not_noisy / 1.5 ,
                 mean_ploidy < median_ploidy_not_noisy * 2
@@ -118,9 +126,10 @@ if (!'threshold_Sphase' %in% names(opt)){
                 'unknown cells' = 'darkorange'
             )
         ) +
-        theme(legend.position = 'top', legend.title = element_blank())
+        theme(legend.position = 'top', legend.title = element_blank())+
+         xlab('Ploidy') + ylab('Variability')
     
-    system(paste('mkdir -p', opt$out))
+    system(paste('mkdir -p ', opt$out))
     suppressMessages( ggsave(p, filename = paste0(opt$out, '/', opt$base_name, '_plot.pdf')))
     
     opt$threshold_G1G2phase=NA
@@ -152,7 +161,7 @@ if (!'threshold_Sphase' %in% names(opt)){
     
     median_ploidy_not_noisy = median(data%>%filter(is_noisy == F)%>%pull(mean_ploidy))
     data = data %>%
-        filter(coverage_per_1Mbp >= 112*median_ploidy_not_noisy,
+        filter(coverage_per_1Mbp >= opt$min_n_reads*median_ploidy_not_noisy,
             mean_ploidy > median_ploidy_not_noisy / 1.5 ,
             mean_ploidy < median_ploidy_not_noisy * 2,
             !ploidy_confidence <= 2 | ploidy_confidence==-100
@@ -240,7 +249,7 @@ distributions = foreach(
 stopCluster(cl)
 
 #select the minimum value of d
-if (length(distributions)==0){
+if (nrow(distributions)==0){
    stop('S phase correction parameters could not be established, please provide manual ones') 
 }else{
 distributions=distributions%>%
@@ -306,9 +315,8 @@ tibble(
     threshold_G1G2phase = opt$threshold_G1G2phase,
     Sphase_first_part=distributions$A,
     Sphase_second_part=distributions$B,
-    RPM_TH=round(112*median_ploidy_not_noisy)
+    RPM_TH=round(opt$min_n_reads*median_ploidy_not_noisy)
 )%>%
     write_tsv(paste0(opt$out,opt$base_name, '_settings.txt'))
 
 print('done')
-

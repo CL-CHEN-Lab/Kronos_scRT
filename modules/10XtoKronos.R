@@ -41,7 +41,7 @@ if (str_extract(opt$out,'.$')!='/'){
     opt$out=paste0(opt$out,'/')
 }
 
-system(paste0('mkdir -p ./', opt$out))
+system(paste0('mkdir -p ', opt$out))
 
 #load files
 opt$file = str_split(opt$file, ',')[[1]]
@@ -74,6 +74,7 @@ if ('tracks' %in% names(opt)) {
         read_tsv(tracks, skip = 2, col_types = cols()) %>%
             select(id, `#chrom`, start, end, copy_number) %>%
             `colnames<-`(c('Cell', 'chr', 'start', 'end', 'copy_number')) %>%
+	mutate(reads= '10X')%>%
             write_tsv(paste0(opt$out, '/Kronos_format_', basename(tracks)))
     }
 }
@@ -81,3 +82,5 @@ if ('tracks' %in% names(opt)) {
 if (!('tracks' %in% names(opt) & 'file' %in% names(opt) )){
     stop('No input')
 }
+
+print('done')

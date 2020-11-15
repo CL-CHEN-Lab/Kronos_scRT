@@ -36,7 +36,7 @@ option_list = list(
         metavar = "logical"
     ),
     make_option(
-        c("-m", "--min_n_reads"),
+        c("-n", "--min_n_reads"),
         type = "double",
         default = 200000,
         action = 'store',
@@ -72,6 +72,20 @@ option_list = list(
         type = "numeric",
         help = "user extimated ploidy",
         metavar = "numeric"
+    ),
+    make_option(
+        c("-m", "--min_CNV_accepted"),
+        type = "numeric",
+        help = "Min mean CNV accepted as result. [default= %default]",
+        default = 0,
+        metavar = "numeric"
+    ),
+    make_option(
+        c("-M", "--max_CNV_accepted"),
+        type = "numeric",
+        help = "Max mean CNV accepted as result. [default= %default]",
+        default = 8,
+        metavar = "numeric"
     )
 )
 
@@ -103,7 +117,8 @@ if (!"directory" %in% names(opt)) {
 }
 
 # load bins and gc percentage
-bins = read_tsv(opt$bins, col_types = cols())
+bins = read_tsv(opt$bins, col_types = cols())%>%
+    arrange(chr,start)
 
 if (str_extract(opt$directory, '.$') != '/') {
     opt$directory = paste0(opt$directory, '/')
@@ -352,7 +367,7 @@ mapd = foreach (
             gc_corrected_reads = sum(gc_corrected_reads, na.rm = T)
         )
     
-    coverage = files[files$file==file,] %>%
+    CovReadsMega = files[files$file==file,] %>%
         summarise(coverage = 1000000 * count_reads / genome_size) %>%
         pull(coverage)
     
@@ -370,7 +385,8 @@ mapd = foreach (
             normalized_mapd = median(abs(normalized_mapd - median(normalized_mapd))),
             coverage = 1000000 * sum(gc_corrected_reads) / genome_size,
             normalized_dimapd = normalized_mapd * sqrt(coverage)
-        )
+        )%>%
+        mutate( CovReadsMega =  CovReadsMega )
     #spread data for segmentation
     data = data %>%
         filter(mappability_th) %>%
@@ -436,27 +452,44 @@ mapd = foreach (
     
     if('ploidy' %in% names(opt)){
         possible_factors = possible_factors %>%
-            filter(possible_factors %in% min,
-                   mean_cn < opt$ploidy * 1.7,
-                   mean_cn > opt$ploidy / 1.7
-                   ) 
-        selected = possible_factors$X[possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
-                                                                             2) == min(abs(possible_factors$mean_cn - 2)))]]
+            filter(possible_factors %in% min)
         
-        mean_cn = possible_factors$mean_cn[possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
-                                                                                  2) == min(abs(possible_factors$mean_cn - 2)))]]
         
-        PloConf = -100
+        if(sum((possible_factors$mean_cn >= opt$ploidy/1.5 &
+               possible_factors$mean_cn <= opt$ploidy*2)) == 0){
+        
+        selected = possible_factors$X[which(abs(possible_factors$mean_cn -
+                                                                             opt$ploidy) == min(abs(possible_factors$mean_cn - opt$ploidy)))]
+        
+        mean_cn = possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
+                                                                                  opt$ploidy) == min(abs(possible_factors$mean_cn - opt$ploidy)))]
+        PloConf = -200
+        }else{
+            
+            possible_factors = possible_factors %>%
+                filter(possible_factors %in% min,
+                       mean_cn <= opt$ploidy*2,
+                       mean_cn >= opt$ploidy/1.5)
+            
+            selected = min(possible_factors$possible_factors)
+            mean_cn = possible_factors$mean_cn[possible_factors$possible_factors ==
+                                                   selected]
+            selected = possible_factors$X[possible_factors$possible_factors ==
+                                              selected]
+            PloConf = -100 
+        }
+        
     }else{
     possible_factors = possible_factors %>%
         filter(possible_factors %in% min,
-               mean_cn < 8)
+               mean_cn <= opt$max_CNV_accepted,
+               mean_cn >= opt$min_CNV_accepted)
     
     if (Var < 5) {
-        selected = possible_factors$X[possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
-                                                                             2) == min(abs(possible_factors$mean_cn - 2)))]]
-        mean_cn = possible_factors$mean_cn[possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
-                                                                                  2) == min(abs(possible_factors$mean_cn - 2)))]]
+        selected = possible_factors$X[which(abs(possible_factors$mean_cn -
+                                                                             2) == min(abs(possible_factors$mean_cn - 2)))]
+        mean_cn = possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
+                                                                                  2) == min(abs(possible_factors$mean_cn - 2)))]
         PloConf = -2
     } else{
         selected = min(possible_factors$possible_factors)
@@ -546,8 +579,8 @@ while (T) {
 #write file
 mapd %>%
     mutate(
-        is_noisy = ifelse(is_high_dimapd | ploidy_confidence < 2, T, F),
-        coverage_per_1Mbp = coverage,
+        is_noisy = ifelse(is_high_dimapd | (ploidy_confidence < 2 & ploidy_confidence != -100), T, F),
+        coverage_per_1Mbp = CovReadsMega,
         Cell = str_remove(Cell, '.tmp$')
     ) %>%
     dplyr::select(
@@ -568,17 +601,24 @@ system(paste0(
     opt$output_dir,
     files[1],
     '_cnv_calls.bed > ',
-    paste0(opt$output_dir, opt$ExpName, '_cnv_calls.bed')
-))
-system(paste0(
-    'for i in ',
-    paste0(opt$output_dir, files[-1], '_cnv_calls.bed', collapse = ' '),
-    "; do sed '1d' $i >> ",
-    paste0(opt$output_dir, opt$ExpName, '_cnv_calls.bed'),
-    '; done'
+    opt$output_dir, opt$ExpName, '_cnv_calls.bed'
 ))
 system(paste0(
     'rm ',
-    paste0(opt$output_dir, files, '_cnv_calls.bed', collapse = ' ')
+    opt$output_dir, files[1], '_cnv_calls.bed'
 ))
+files=foreach (file=files[-1])%do%{
+    system(paste0(
+        "sed '1d' ",opt$output_dir, 
+        file, "_cnv_calls.bed >> ",
+        opt$output_dir, opt$ExpName, '_cnv_calls.bed'
+    ))
+    system(paste0(
+        'rm ',
+        opt$output_dir, file, '_cnv_calls.bed'
+    ))
+    file
+}
+
+print('done')
 
