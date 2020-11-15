@@ -11,7 +11,7 @@ Kronos and Cell Ranger (10x Genomics) can calculate cell ploidy and variability 
 ![](https://github.com/CL-CHEN-Lab/Kronos_scRT/blob/master/img/1.png)
 
 ### Reconstructing the Replication Timing Program
-Once the copy number has been adjusted the median profile of the G1/G2 population can be used to normalise the profile of each cell in S-phase. Data from each cell are then binarised using a threshold that minimises the euclidean distance between the real data and their binary counterpart (an example in fig 2A). Cells that poorly correlated with the rest of the sample are eliminated (fig 2B, Pearson correlation before and after filtering) and the rest is used to calculate the pseudo bulk RT profile (fig 2C, In the upper part of the plot referenceRT (population RT data) and RT (pseudo bulk RT calculated from scRT data): red=Early, blue=Late; below, Replication Tracks for individual cells, order from early to late from top to bottom (in blue=non replicated and in red=replicated). The pseudo bulk RT and the population RT have a very high correlation (Pearson correlation R=0.93).
+Once the copy number has been adjusted the median profile of the G1/G2 population can be used to normalize the profile of each cell in S-phase. Data from each cell are then binarized using a threshold that minimizes the euclidean distance between the real data and their binary counterpart (an example in fig 2A). Cells that poorly correlated with the rest of the sample are eliminated (fig 2B, Pearson correlation before and after filtering) and the rest is used to calculate the pseudo bulk RT profile (fig 2C, In the upper part of the plot referenceRT (population RT data) and RT (pseudo bulk RT calculated from scRT data): red=Early, blue=Late; below, Replication Tracks for individual cells, order from early to late from top to bottom (in blue=non replicated and in red=replicated). The pseudo bulk RT and the population RT have a very high correlation (Pearson correlation R=0.93).
 
 ![](https://github.com/CL-CHEN-Lab/Kronos_scRT/blob/master/img/2.png)
 
@@ -54,7 +54,7 @@ Run the script
     RT              Calculates scReplication profiles and scRT
     compare RT      Compares RT results from multiple experiments
     compare TW      Compares variability from multiple experiments and/or over multiple regions
-    population RT   Calcualtes population RT starting from single cell BAM files and Kronos diagnostic outputs
+    population RT   Calculates population RT starting from single cell BAM files and Kronos diagnostic outputs
 --InstRpacks
 
     ./Kronos InstRpacks
@@ -93,17 +93,17 @@ Run the script
     ./Kronos binning [options]
 
     Options:
-    -R CHARACTER, --RefGenome=CHARACTER                 Fasta file of genome of interst
+    -R CHARACTER, --RefGenome=CHARACTER                 Fasta file of genome of interest
     -c INTEGER, --cores=INTEGER                         Number of cores to use. [default= 3]
-    -s INTEGER, --reads_size=INTEGER                    Lengh of the simulated reads. [default= 40 bp]
+    -s INTEGER, --reads_size=INTEGER                    Length of the simulated reads. [default= 40 bp]
     -o CHARACTER, --output_dir=CHARACTER                Output folder. [default= output/]
     -i CHARACTER, --index=CHARACTER                     Bowtie 2 index
     --paired_ends                                       Generates paired ends reads [default: FALSE]
     --insert_size=INTEGER                               Insert size if paired end option is used. [default: 200]
     --bin_size=INTEGER                                  Bins size. [default= 20000 bp]
     -d CHARACTER, --dir_indexed_bam=CHARACTER           If provided parameters will be automatically estimated from the data.
-    -u DOUBLE, --upper_mappability_th=DOUBLE            Maximum mappability for a bin to be considered in the analisys  [default= 1.5]
-    -l DOUBLE, --lower_mappability_th=DOUBLE            Minimum mappability for a bin to be considered in the analisys  [default= 0.8]
+    -u DOUBLE, --upper_mappability_th=DOUBLE            Maximum mappability for a bin to be considered in the analysis  [default= 1.5]
+    -l DOUBLE, --lower_mappability_th=DOUBLE            Minimum mappability for a bin to be considered in the analysis  [default= 0.8]
     -B CHARACTER, --black_list=CHARACTER                Regions to ignore
     -x CHARACTER, --coverage=CHARACTER                  Coverage for simulated genome. [default= 1x]
     -h, --help                                          Show this help message and exit
@@ -121,7 +121,7 @@ Run the script
     -c INTEGER, --cores=INTEGER                         Number of cores to use. [default= 3]
     -o CHARACTER, --output_dir=CHARACTER                Output folder. [default= output/]
     -e CHARACTER, --ExpName=CHARACTER                   Experiment name. [default= Exp]
-    -p NUMERIC, --ploidy=NUMERIC                        User extimated ploidy (optional)
+    -p NUMERIC, --ploidy=NUMERIC                        User estimated ploidy (optional)
     -m NUMERIC, --min_CNV_accepted=NUMERIC              Min mean CNV accepted as result. [default= 0]
     -M NUMERIC, --max_CNV_accepted=NUMERIC              Max mean CNV accepted as result. [default= 8]
     -h, --help                                          Show this help message and exit
@@ -173,7 +173,7 @@ Run the script
     -R CHARACTER, --referenceRT=CHARACTER               Reference RT min=Late, max=Early, only one reference is allowed
     --ref_name=CHARACTER                                Name for the reference track [default= Reference]
     -C CHARACTER, --chrSizes=CHARACTER                  Chromosome size file
-    -r CHARACTER, --region=CHARACTER                    Region to plot  chr:start-end (multiple regins can be separated by a comma) or a bed file can be provided
+    -r CHARACTER, --region=CHARACTER                    Region to plot  chr:start-end (multiple regions can be separated by a comma) or a bed file can be provided
     -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
     -b CHARACTER, --base_name=CHARACTER                 Base name for files names [default= exp]
     -f CHARACTER, --output_file_base_name=CHARACTER     Base name for the output file [default= out]
@@ -182,8 +182,8 @@ Run the script
     -B INTEGER, --binsSize=INTEGER                      RT resolution [default= 500000] 
     -k, --keepXY                                        keep XY chromosomes in the analysis
     -c INTEGER, --cores=INTEGER                         Numbers of parallel jobs to run [default= 3] 
-    -p, --plot                                          If selected prints some randome regins, if -r is selected those regins are use to print RT [default= FALSE] 
-    --Var_against_reference                             Variability metrics are calculated usign reference RT in addiction to the calculated one [default= FALSE] 
+    -p, --plot                                          If selected prints some random regions, if -r is selected those regions are use to print RT [default= FALSE] 
+    --Var_against_reference                             Variability metrics are calculated using reference RT in addiction to the calculated one [default= FALSE] 
     --min_correlation=DOUBLE                            Minimum correlation value between one cell and its best correlating cell for this cell to not be discarded [default= 0.25] 
     -h, --help                                          Show this help message and exit
 
@@ -199,7 +199,7 @@ Run the script
     --Reference=CHARACTER                               Base name to use as a reference, if not provided the first basename in the S50 file will be used or , if provided , the reference RT even if this option is selected
     -D DOUBLE, --deltaRT_threshold=DOUBLE               DeltaRT threshold to define changes
     -n INTEGER, --n_regions=INTEGER                     number of regions to plot
-    -r CHARACTER, --region=CHARACTER                    Region to plot  chr:start-end (multiple regins can be separated by a comma)
+    -r CHARACTER, --region=CHARACTER                    Region to plot  chr:start-end (multiple regions can be separated by a comma)
     -f CHARACTER, --basename_filter=CHARACTER           Filter out unwanted samples for RT files
     -h, --help                                          Show this help message and exit
 
@@ -239,12 +239,12 @@ Run the script
     ./Kronos_scPlots.R [options]
 
     Options:
-    -L CHARACTER, --List=CHARACTER                  A Tab separated file containing in each colum scRT_Tracks and scCNV files paths. Alternative to -R,-T and -C options.
+    -L CHARACTER, --List=CHARACTER                  A Tab separated file containing in each column scRT_Tracks and scCNV files paths. Alternative to -R,-T and -C options.
     -R CHARACTER, --scRT_Tracks=CHARACTER           *calculated_replication_timing* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.  Alternative to -L option.
     -C CHARACTER, --scCNV=CHARACTER                 *single_cells_CNV* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.  Alternative to -L option..
     -s CHARACTER, --order=CHARACTER                 basenames separated by a comma in the desired order for plotting.
-    --CNV_values=CHARACTER                          What type of date to plot for the sigle cell traks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells) or 'all'= one file per option) [default= B]
-    -r CHARACTER, --region=CHARACTER                Region to plot  chr:start-end (multiple regins can be separated by a comma) or provided as a bed file
+    --CNV_values=CHARACTER                          What type of date to plot for the single cell tracks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells) or 'all'= one file per option) [default= B]
+    -r CHARACTER, --region=CHARACTER                Region to plot  chr:start-end (multiple regions can be separated by a comma) or provided as a bed file
     -o CHARACTER, --out=CHARACTER                   Output directory [default= output]
     -f CHARACTER, --output_file_base_name=CHARACTER Base name for the output file [default= out]
     -h, --help                                      Show this help message and exit
