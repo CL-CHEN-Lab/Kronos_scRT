@@ -471,5 +471,6 @@ if(!opt$keep_intermediate_files){
 
 stopCluster(cl)
 
-tmp%>%write_tsv(paste(opt$output_dir,'Single_cells_reads_info.tsv'), append = T) 
+tmp%>%write_tsv(paste(opt$output_dir,'Single_cells_reads_info.tsv'))
+
 print('done')
