@@ -1822,7 +1822,35 @@ if (opt$Var_against_reference) {
         group_by(group,time,Cat_RT)%>%
         summarise(percentage=mean(percentage)) 
     
-    #calculate tresholds 25% 75% replication keeping in account early and late domains
+    x= rbind(x  %>%
+                  mutate(
+                      Cat_RT = split_into_categoreis(RT,number = opt$N_of_RT_groups),
+                      Cat_RT = factor(
+                          Cat_RT,
+                          levels = cat_levels(number = opt$N_of_RT_groups)
+                      )
+                  ),
+              x%>%
+                  mutate(
+                      Cat_RT = '0 - All',
+                      Cat_RT = factor(
+                          Cat_RT,
+                          levels = c(
+                              '0 - All',
+                              '1 - Very Early',
+                              '2 - Early',
+                              '3 - Mid ',
+                              '4 - Late',
+                              '5 - Very Late'
+                          )
+                      )
+                  ))
+    
+    x=x%>%
+        group_by(group,time,Cat_RT)%>%
+        summarise(percentage=mean(percentage)) 
+    
+    #calculate tresholds 25% 75% replication keeping in account early and late domains  ##WHY IS THIS REPEATED ??
     fitted_data = foreach(
         group = unique(x$group),
         .combine = 'rbind',
