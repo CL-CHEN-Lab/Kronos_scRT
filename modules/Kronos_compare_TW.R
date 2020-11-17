@@ -61,11 +61,16 @@ option_list = list(
 #recover inputs
 opt = parse_args(object = OptionParser(option_list = option_list))
 
+#load packages
 suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
 suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 suppressPackageStartupMessages(library(GenomicRanges, quietly = TRUE))
 suppressPackageStartupMessages(library(ggpubr, quietly = TRUE))
 
+#set plotting theme
+theme_set(theme_bw())
+
+#check inputs
 if (!'file' %in% names(opt)) {
     stop("Variability file must be provided. See script usage (--help)")
 }

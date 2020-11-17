@@ -12,14 +12,6 @@ elif [ "$1" == "10xtoKronos" ];then
         Rscript $DIR/modules/10XtoKronos.R "${@:2}"
     fi
     
-    elif  [ "$1" == "suggests" ];then
-    if test "$#" == 1 ; then
-        echo Usage: Kronos suggests [options]
-        Rscript $DIR/modules/Kronos_suggests.R -h | grep -v Kronos_suggests
-    else
-       Rscript $DIR/modules/Kronos_suggests.R "${@:2}"
-    fi
-    
 elif  [ "$1" == "binning" ];then
     if test "$#" == 1 ; then
         echo Usage: Kronos binning [options]

@@ -71,10 +71,14 @@ option_list = list(
 
 opt = parse_args( OptionParser(option_list=option_list))
 
+#load packages
 suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
 suppressPackageStartupMessages(library(LaplacesDemon, quietly = TRUE))
 suppressPackageStartupMessages(library(doSNOW, quietly = TRUE))
 suppressPackageStartupMessages(library(foreach, quietly = TRUE))
+
+#set plotting theme
+theme_set(theme_bw())
 
 #check inputs
 if (!'file' %in% names(opt)) {
