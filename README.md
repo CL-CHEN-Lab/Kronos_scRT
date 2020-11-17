@@ -55,6 +55,7 @@ Run the script
     compare RT      Compares RT results from multiple experiments
     compare TW      Compares variability from multiple experiments and/or over multiple regions
     population RT   Calculates population RT starting from single cell BAM files and Kronos diagnostic outputs
+
 --InstRpacks
 
     ./Kronos InstRpacks
@@ -174,6 +175,7 @@ Run the script
     --ref_name=CHARACTER                                Name for the reference track [default= Reference]
     -C CHARACTER, --chrSizes=CHARACTER                  Chromosome size file
     -r CHARACTER, --region=CHARACTER                    Region to plot  chr:start-end (multiple regions can be separated by a comma) or a bed file can be provided
+
     -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
     -b CHARACTER, --base_name=CHARACTER                 Base name for files names [default= exp]
     -f CHARACTER, --output_file_base_name=CHARACTER     Base name for the output file [default= out]
