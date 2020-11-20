@@ -114,14 +114,14 @@ option_list = list(
         c("-c", "--cores"),
         type = "integer",
         default = 3,
-        help = "Numbers of parallel jobs to run [default= %default] ",
+        help = "Numbers of parallel jobs to run [default= %default]",
         metavar = "integer"
     ),
     make_option(
         c("-N", "--N_of_RT_groups"),
         type = "integer",
-        default = 5,
-        help = "number of RT groups: either 2,3 or 5",
+        default = 2,
+        help = "number of RT groups: either 2,3 or 5 [default= %default]",
         metavar = "integer"
     ),
     make_option(
@@ -1540,25 +1540,49 @@ if (length(unique(RTs$group)) != 1) {
     ))
     
     suppressMessages( ggsave(
-        plot = ggpairs(RTs, 
-                       upper=list(continuous =function(data, mapping, ...){
-                           p <- ggplot(data = data, mapping = mapping) + 
-                               geom_hex(bins=100)+
-                               scale_fill_gradientn(colours =rainbow(5))
+        plot = ggpairs(RTs,
+                       diag = list(continuous =function(data, mapping, ...){
+                           names=colnames(data)
+                           color=rainbow(length(names))
+                           p <- ggplot(data,mapping)+
+                               geom_density(aes(y=..density../max(..density..)),
+                                            fill=color[which(names==as_label(mapping$x))])+
+                               scale_x_continuous(breaks = c(0,0.5,1))+
+                               scale_y_continuous(breaks = c(0,0.5,1))
+                           return(p)
+                       }),
+                       upper = list(continuous =function(data, mapping, ...){
+                           
+                           data=tibble(
+                               xmin=-Inf,
+                               xmax=Inf,
+                               ymin=-Inf,
+                               ymax=Inf,
+                               Corr=cor(data[as_label(mapping$x)],data[as_label(mapping$y)])
+                           )
+                           
+                           p <- ggplot(data,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax,fill=Corr)) + 
+                               geom_rect()+
+                               annotate('text',0.5,0.5,label=paste("Corr:",round(data$Corr,3),sep = '\n'))+
+                                scale_fill_gradient2(low = 'blue',high = 'red',mid = 'yellow',midpoint = 0,limits=c(-1,1))+
+                               coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
+                                scale_x_continuous(breaks = c(0,0.5,1))+
+                                scale_y_continuous(breaks = c(0,0.5,1))
                            
                            return(p)
                        }),
                        lower = list(continuous =function(data, mapping, ...){
-                           x <- GGally::eval_data_col(data, mapping$x)
-                           y <- GGally::eval_data_col(data, mapping$y)
+                           p <- ggplot(data = data, mapping = mapping) + 
+                               geom_hex(bins=50,aes(fill=..ndensity..))+
+                               scale_fill_gradientn('Density',colours =rainbow(7))+
+                               coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
+                                scale_x_continuous(breaks = c(0,0.5,1))+
+                                scale_y_continuous(breaks = c(0,0.5,1))+
+                               geom_abline(slope = 1,color='black',alpha=0.5)
                            
-                           data=tibble(x=x,y=y,color= x/y)
-                           
-                           p <- ggplot(data = data, mapping = aes(x,y,color=color)) + 
-                               geom_point(alpha=0.3) +
-                               scale_color_gradient2(low = 'red',high = 'blue',mid = 'black',midpoint = 1)
                            return(p)
-                       }),legend = 2),
+                       }),legend = c(2,1))+ theme(legend.position = "right",
+                                                  axis.text.x = element_text(angle = 45,hjust = 1)),
         filename =paste0(
             opt$out,
             '/',
@@ -1890,3 +1914,4 @@ stopCluster(cl)
 
 
 print('done')
+
