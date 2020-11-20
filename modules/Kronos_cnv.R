@@ -77,7 +77,7 @@ option_list = list(
         c("-m", "--min_CNV_accepted"),
         type = "numeric",
         help = "Min mean CNV accepted as result. [default= %default]",
-        default = 0,
+        default = 2,
         metavar = "numeric"
     ),
     make_option(
