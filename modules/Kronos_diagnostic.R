@@ -29,6 +29,14 @@ option_list = list(
         metavar = "character"
     ),
     make_option(
+        c("-C", "--correct"),
+        type = "logical",
+        action = "store_true",
+        default = F,
+        help = "If True diagnostic corrects the S-phase progression and returns a setting file [default= %default]",
+        metavar = "logical"
+    ),
+    make_option(
         c("-S", "--threshold_Sphase"),
         type = "double",
         help = "Threshold to identify S-phase cells",
@@ -95,6 +103,79 @@ system(paste0('mkdir -p ', opt$out))
 #load data
 data<-read_csv(opt$file,
                col_types = cols())
+if(opt$correct==F){
+    if (!'threshold_Sphase' %in% names(opt)){
+        
+        data=data %>%
+            mutate(Type = ifelse(
+                as.logical(is_high_dimapd) == T &
+                    as.logical(is_noisy) == T,
+                'S-phase',
+                ifelse(
+                    as.logical(is_high_dimapd) == F &
+                        as.logical(is_noisy) == T,
+                    'unknown cells',
+                    'G1/G2 cells'
+                )
+            )) 
+        }else{
+            if(!'threshold_G1G2phase' %in% names(opt) ){
+                opt$threshold_G1G2phase = opt$threshold_Sphase
+            }
+            
+            data = data %>%
+                mutate(
+                    is_high_dimapd = ifelse(normalized_dimapd > opt$threshold_Sphase, T, F),
+                    is_noisy = ifelse(is_high_dimapd, T, is_noisy),
+                    Type = ifelse(
+                        as.logical(is_high_dimapd) == T & as.logical(is_noisy) == T,
+                        'S-phase',
+                        ifelse(
+                            as.logical(is_high_dimapd) == F &
+                                as.logical(is_noisy) == F &
+                                normalized_dimapd < opt$threshold_G1G2phase,
+                            'G1/G2 cells',
+                            'unknown cells'
+                            
+                        )
+                    )
+                )
+        }
+    
+    median_ploidy_not_noisy = median(data%>%filter(is_noisy == F)%>%pull(mean_ploidy))
+    
+    data=data%>%
+        mutate(Type= case_when(
+            coverage_per_1Mbp < opt$min_n_reads*median_ploidy_not_noisy ~ 'Low Coverage',
+            ploidy_confidence < 2 & ploidy_confidence!=-100 ~ 'Low Ployidy confidence',
+            mean_ploidy < median_ploidy_not_noisy / 1.5 ~ 'Too low ploidy compared to G1/G2',
+            mean_ploidy > median_ploidy_not_noisy * 2 ~ 'Too high ploidy compared to G1/G2',
+            T ~ Type
+        ))
+    
+    p =data%>%
+        ggplot(aes(mean_ploidy, normalized_dimapd, color = Type)) +
+        geom_point(alpha = 0.3) +
+        scale_color_manual(
+            values = c(
+                'Low Coverage' = '#ffff00',
+                'Low Ployidy confidence' = 'black',
+                'Too low ploidy compared to G1/G2' =' dodgerblue4',
+                'Too high ploidy compared to G1/G2' ='darkmagenta',
+                'G1/G2 cells' = 'darkred',
+                'S-phase' = 'darkgreen',
+                'unknown cells' = 'darkorange'
+            )
+        ) +
+        theme(legend.position = 'top', legend.title = element_blank())+
+        xlab('Ploidy') + ylab('Variability')
+    
+    system(paste('mkdir -p ', opt$out))
+    suppressMessages( ggsave(p, filename = paste0(opt$out, '/', opt$base_name, '_no_correction_plot.pdf')))
+
+    print('done')
+    quit()
+}
 
 if (!'threshold_Sphase' %in% names(opt)){
 
@@ -113,7 +194,7 @@ if (!'threshold_Sphase' %in% names(opt)){
     
     median_ploidy_not_noisy = median(data%>%
                                          filter(is_noisy == F)%>%pull(mean_ploidy))
-    
+
     data=data%>%
         filter(coverage_per_1Mbp >= opt$min_n_reads*median_ploidy_not_noisy,
                ploidy_confidence > 2 | ploidy_confidence==-100,
