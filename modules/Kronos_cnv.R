@@ -348,7 +348,8 @@ gc_correction_value = data %>%
 mapd = foreach (
     file = files$file,
     .combine = 'rbind',
-    .packages = c('tidyverse', 'foreach', 'DNAcopy', 'MASS', 'gplots')
+    .packages = c('tidyverse', 'foreach', 'DNAcopy', 'MASS', 'gplots'),
+    .errorhandling =  "remove"
 ) %dopar% {
     data = read_tsv(paste0(opt$output_dir, file))
     data = left_join(data, gc_correction_value, by = c('chr', 'start', 'end')) %>%

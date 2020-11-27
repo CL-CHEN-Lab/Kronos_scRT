@@ -1587,7 +1587,7 @@ if (length(unique(RTs$group)) != 1) {
             opt$out,
             '/',
             opt$output_file_base_name,
-            'pair_scatter_plot_RTs.pdf'
+            '_paired_density_plot_RTs.pdf'
         )
     ))
  
