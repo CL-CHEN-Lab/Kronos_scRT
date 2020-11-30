@@ -314,7 +314,8 @@ Annotation_file = read_tsv(opt$Annotation,
                                '_Twidth_categories.tsv'))
         p = ggplot(t) +
             geom_col(aes(' ', Twidth, fill = group), position = 'dodge') +
-            ylab('Twidth') + xlab('')+facet_grid(Cat1~Cat2)
+            ylab('Twidth') + xlab('')+facet_grid(Cat1~Cat2)+
+            theme(axis.text.x = element_text(angle = 45, hjust=1))
         
         suppressMessages(ggsave(
             p,
@@ -436,7 +437,8 @@ Annotation_file = read_tsv(opt$Annotation,
         
         p = ggplot(t) +
             geom_col(aes(Cat1, Twidth, fill = group), position = 'dodge') +
-            ylab('Twidth') + xlab('')
+            ylab('Twidth') + xlab('')+
+            theme(axis.text.x = element_text(angle = 45, hjust=1))
         
         suppressMessages(ggsave(
             p,
