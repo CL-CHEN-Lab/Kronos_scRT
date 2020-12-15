@@ -454,7 +454,7 @@ if(opt$paired_ends){
         samOutput = paste0(opt$output_dir, basename(opt$index), '_simulated_reads.sam'),
         seq1 = paste0(opt$output_dir, basename(opt$index), '_simulated_reads_1.fq'),
         seq2 = paste0(opt$output_dir, basename(opt$index), '_simulated_reads_2.fq'),
-        ... = paste0('-k 1 --phred33 --ignore-quals -p ', opt$cores),
+        ... = paste0('--phred33 --ignore-quals -p ', opt$cores),
         overwrite=TRUE
     )
     
@@ -477,7 +477,7 @@ if(opt$paired_ends){
         bt2Index = opt$index,
         samOutput = paste0(opt$output_dir, basename(opt$index), '_simulated_reads.sam'),
         seq1 = paste0(opt$output_dir, basename(opt$index), '_simulated_reads.fq'),
-        ... = paste0('-k 1 --phred33 --ignore-quals -p ', opt$cores),
+        ... = paste0('--phred33 --ignore-quals -p ', opt$cores),
         overwrite=TRUE
     ))
     
