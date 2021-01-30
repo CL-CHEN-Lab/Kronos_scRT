@@ -319,8 +319,6 @@ Run the script
 
 Please contact the authors for any further questions:
 
-Stefano Gnan stefano.gnan@curie.fr
-
-Chunlong Chen chunlong.chen@curie.fr
+[Stefano Gnan](mailto:stefano.gnan@curie.fr) and [Chunlong Chen](mailto:chunlong.chen@curie.fr) (Institut Curie)
 
 
