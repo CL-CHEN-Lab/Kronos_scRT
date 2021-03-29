@@ -1704,7 +1704,7 @@ T25_75 = function(df, name, EL) {
                 add_row(percentage=0,time=10),
             control = nls.control(maxiter = 100),
             algorithm = 'port',
-            lower = c(Asym=1,xmid=0,scal=-1.5)
+            start = c(Asym=1,xmid=0,scal=-0.5)
             ),
         #If the data cannot be fitted with a Gauss-Newton algorithm, try the
         #Golub and Pereyra algorithm for the solution of a nonlinear least squares
