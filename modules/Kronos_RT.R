@@ -99,7 +99,7 @@ option_list = list(
         type = "logical",
         default = FALSE,
         action = "store_true",
-        help = "keep X chromosomes in the analysis",
+        help = "Keep X chromosomes in the analysis",
         metavar = "logical"
     ),
     make_option(
@@ -107,7 +107,7 @@ option_list = list(
         type = "logical",
         default = FALSE,
         action = "store_true",
-        help = "keep Y chromosomes in the analysis",
+        help = "Keep Y chromosomes in the analysis",
         metavar = "logical"
     ),
     make_option(
@@ -121,7 +121,7 @@ option_list = list(
         c("-N", "--N_of_RT_groups"),
         type = "integer",
         default = 2,
-        help = "number of RT groups: either 2,3 or 5 [default= %default]",
+        help = "Number of RT groups: either 2,3 or 5 [default= %default]",
         metavar = "integer"
     ),
     make_option(
@@ -1629,14 +1629,14 @@ x %>%
             if(number==3){
                 return( case_when(
                     RT < 3 ~ '1 - Early',
-                    RT >= 3 & RT < 6 ~ '2 - Mid ',
+                    RT >= 3 & RT < 6 ~ '2 - Mid',
                     RT >= 6  ~ '3 - Late'
                 ))
             }else if (number==5){
                 return( case_when(
                     RT < 2 ~ '1 - Very Early',
                     RT >= 2 & RT < 4  ~ '2 - Early',
-                    RT >= 4 & RT < 6 ~ '3 - Mid ',
+                    RT >= 4 & RT < 6 ~ '3 - Mid',
                     RT >= 6 & RT < 8 ~ '4 - Late',
                     RT >= 8  ~ '5 - Very Late'))
             }else {
@@ -1659,7 +1659,7 @@ x %>%
                     '0 - All',
                     '1 - Very Early',
                     '2 - Early',
-                    '3 - Mid ',
+                    '3 - Mid',
                     '4 - Late',
                     '5 - Very Late'
                 ))

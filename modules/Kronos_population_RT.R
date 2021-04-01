@@ -75,14 +75,14 @@ option_list = list(
         c("-C", "--chrSizes"),
         type = "character",
         default = NULL,
-        help = "chromosome size file",
+        help = "Chromosome size file",
         metavar = "character"
     ),
     make_option(
         c("-B","--black_list"),
         type = "character",
         action = 'store',
-        help = "regions to ignore",
+        help = "Regions to ignore",
         metavar = "character"
     )
 )

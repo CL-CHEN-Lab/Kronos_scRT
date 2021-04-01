@@ -68,7 +68,15 @@ elif [ "$1" == "compare" ] && [ "$2" == "RT" ];then
     else
        Rscript $DIR/modules/Kronos_compare_RT.R "${@:3}"
     fi
-    
+
+elif [ "$1" == "annotate" ];then
+    if test "$#" == 1 ; then
+        echo Usage: Kronos Corr [options]
+        Rscript $DIR/modules/Kronos_annotate.R -h | grep -v Kronos_annotate.R
+    else
+       Rscript $DIR/modules/Kronos_annotate.R "${@:2}"
+    fi
+   
 elif [ "$1" == "compare" ] && [ "$2" == "TW" ];then
     if test "$#" == 2 ; then
         echo Usage: Kronos compare TW [options]
@@ -116,6 +124,7 @@ commands:\n
 \t RT \t\t\t Calculates scReplication profiles and scRT
 \t Corr \t\t\t Calculates pearson correlation between multipe calculated replication timing/ rescaled reference RT files 
 \t compare RT \t\t Compares RT results from multiple experiments
+\t annotate \t\t Annotates sc variability files for Kronos compare TW
 \t compare TW \t\t Allowes to investigate variability using a categorical annotation of the genome (for example binding sites or genes of interest)
 \t population RT \t\t Calcualtes population RT starting from single cell BAM files and Kronos diagnostic outputs
 \t scPlots \t\t scRT plots

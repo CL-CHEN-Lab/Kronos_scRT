@@ -11,14 +11,14 @@ option_list = list(
         c("-F", "--file"),
         type = "character",
         default = NULL,
-        help = "per cell stat file path",
+        help = "Per cell stat file path",
         metavar = "character"
     ),
     make_option(
         c("-W", "--whoSwho"),
         type = "character",
         default = NULL,
-        help = "who's who file path",
+        help = "Who's who file path",
         metavar = "character"
     ),
     make_option(

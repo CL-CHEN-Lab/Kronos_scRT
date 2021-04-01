@@ -17,7 +17,7 @@ option_list = list(
         c("-s", "--sort"),
         type = "character",
         default = NULL,
-        help = "group names orders",
+        help = "Group names orders",
         metavar = "character"
     ),
     make_option(
