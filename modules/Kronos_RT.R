@@ -640,7 +640,7 @@ if ('referenceRT' %in% names(opt)) {
     write_delim(
         x = Reference_RT%>%
             mutate(group=opt$ref_name),
-        path = paste0(
+        file = paste0(
             opt$out,
             '/',
             opt$output_file_base_name,
@@ -1299,23 +1299,23 @@ if (opt$plot) {
                 separate(coord, c('chr', 'pos'), ':') %>%
                 separate(pos, c('start', 'end'), '-') %>%
                 mutate(
-                    start_unit = str_extract(start, pattern = '.{2}$'),
+                    start_unit = ifelse(str_count(start)>2, str_extract(start, pattern = '.{2}$'),'bp'),
                     start = as.numeric(str_remove(
                         start, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]"
                     )) * case_when(
                         grepl(x = start_unit, pattern =  '[Kk][Bb]') ~ 1000,
                         grepl(x = start_unit, pattern = '[Mm][Bb]') ~ 1000000,
-                        grepl(x = start_unit, pattern = '[Bp][Pp]') ~ 1,
+                        grepl(x = start_unit, pattern = '[Bb][Pp]') ~ 1,
                         grepl(x = start_unit, pattern =  '[0-9][0-9]') ~ 1
                     ),
-                    end_unit = str_extract(end, pattern = '.{2}$'),
+                    end_unit = ifelse(str_count(end)>2,str_extract(end, pattern = '.{2}$'),'bp'),
                     
                     end = as.numeric(str_remove(
                         end, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]"
                     )) * case_when(
                         grepl(x = end_unit, pattern =  '[Kk][Bb]') ~ 1000,
                         grepl(x = end_unit, pattern = '[Mm][Bb]') ~ 1000000,
-                        grepl(x = end_unit, pattern = '[Bp][Pp]') ~ 1,
+                        grepl(x = end_unit, pattern = '[Bb][Pp]') ~ 1,
                         grepl(x = end_unit, pattern =  '[0-9][0-9]') ~ 1
                     )
                 ) %>%
@@ -1651,7 +1651,7 @@ x %>%
                 return( c(
                     '0 - All',
                     '1 - Early',
-                    '2 - Mid ',
+                    '2 - Mid',
                     '3 - Late'
                 ))
             }else if (number==5){
@@ -1693,7 +1693,8 @@ x = rbind(x  %>%
 
 x=x%>%
     group_by(group,time,Cat_RT)%>%
-    summarise(percentage=mean(percentage))
+    summarise(percentage=mean(percentage))%>%
+    ungroup()
 
 #T25_75 function
 T25_75 = function(df, name, EL) {
@@ -1749,7 +1750,7 @@ T25_75 = function(df, name, EL) {
     return(t)
 }
 
-#calculate tresholds 25% 75% replication keeping in account early and late domains
+#calculate thresholds 25% 75% replication keeping in account early and late domains
 fitted_data = foreach(
     group = unique(x$group),
     .combine = 'rbind',
@@ -1845,7 +1846,7 @@ if (opt$Var_against_reference) {
         group_by(group,time,Cat_RT)%>%
         summarise(percentage=mean(percentage)) 
     
-    #calculate tresholds 25% 75% replication keeping in account early and late domains  ##WHY IS THIS REPEATED ??
+    #calculate thresholds 25% 75% replication keeping in account early and late domains  ##WHY IS THIS REPEATED ??
     fitted_data = foreach(
         group = unique(x$group),
         .combine = 'rbind',
