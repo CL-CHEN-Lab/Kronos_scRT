@@ -1,4 +1,4 @@
-#!/usr/local/bin/Rscript --slave
+#!/usr/local/bin/Rscript
 
 # this script is meant to select the treshold to select cycling cells
 

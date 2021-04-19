@@ -1,4 +1,4 @@
-#!/usr/local/bin/Rscript --slave
+#!/usr/local/bin/Rscript
 
 
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
