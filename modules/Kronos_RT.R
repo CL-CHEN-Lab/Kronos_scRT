@@ -640,7 +640,7 @@ if ('referenceRT' %in% names(opt)) {
     write_delim(
         x = Reference_RT%>%
             mutate(group=opt$ref_name),
-        file = paste0(
+        path = paste0(
             opt$out,
             '/',
             opt$output_file_base_name,
