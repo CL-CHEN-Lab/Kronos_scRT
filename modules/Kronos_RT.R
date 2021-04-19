@@ -114,14 +114,14 @@ option_list = list(
         c("-c", "--cores"),
         type = "integer",
         default = 3,
-        help = "Numbers of parallel jobs to run [default= %default] ",
+        help = "Numbers of parallel jobs to run [default= %default]",
         metavar = "integer"
     ),
     make_option(
         c("-N", "--N_of_RT_groups"),
         type = "integer",
-        default = 5,
-        help = " number of RT groups: either 2,3 or 5",
+        default = 2,
+        help = "number of RT groups: either 2,3 or 5 [default= %default]",
         metavar = "integer"
     ),
     make_option(
@@ -163,6 +163,10 @@ suppressPackageStartupMessages(library(matrixStats, quietly = TRUE))
 suppressPackageStartupMessages(library(RColorBrewer, quietly = TRUE))
 suppressPackageStartupMessages(library(GenomicRanges, quietly = TRUE))
 suppressPackageStartupMessages(library(MASS, quietly = TRUE))
+
+#set plotting theme
+theme_set(theme_bw())
+
 #check inputs
 if('Kronos_conf_file' %in% names(opt)) {
     
@@ -1536,15 +1540,56 @@ if (length(unique(RTs$group)) != 1) {
     ))
     
     suppressMessages( ggsave(
-        plot = ggpairs(scRT, aes(alpha = 0.3),upper = list(continuous =function(data,mapping,...) ggplot()+geom_density2d(data=data,mapping=mapping,...))),
+        plot = ggpairs(RTs,
+                       diag = list(continuous =function(data, mapping, ...){
+                           names=colnames(data)
+                           color=rainbow(length(names))
+                           p <- ggplot(data,mapping)+
+                               geom_density(aes(y=..density../max(..density..)),
+                                            fill=color[which(names==as_label(mapping$x))])+
+                               scale_x_continuous(breaks = c(0,0.5,1))+
+                               scale_y_continuous(breaks = c(0,0.5,1))
+                           return(p)
+                       }),
+                       upper = list(continuous =function(data, mapping, ...){
+                           
+                           data=tibble(
+                               xmin=-Inf,
+                               xmax=Inf,
+                               ymin=-Inf,
+                               ymax=Inf,
+                               Corr=cor(data[as_label(mapping$x)],data[as_label(mapping$y)])
+                           )
+                           
+                           p <- ggplot(data,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax,fill=Corr)) + 
+                               geom_rect()+
+                               annotate('text',0.5,0.5,label=paste("Corr:",round(data$Corr,3),sep = '\n'))+
+                                scale_fill_gradient2(low = 'blue',high = 'red',mid = 'yellow',midpoint = 0,limits=c(-1,1))+
+                               coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
+                                scale_x_continuous(breaks = c(0,0.5,1))+
+                                scale_y_continuous(breaks = c(0,0.5,1))
+                           
+                           return(p)
+                       }),
+                       lower = list(continuous =function(data, mapping, ...){
+                           p <- ggplot(data = data, mapping = mapping) + 
+                               geom_hex(bins=50,aes(fill=..ndensity..))+
+                               scale_fill_gradientn('Density',colours =rainbow(7))+
+                               coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
+                                scale_x_continuous(breaks = c(0,0.5,1))+
+                                scale_y_continuous(breaks = c(0,0.5,1))+
+                               geom_abline(slope = 1,color='black',alpha=0.5)
+                           
+                           return(p)
+                       }),legend = c(2,1))+ theme(legend.position = "right",
+                                                  axis.text.x = element_text(angle = 45,hjust = 1)),
         filename =paste0(
             opt$out,
             '/',
             opt$output_file_base_name,
-            'pair_scatter_plot_RTs.pdf'
+            '_paired_density_plot_RTs.pdf'
         )
     ))
-    
  
  }
 
@@ -1665,7 +1710,7 @@ T25_75 = function(df, name, EL) {
         #Golub and Pereyra algorithm for the solution of a nonlinear least squares
         #problem which assumes a number of the parameters are linear.
         #Also, add a higher tolerance (1e-04 Vs 1e-05).
-        error = function(e)
+        error = tryCatch(function(e)
             nls(
                 percentage ~ SSlogis(time, Asym, xmid, scal),
                 data = df[, c('percentage', 'time')]%>%
@@ -1673,6 +1718,8 @@ T25_75 = function(df, name, EL) {
                     add_row(percentage=0,time=10),
                 algorithm = 'plinear',
                 control = nls.control(maxiter = 100,tol = 1e-04, warnOnly = T)
+            ),
+            error = function(e) print('Try to reduce the number of RT groups') 
             )
     )
     min = min(df$time)
@@ -1794,58 +1841,6 @@ if (opt$Var_against_reference) {
             )
         )
     
-    x= rbind(x  %>%
-                  mutate(
-                      Cat_RT = split_into_categoreis(RT,number = opt$N_of_RT_groups),
-                      Cat_RT = factor(
-                          Cat_RT,
-                          levels = cat_levels(number = opt$N_of_RT_groups)
-                      )
-                  ),
-              x%>%
-                  mutate(
-                      Cat_RT = '0 - All',
-                      Cat_RT = factor(
-                          Cat_RT,
-                          levels = c(
-                              '0 - All',
-                              '1 - Very Early',
-                              '2 - Early',
-                              '3 - Mid ',
-                              '4 - Late',
-                              '5 - Very Late'
-                          )
-                      )
-                  ))
-    
-    x=x%>%
-        group_by(group,time,Cat_RT)%>%
-        summarise(percentage=mean(percentage)) 
-    
-    x= rbind(x  %>%
-                  mutate(
-                      Cat_RT = split_into_categoreis(RT,number = opt$N_of_RT_groups),
-                      Cat_RT = factor(
-                          Cat_RT,
-                          levels = cat_levels(number = opt$N_of_RT_groups)
-                      )
-                  ),
-              x%>%
-                  mutate(
-                      Cat_RT = '0 - All',
-                      Cat_RT = factor(
-                          Cat_RT,
-                          levels = c(
-                              '0 - All',
-                              '1 - Very Early',
-                              '2 - Early',
-                              '3 - Mid ',
-                              '4 - Late',
-                              '5 - Very Late'
-                          )
-                      )
-                  ))
-    
     x=x%>%
         group_by(group,time,Cat_RT)%>%
         summarise(percentage=mean(percentage)) 
@@ -1919,3 +1914,4 @@ stopCluster(cl)
 
 
 print('done')
+

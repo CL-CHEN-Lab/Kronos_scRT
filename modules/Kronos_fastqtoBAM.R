@@ -291,7 +291,7 @@ tmp=foreach(i = 1:length(opt$one),.combine = 'rbind',.packages = c('tidyverse','
                 bt2Index = opt$index,
                 samOutput = paste0(opt$output_dir, 'sorted_bam/', file_basename, '.sam'),
                 seq1 = paste0(opt$output_dir, 'trimmed/', input_bowtie),
-                ... = paste0('-k 1 --met 60 --met-file ',opt$output_dir,
+                ... = paste0('--met 60 --met-file ',opt$output_dir,
                              'Bowtie2_logs/',file_basename,'.txt'),
                 overwrite = TRUE
             )
@@ -405,7 +405,7 @@ tmp=foreach(i = 1:length(opt$one),.combine = 'rbind',.packages = c('tidyverse','
                 samOutput = paste0(opt$output_dir, 'sorted_bam/', file_basename, '.sam'),
                 seq1 = paste0(opt$output_dir, 'trimmed/', input_bowtie_1),
                 seq2 = paste0(opt$output_dir, 'trimmed/', input_bowtie_2),
-                ... = paste0('-k 1 --met 60 --met-file ',opt$output_dir,
+                ... = paste0('--met 60 --met-file ',opt$output_dir,
                              'Bowtie2_logs/',file_basename,'.txt'),
                 overwrite = TRUE
             )

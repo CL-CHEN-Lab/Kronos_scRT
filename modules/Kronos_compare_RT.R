@@ -52,12 +52,16 @@ option_list = list(
 
 opt = parse_args(object = OptionParser(option_list = option_list))
 
+#load packages
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(foreach))
 suppressPackageStartupMessages(library(Cairo))
 suppressPackageStartupMessages(library(scales))
 suppressPackageStartupMessages(library(GenomicRanges))
 suppressPackageStartupMessages(library(GGally))
+
+#set plotting theme
+theme_set(theme_bw())
 
 #create output directory
 if (str_extract(opt$out,'.$')!='/'){

@@ -80,12 +80,16 @@ option_list = list(
 #recover inputs
 opt = parse_args(object = OptionParser(option_list = option_list))
 
-#load module
+#load packages
 suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
 suppressPackageStartupMessages(library(RColorBrewer, quietly = TRUE))
 suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 suppressPackageStartupMessages(library(gridExtra, quietly = TRUE))
 
+#set plotting theme
+theme_set(theme_bw())
+
+#load files
 if('List' %in% names(opt)) {
     opt$List = tryCatch(
         expr = read_tsv(opt$List, col_names = F, col_types = cols()),

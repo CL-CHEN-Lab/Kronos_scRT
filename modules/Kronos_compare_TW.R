@@ -61,11 +61,16 @@ option_list = list(
 #recover inputs
 opt = parse_args(object = OptionParser(option_list = option_list))
 
+#load packages
 suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
 suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 suppressPackageStartupMessages(library(GenomicRanges, quietly = TRUE))
 suppressPackageStartupMessages(library(ggpubr, quietly = TRUE))
 
+#set plotting theme
+theme_set(theme_bw())
+
+#check inputs
 if (!'file' %in% names(opt)) {
     stop("Variability file must be provided. See script usage (--help)")
 }
@@ -209,7 +214,7 @@ Annotation_file = read_tsv(opt$Annotation,
         #calculate tresholds 25% 75% replication keeping in account early and late domains
         
         T25_75 = function(df, name, Cat1, Cat2) {
-            if (length(df$basename) != 0) {
+            if (length(df$group) != 0) {
                 model = tryCatch( nls(percentage ~ SSlogis(time, Asym, xmid, scal),
                                       data = df[, c('percentage', 'time')]%>%
                                           add_row(percentage=1,time=-10)%>%
@@ -237,7 +242,7 @@ Annotation_file = read_tsv(opt$Annotation,
                 result = data.frame(
                     time = seq(min, max, 0.01),
                     percentage = data,
-                    basename = name
+                    group = name
                 )
                 t = result %>%
                     mutate(
@@ -250,7 +255,7 @@ Annotation_file = read_tsv(opt$Annotation,
                         t75 = distance75 == min75,
                         t25 = distance25 == min25
                     ) %>%
-                    dplyr::select(basename,
+                    dplyr::select(group,
                                   time,
                                   percentage,
                                   t75,
@@ -265,11 +270,11 @@ Annotation_file = read_tsv(opt$Annotation,
         }
         
         x=data%>%
-            group_by(basename,time,Cat1,Cat2)%>%
+            group_by(group,time,Cat1,Cat2)%>%
             summarise(percentage=mean(percentage)) 
         
         fitted_data = foreach(
-            basename = unique(x$basename),
+            group = unique(x$group),
             .combine = 'rbind',
             .packages = c('tidyverse', 'foreach'),
             .errorhandling = 'remove'
@@ -287,9 +292,9 @@ Annotation_file = read_tsv(opt$Annotation,
                     .errorhandling = 'remove'
                 ) %do% {
                     
-                    t = T25_75(df = x[x$basename == basename &
+                    t = T25_75(df = x[x$group == group &
                                           x$Cat1 == Cat1 &
-                                          x$Cat2 == Cat2, ], basename, Cat1, Cat2)
+                                          x$Cat2 == Cat2, ], group, Cat1, Cat2)
                 }
                 temp
             }
@@ -308,8 +313,9 @@ Annotation_file = read_tsv(opt$Annotation,
                                opt$output_file_base_name,
                                '_Twidth_categories.tsv'))
         p = ggplot(t) +
-            geom_col(aes(' ', Twidth, fill = basename), position = 'dodge') +
-            ylab('Twidth') + xlab('')+facet_grid(Cat1~Cat2)
+            geom_col(aes(' ', Twidth, fill = group), position = 'dodge') +
+            ylab('Twidth') + xlab('')+facet_grid(Cat1~Cat2)+
+            theme(axis.text.x = element_text(angle = 45, hjust=1))
         
         suppressMessages(ggsave(
             p,
@@ -325,7 +331,7 @@ Annotation_file = read_tsv(opt$Annotation,
                       mutate(Cat1 = '_All_'))
         
         x=data%>%
-            group_by(basename,time,Cat1)%>%
+            group_by(group,time,Cat1)%>%
             summarise(percentage=mean(percentage)) 
         #T25_75 function
         T25_75 = function(df, name, EL) {
@@ -360,7 +366,7 @@ Annotation_file = read_tsv(opt$Annotation,
             result = data.frame(
                 time = seq(min, max, 0.01),
                 percentage = data,
-                basename = name
+                group = name
             )
             t = result %>%
                 mutate(
@@ -373,7 +379,7 @@ Annotation_file = read_tsv(opt$Annotation,
                     t75 = distance75 == min75,
                     t25 = distance25 == min25
                 ) %>%
-                dplyr::select(basename, time, percentage, t75, t25)  %>%
+                dplyr::select(group, time, percentage, t75, t25)  %>%
                 mutate(Cat1 = EL)
             
             return(t)
@@ -381,7 +387,7 @@ Annotation_file = read_tsv(opt$Annotation,
         
         #calculate tresholds 25% 75% replication keeping in account early and late domains
         fitted_data = foreach(
-            basename = unique(x$basename),
+            group = unique(x$group),
             .combine = 'rbind',
             .packages = c('tidyverse', 'foreach')
         ) %do% {
@@ -390,8 +396,8 @@ Annotation_file = read_tsv(opt$Annotation,
                 .combine = 'rbind',
                 .packages = c('tidyverse', 'foreach')
             ) %do% {
-                t = T25_75(df = x[x$basename == basename &
-                                      x$Cat1 == EL, ], basename, EL)
+                t = T25_75(df = x[x$group == group &
+                                      x$Cat1 == EL, ], group, EL)
             }
             temp
         }
@@ -410,16 +416,16 @@ Annotation_file = read_tsv(opt$Annotation,
         
         
         plot=ggplot(x) +
-            geom_point(aes(time,percentage,color=basename))+
+            geom_point(aes(time,percentage,color=group))+
             geom_line(data=fitted_data,aes(time,percentage),color='blue')+
             scale_x_reverse()+
             geom_vline(data=t,aes(xintercept=t25),color='red')+
             geom_vline(data=t,aes(xintercept=t75),color='red')+
             geom_text(data=t,aes(label=paste('TW\n',Twidth)),x=Inf,y=0.5, hjust=1)+
-            facet_grid(basename~Cat1)
+            facet_grid(group~Cat1)
         
         ncat=length(unique(x$Cat1))
-        nbasen=length(unique(x$basename))
+        nbasen=length(unique(x$group))
         suppressMessages(ggsave(
             plot,
             filename = paste0(opt$out,
@@ -430,8 +436,9 @@ Annotation_file = read_tsv(opt$Annotation,
         
         
         p = ggplot(t) +
-            geom_col(aes(Cat1, Twidth, fill = basename), position = 'dodge') +
-            ylab('Twidth') + xlab('')
+            geom_col(aes(Cat1, Twidth, fill = group), position = 'dodge') +
+            ylab('Twidth') + xlab('')+
+            theme(axis.text.x = element_text(angle = 45, hjust=1))
         
         suppressMessages(ggsave(
             p,
