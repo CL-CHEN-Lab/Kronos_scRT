@@ -1,4 +1,4 @@
-#!/usr/local/bin/Rscript --slave
+#!/usr/local/bin/Rscript
 #parse input
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
@@ -99,7 +99,7 @@ option_list = list(
         type = "logical",
         default = FALSE,
         action = "store_true",
-        help = "keep X chromosomes in the analysis",
+        help = "Keep X chromosomes in the analysis",
         metavar = "logical"
     ),
     make_option(
@@ -107,7 +107,7 @@ option_list = list(
         type = "logical",
         default = FALSE,
         action = "store_true",
-        help = "keep Y chromosomes in the analysis",
+        help = "Keep Y chromosomes in the analysis",
         metavar = "logical"
     ),
     make_option(
@@ -121,7 +121,7 @@ option_list = list(
         c("-N", "--N_of_RT_groups"),
         type = "integer",
         default = 2,
-        help = "number of RT groups: either 2,3 or 5 [default= %default]",
+        help = "Number of RT groups: either 2,3 or 5 [default= %default]",
         metavar = "integer"
     ),
     make_option(
@@ -640,7 +640,7 @@ if ('referenceRT' %in% names(opt)) {
     write_delim(
         x = Reference_RT%>%
             mutate(group=opt$ref_name),
-        path = paste0(
+        file = paste0(
             opt$out,
             '/',
             opt$output_file_base_name,
@@ -1299,23 +1299,23 @@ if (opt$plot) {
                 separate(coord, c('chr', 'pos'), ':') %>%
                 separate(pos, c('start', 'end'), '-') %>%
                 mutate(
-                    start_unit = str_extract(start, pattern = '.{2}$'),
+                    start_unit = ifelse(str_count(start)>2, str_extract(start, pattern = '.{2}$'),'bp'),
                     start = as.numeric(str_remove(
                         start, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]"
                     )) * case_when(
                         grepl(x = start_unit, pattern =  '[Kk][Bb]') ~ 1000,
                         grepl(x = start_unit, pattern = '[Mm][Bb]') ~ 1000000,
-                        grepl(x = start_unit, pattern = '[Bp][Pp]') ~ 1,
+                        grepl(x = start_unit, pattern = '[Bb][Pp]') ~ 1,
                         grepl(x = start_unit, pattern =  '[0-9][0-9]') ~ 1
                     ),
-                    end_unit = str_extract(end, pattern = '.{2}$'),
+                    end_unit = ifelse(str_count(end)>2,str_extract(end, pattern = '.{2}$'),'bp'),
                     
                     end = as.numeric(str_remove(
                         end, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]"
                     )) * case_when(
                         grepl(x = end_unit, pattern =  '[Kk][Bb]') ~ 1000,
                         grepl(x = end_unit, pattern = '[Mm][Bb]') ~ 1000000,
-                        grepl(x = end_unit, pattern = '[Bp][Pp]') ~ 1,
+                        grepl(x = end_unit, pattern = '[Bb][Pp]') ~ 1,
                         grepl(x = end_unit, pattern =  '[0-9][0-9]') ~ 1
                     )
                 ) %>%
@@ -1629,14 +1629,14 @@ x %>%
             if(number==3){
                 return( case_when(
                     RT < 3 ~ '1 - Early',
-                    RT >= 3 & RT < 6 ~ '2 - Mid ',
+                    RT >= 3 & RT < 6 ~ '2 - Mid',
                     RT >= 6  ~ '3 - Late'
                 ))
             }else if (number==5){
                 return( case_when(
                     RT < 2 ~ '1 - Very Early',
                     RT >= 2 & RT < 4  ~ '2 - Early',
-                    RT >= 4 & RT < 6 ~ '3 - Mid ',
+                    RT >= 4 & RT < 6 ~ '3 - Mid',
                     RT >= 6 & RT < 8 ~ '4 - Late',
                     RT >= 8  ~ '5 - Very Late'))
             }else {
@@ -1651,7 +1651,7 @@ x %>%
                 return( c(
                     '0 - All',
                     '1 - Early',
-                    '2 - Mid ',
+                    '2 - Mid',
                     '3 - Late'
                 ))
             }else if (number==5){
@@ -1659,7 +1659,7 @@ x %>%
                     '0 - All',
                     '1 - Very Early',
                     '2 - Early',
-                    '3 - Mid ',
+                    '3 - Mid',
                     '4 - Late',
                     '5 - Very Late'
                 ))
@@ -1693,7 +1693,8 @@ x = rbind(x  %>%
 
 x=x%>%
     group_by(group,time,Cat_RT)%>%
-    summarise(percentage=mean(percentage))
+    summarise(percentage=mean(percentage))%>%
+    ungroup()
 
 #T25_75 function
 T25_75 = function(df, name, EL) {
@@ -1704,7 +1705,7 @@ T25_75 = function(df, name, EL) {
                 add_row(percentage=0,time=10),
             control = nls.control(maxiter = 100),
             algorithm = 'port',
-            lower = c(Asym=1,xmid=0,scal=-1.5)
+            start = c(Asym=1,xmid=0,scal=-0.5)
             ),
         #If the data cannot be fitted with a Gauss-Newton algorithm, try the
         #Golub and Pereyra algorithm for the solution of a nonlinear least squares
@@ -1749,7 +1750,7 @@ T25_75 = function(df, name, EL) {
     return(t)
 }
 
-#calculate tresholds 25% 75% replication keeping in account early and late domains
+#calculate thresholds 25% 75% replication keeping in account early and late domains
 fitted_data = foreach(
     group = unique(x$group),
     .combine = 'rbind',
@@ -1845,7 +1846,7 @@ if (opt$Var_against_reference) {
         group_by(group,time,Cat_RT)%>%
         summarise(percentage=mean(percentage)) 
     
-    #calculate tresholds 25% 75% replication keeping in account early and late domains  ##WHY IS THIS REPEATED ??
+    #calculate thresholds 25% 75% replication keeping in account early and late domains  ##WHY IS THIS REPEATED ??
     fitted_data = foreach(
         group = unique(x$group),
         .combine = 'rbind',

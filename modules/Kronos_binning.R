@@ -1,4 +1,4 @@
-#!/usr/local/bin/Rscript --slave
+#!/usr/local/bin/Rscript
 #parse input
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
@@ -79,7 +79,7 @@ option_list = list(
       type = "double",
       default = 1.5,
       action = 'store',
-      help = "maximum mappability for a bin to be considered in the analisys  [default= %default]",
+      help = "Maximum mappability for a bin to be considered in the analisys  [default= %default]",
       metavar = "double"
     ),
     make_option(
@@ -87,21 +87,21 @@ option_list = list(
       type = "double",
       action = 'store',
       default = 0.8,
-      help = "minimum mappability for a bin to be considered in the analisys  [default= %default]",
+      help = "Minimum mappability for a bin to be considered in the analisys  [default= %default]",
       metavar = "double"
     ),
     make_option(
       c("-B","--black_list"),
       type = "character",
       action = 'store',
-      help = "regions to ignore",
+      help = "Regions to ignore",
       metavar = "character"
     ),
     make_option(
         c("-x","--coverage"),
         type = "character",
         action = 'store',
-        help = "coverage for simulated genome. [default= %default]",
+        help = "Coverage for simulated genome. [default= %default]",
         default = '1x',
         metavar = "character"
     )

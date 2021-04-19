@@ -1,4 +1,4 @@
-#!/usr/local/bin/Rscript --slave
+#!/usr/local/bin/Rscript
 #parse input
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
@@ -23,7 +23,7 @@ option_list = list(
         c("-C", "--scCNV"),
         type = "character",
         default = NULL,
-        help = "*single_cells_CNV* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.  Alternative to -L option..",
+        help = "*single_cells_CNV* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.  Alternative to -L option.",
         metavar = "character"
     ),
     make_option(
@@ -44,7 +44,7 @@ option_list = list(
         c("-s", "--order"),
         type = "character",
         default = NULL,
-        help = "basenames separated by a comma in the desired order for plotting.",
+        help = "Basenames separated by a comma in the desired order for plotting.",
         metavar = "character"
     ),
     make_option(

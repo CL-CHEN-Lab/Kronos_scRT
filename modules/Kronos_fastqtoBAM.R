@@ -1,4 +1,4 @@
-#!/usr/local/bin/Rscript --slave
+#!/usr/local/bin/Rscript
 #parse input
 
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
@@ -70,7 +70,7 @@ option_list = list(
         type = "character",
         default = '',
         action = 'store',
-        help = "extra options for trim_galore",
+        help = "Extra options for trim_galore",
         metavar = "character"
     ),
     make_option(
@@ -102,7 +102,7 @@ option_list = list(
         type = "logical",
         default = FALSE,
         action = "store_true",
-        help = "keep trimmed fastq and sorted bam before depduplication",
+        help = "Keep trimmed fastq and sorted bam before depduplication",
         metavar = "logical"
     )
 )

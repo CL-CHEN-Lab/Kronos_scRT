@@ -1,4 +1,4 @@
-#!/usr/local/bin/Rscript --slave
+#!/usr/local/bin/Rscript
 #parse input
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
@@ -17,7 +17,7 @@ option_list = list(
         c("-s", "--sort"),
         type = "character",
         default = NULL,
-        help = "group names orders",
+        help = "Group names orders",
         metavar = "character"
     ),
     make_option(
