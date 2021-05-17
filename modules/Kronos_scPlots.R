@@ -127,12 +127,12 @@ if('order'%in% names(opt)){
 
 scRT=foreach(i=1:length(opt$scRT_Tracks),.packages = 'tidyverse',.combine = 'rbind')%do%{
     tmp=read_tsv(opt$scRT_Tracks[i],col_types = cols())%>%
-        mutate(Line=basename)
+        mutate(Line=group)
     if('order'%in% names(opt)){
         tmp%>%
             mutate(
-                basename=factor(basename, levels=opt$order),
-                Line=basename
+                group=factor(group, levels=opt$order),
+                Line=group
                 ) 
         
     }else{
@@ -145,7 +145,7 @@ scCNV=foreach(i=1:length(opt$scCNV),.packages = 'tidyverse',.combine = 'rbind')%
     if('order'%in% names(opt)){
         tmp%>%
             mutate(
-                basename=factor(basename, levels=opt$order)
+                group=factor(group, levels=opt$order)
             ) 
         
     }else{
@@ -162,7 +162,8 @@ if (str_extract(opt$out, '.$') != '/') {
 
 if('extra_RT_track' %in% names(opt)){
     opt$extra_RT_track=read_tsv(opt$extra_RT_track,col_types = cols())%>%
-        mutate(Line=opt$extra_RT_name)
+        mutate(Line=opt$extra_RT_name)%>%
+        dplyr::select(-group)
     
 }
 
@@ -350,7 +351,7 @@ for (i in 1:length(opt$region$chr)) {
                     ymax = Maxi / 20 - Maxi / 100,
                     fill = 'white'
                 ) +
-                facet_grid( ~ basename) +
+                facet_grid( ~ group) +
                 scale_fill_manual(values = c(
                     "Replicated" = 'green',
                     "Unreplicated" = 'red'
@@ -427,7 +428,7 @@ for (i in 1:length(opt$region$chr)) {
                     ymax = Maxi / 20 - Maxi / 100,
                     fill = 'white'
                 ) +
-                facet_grid( ~ basename) +
+                facet_grid( ~ group) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
                     labels = c('Early - 1', 'Mind - 0.5', 'Late - 0'),
@@ -505,7 +506,7 @@ for (i in 1:length(opt$region$chr)) {
                     ymax = Maxi / 20 - Maxi / 100,
                     fill = 'white'
                 ) +
-                facet_grid( ~ basename) +
+                facet_grid( ~ group) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
                     labels = c('Early - 1', 'Mind - 0.5', 'Late - 0'),
@@ -592,7 +593,7 @@ for (i in 1:length(opt$region$chr)) {
                     ymax = Maxi / 20 - Maxi / 100,
                     fill = 'white'
                 ) +
-                facet_grid( ~ basename) +
+                facet_grid( ~ group) +
                 scale_fill_manual(values = c(
                     "Replicated" = 'green',
                     "Unreplicated" = 'red'
@@ -659,7 +660,7 @@ for (i in 1:length(opt$region$chr)) {
                     ymax = Maxi / 20 - Maxi / 100,
                     fill = 'white'
                 ) +
-                facet_grid( ~ basename) +
+                facet_grid( ~ group) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
                     labels = c('Early - 1', 'Mind - 0.5', 'Late - 0'),
@@ -726,7 +727,7 @@ for (i in 1:length(opt$region$chr)) {
                     ymax = Maxi / 20 - Maxi / 100,
                     fill = 'white'
                 ) +
-                facet_grid( ~ basename) +
+                facet_grid( ~ group) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
                     labels = c('Early - 1', 'Mind - 0.5', 'Late - 0'),
