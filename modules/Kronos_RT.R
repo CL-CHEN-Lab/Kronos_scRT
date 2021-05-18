@@ -141,6 +141,14 @@ option_list = list(
         metavar = "logical"
     ),
     make_option(
+        c("--disable_symmetry"),
+        type = "logical",
+        default = F,
+        action = "store_true",
+        help = "If symmetry is disabled, all cells will be used to calculate the scRT [default= %default] ",
+        metavar = "logical"
+    ),
+    make_option(
         c("--min_correlation"),
         type = "double",
         default = 0.25,
@@ -980,18 +988,20 @@ rm('G1_G2_cells')
 rm('new_index_list')
 
 #calculate replication timing normalizing each bin by the number of cells in each bin and then calculating the average of the average
-# select simmetrically distributed cells.
-
-rep_percentage = rep_percentage%>%
-    group_by(group)%>%
-    mutate(min_perc=1-max(Rep_percentage),
-           max_perc=1-min(Rep_percentage))%>%
-    filter(Rep_percentage >= round(min_perc,2),
-           Rep_percentage <= round(max_perc,2))%>%
-    mutate(min_perc=1-max(Rep_percentage),
-           max_perc=1-min(Rep_percentage))%>%
-    filter(Rep_percentage >= round(min_perc,2),
-           Rep_percentage <= round(max_perc,2))
+# select symmetrically distributed cells.
+if (!opt$disable_symmetry){
+    
+ rep_percentage = rep_percentage%>%
+     group_by(group)%>%
+     mutate(min_perc=1-max(Rep_percentage),
+            max_perc=1-min(Rep_percentage))%>%
+     filter(Rep_percentage >= round(min_perc,2),
+            Rep_percentage <= round(max_perc,2))%>%
+     mutate(min_perc=1-max(Rep_percentage),
+            max_perc=1-min(Rep_percentage))%>%
+     filter(Rep_percentage >= round(min_perc,2),
+            Rep_percentage <= round(max_perc,2))
+}
 
 plot = rep_percentage %>%
     ggplot(aes(Rep_percentage, color = group)) +
@@ -1040,17 +1050,24 @@ RT_binning=RT_binning%>%
     group_by(group)%>%
     summarise(Binning_step=min(Binning_step))
 
-
+if (!opt$disable_symmetry){
+    
 scRT =signal_smoothed%>%
     group_by(group)%>%
     mutate(min_perc=1-max(PercentageReplication),
-           max_perc=1-min(PercentageReplication)) %>%
-    filter(PercentageReplication >= min_perc,
-           PercentageReplication <= max_perc)%>%
+          max_perc=1-min(PercentageReplication)) %>%
+   filter(PercentageReplication >= min_perc,
+          PercentageReplication <= max_perc)%>%
     mutate(min_perc=1-max(PercentageReplication),
            max_perc=1-min(PercentageReplication)) %>%
     filter(PercentageReplication >= min_perc,
-           PercentageReplication <= max_perc)%>%
+           PercentageReplication <= max_perc)
+}else{
+    scRT =signal_smoothed%>%
+        group_by(group)
+}
+
+scRT=scRT%>%
     inner_join(RT_binning, by = "group")%>%
     mutate(RepGroup=(ceiling(100*PercentageReplication/Binning_step)))%>%
     group_by(chr, start, end, RepGroup, group) %>%
@@ -1841,6 +1858,23 @@ if (opt$Var_against_reference) {
                 '_scRT_variability_on_reference.tsv'
             )
         )
+    
+    x = rbind(x  %>%
+                  mutate(
+                      Cat_RT = split_into_categoreis(RT,number = opt$N_of_RT_groups),
+                      Cat_RT = factor(
+                          Cat_RT,
+                          levels = cat_levels( opt$N_of_RT_groups)
+                      )
+                  ),
+              x%>%
+                  mutate(
+                      Cat_RT = '0 - All',
+                      Cat_RT = factor(
+                          Cat_RT,
+                          levels = cat_levels( opt$N_of_RT_groups)
+                      )
+                  ))
     
     x=x%>%
         group_by(group,time,Cat_RT)%>%
