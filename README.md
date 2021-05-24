@@ -338,6 +338,6 @@ Run the script
 
 Please contact the authors for any further questions:
 
-[Stefano Gnan](mailto:stefano.gnan@curie.fr) and [Chunlong Chen](mailto:chunlong.chen@curie.fr) (Institut Curie)
+[Stefano Gnan](mailto:stefano.gnan@curie.fr), [Joseph Josephides](mailto:joseph.josephides@curie.fr) and [Chunlong Chen](mailto:chunlong.chen@curie.fr) (Institut Curie)
 
 
