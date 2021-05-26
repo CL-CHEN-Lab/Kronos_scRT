@@ -936,7 +936,7 @@ write_tsv(tsne,paste0(
     '_tsne.txt'
 ))
 
-plot=tsne%>%ggplot()+geom_point(aes(x,y,color=group))+xlab('TSNE - 1')+ylab('TSNE - 2')
+plot=tsne%>%ggplot()+geom_point(aes(x,y,color=group),alpha=0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
 
 suppressMessages(ggsave(
     plot = plot,
@@ -947,7 +947,7 @@ suppressMessages(ggsave(
     )
 ))
 
-plot=tsne%>%ggplot()+geom_point(aes(x,y,color=basename))+xlab('TSNE - 1')+ylab('TSNE - 2')
+plot=tsne%>%ggplot()+geom_point(aes(x,y,color=basename),alpha=0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
 
 suppressMessages(ggsave(
     plot = plot,
@@ -958,7 +958,7 @@ suppressMessages(ggsave(
     )
 ))
 
-plot=tsne%>%ggplot()+geom_point(aes(x,y,color=Rep_percentage,shape=basename))+scale_color_gradient2(low = "#FFEA46FF", mid = "#7C7B78FF", high = "#00204DFF",lim=c(0,1),midpoint = 0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
+plot=tsne%>%ggplot()+geom_point(aes(x,y,color=Rep_percentage,shape=basename),alpha=0.5)+scale_color_gradient2(low = "#FFEA46FF", mid = "#7C7B78FF", high = "#00204DFF",lim=c(0,1),midpoint = 0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
 suppressMessages(ggsave(
     plot = plot,
     filename = paste0(
