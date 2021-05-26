@@ -171,6 +171,7 @@ suppressPackageStartupMessages(library(matrixStats, quietly = TRUE))
 suppressPackageStartupMessages(library(RColorBrewer, quietly = TRUE))
 suppressPackageStartupMessages(library(GenomicRanges, quietly = TRUE))
 suppressPackageStartupMessages(library(MASS, quietly = TRUE))
+suppressPackageStartupMessages(library(Rtsne, quietly = TRUE))
 
 #set plotting theme
 theme_set(theme_bw())
@@ -783,8 +784,8 @@ mat = signal_smoothed %>%
     filter(complete.cases(.)) %>%
     as.matrix()
 
-#correlation
-results = cor(mat, mat)
+#correlation jaccard distance
+results = 1-as.matrix(dist(t(mat), method = "binary",diag = T,upper = T))
 basenames = str_remove(colnames(mat), ' _ [0-9]{1,10}$')
 Index = colnames(mat)
 basename_n = basenames
@@ -843,7 +844,7 @@ invisible(dev.off())
 to_keep = foreach(i = 1:length(unique(basename_n))) %do% {
     sub_mat = results[basename_n == i, basename_n == i]
     diag(sub_mat) = 0
-    ! rowQuantiles(x = sub_mat, probs = 0.60) <= opt$min_correlation
+    ! rowQuantiles(x = sub_mat, probs = 0.60,na.rm = T) <= opt$min_correlation
 }
 
 to_keep = unlist(to_keep)
@@ -917,6 +918,57 @@ suppressMessages(ggsave(
     )
 ))
 
+#tsne
+Perplex=ceiling(nrow(results)/100)
+tsne <- Rtsne(X = results, dims = 2, perplexity=ifelse(Perplex<10,10,Perplex), check_duplicates = F, theta = 0.25,
+              verbose=TRUE, max_iter = 7500, num_threads = 4, partial_pca=T)
+
+tsne=tibble(cell=colnames(results),
+            x=tsne$Y[,1],
+            y=tsne$Y[,2])%>%
+    separate(cell,into = c('group','index'),sep = ' _ ')%>%
+    inner_join(rep_percentage, by = c("group", "index"))
+
+write_tsv(tsne,paste0(
+    opt$out,
+    '/',
+    opt$output_file_base_name,
+    '_tsne.txt'
+))
+
+plot=tsne%>%ggplot()+geom_point(aes(x,y,color=group))+xlab('TSNE - 1')+ylab('TSNE - 2')
+
+suppressMessages(ggsave(
+    plot = plot,
+    filename = paste0(
+        opt$out,
+        opt$output_file_base_name,
+        'tsne_color_by_group.pdf'
+    )
+))
+
+plot=tsne%>%ggplot()+geom_point(aes(x,y,color=basename))+xlab('TSNE - 1')+ylab('TSNE - 2')
+
+suppressMessages(ggsave(
+    plot = plot,
+    filename = paste0(
+        opt$out,
+        opt$output_file_base_name,
+        'tsne_color_by_basename.pdf'
+    )
+))
+
+plot=tsne%>%ggplot()+geom_point(aes(x,y,color=Rep_percentage,shape=basename))+scale_color_gradient(low = 'yellow',high = 'darkblue')+xlab('TSNE - 1')+ylab('TSNE - 2')
+suppressMessages(ggsave(
+    plot = plot,
+    filename = paste0(
+        opt$out,
+        opt$output_file_base_name,
+        'tsne_color_by_rep_percentage.pdf'
+    )
+))
+
+#new index
 new_index_list = rep_percentage %>%
     ungroup() %>%
     arrange(Rep_percentage) %>%
