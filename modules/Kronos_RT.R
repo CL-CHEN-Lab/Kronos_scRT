@@ -919,11 +919,25 @@ suppressMessages(ggsave(
 ))
 
 #tsne
-Perplex=ceiling(nrow(results)/100)
+mat = signal_smoothed %>%
+    unite(index, c(group, index), sep = ' _ ') %>%
+    mutate(index = factor(index, levels = unique(index))) %>%
+    unite(pos, c(chr, start), sep = ':') %>%
+    mutate(Rep = as.numeric(Rep)) %>%
+    dplyr::select(pos, index, Rep) %>%
+    spread(key = index, value = Rep) %>%
+    column_to_rownames('pos') %>%
+    filter(complete.cases(.)) %>%
+    as.matrix()
+
+#correlation jaccard distance
+
+results = (dist(t(mat), method = "binary"))
+Perplex=ceiling(ncol(mat)/50)
 tsne <- Rtsne(X = results, dims = 2, perplexity=ifelse(Perplex<10,10,Perplex), check_duplicates = F, theta = 0.25,
               verbose=TRUE, max_iter = 7500, num_threads = 4, partial_pca=T)
 
-tsne=tibble(cell=colnames(results),
+tsne=tibble(cell=colnames(mat),
             x=tsne$Y[,1],
             y=tsne$Y[,2])%>%
     separate(cell,into = c('group','index'),sep = ' _ ')%>%
@@ -943,7 +957,7 @@ suppressMessages(ggsave(
     filename = paste0(
         opt$out,
         opt$output_file_base_name,
-        'tsne_color_by_group.pdf'
+        '_tsne_color_by_group.pdf'
     )
 ))
 
@@ -954,7 +968,7 @@ suppressMessages(ggsave(
     filename = paste0(
         opt$out,
         opt$output_file_base_name,
-        'tsne_color_by_basename.pdf'
+        '_tsne_color_by_basename.pdf'
     )
 ))
 
@@ -964,7 +978,7 @@ suppressMessages(ggsave(
     filename = paste0(
         opt$out,
         opt$output_file_base_name,
-        'tsne_color_by_rep_percentage.pdf'
+        '_tsne_color_by_rep_percentage.pdf'
     )
 ))
 
