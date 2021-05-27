@@ -132,7 +132,13 @@ percentages = function(data,mapping,...){
     mapping=ggplot2:::rename_aes(modifyList(mapping,aes(x = th,y = percent,color=type)))
     p=ggplot(data=tmp,mapping=mapping,... = ...)+geom_line()+
         scale_y_continuous(labels = scales::percent_format())+coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+        scale_color_manual(values = c(
+            'EtoL'='#005095',
+            'LtoE'='#dfbd31',
+            'toLater'='#83007e',
+            'toEarlier'='#78bd3e'
+        ))
     
  return(p)
 }
@@ -356,8 +362,8 @@ if (!'region' %in% names(opt)) {
                     diag = list(
                         continuous = function(data, mapping)
                             ggplot() + theme_void()+
-                            geom_polygon(data=tibble(x=c(-1,-1,1),y=c(1,-1,1)), aes(x = x, y = y),fill='red',alpha=0.5)+
-                            geom_polygon(data=tibble(x=-c(-1,-1,1),y=-c(1,-1,1)), aes(x = x, y = y),fill='blue',alpha=0.5) + 
+                            geom_polygon(data=tibble(x=c(-1,-1,1),y=c(1,-1,1)), aes(x = x, y = y),fill='#a7001b',alpha=0.5)+
+                            geom_polygon(data=tibble(x=-c(-1,-1,1),y=-c(1,-1,1)), aes(x = x, y = y),fill='#005095',alpha=0.5) + 
                             annotate('text',x = 0,y=0,label=paste('bold(',as_label(mapping$x),')'),parse=T)
                     ),columnLabels=NULL )
         p
@@ -433,8 +439,8 @@ if (!'region' %in% names(opt)) {
                     diag = list(
                         continuous = function(data, mapping)
                             ggplot() + theme_void()+
-                            geom_polygon(data=tibble(x=c(-1,-1,1),y=c(1,-1,1)), aes(x = x, y = y),fill='red',alpha=0.5)+
-                            geom_polygon(data=tibble(x=-c(-1,-1,1),y=-c(1,-1,1)), aes(x = x, y = y),fill='blue',alpha=0.5) + 
+                            geom_polygon(data=tibble(x=c(-1,-1,1),y=c(1,-1,1)), aes(x = x, y = y),fill='#a7001b',alpha=0.5)+
+                            geom_polygon(data=tibble(x=-c(-1,-1,1),y=-c(1,-1,1)), aes(x = x, y = y),fill='#005095',alpha=0.5) + 
                             annotate('text',x = 0,y=0,label=paste('bold(',as_label(mapping$x),')'),parse=T)
                     ),columnLabels=NULL )
         

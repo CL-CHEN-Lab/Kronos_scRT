@@ -172,6 +172,8 @@ suppressPackageStartupMessages(library(RColorBrewer, quietly = TRUE))
 suppressPackageStartupMessages(library(GenomicRanges, quietly = TRUE))
 suppressPackageStartupMessages(library(MASS, quietly = TRUE))
 suppressPackageStartupMessages(library(Rtsne, quietly = TRUE))
+suppressPackageStartupMessages(library(ade4, quietly = TRUE))
+
 
 #set plotting theme
 theme_set(theme_bw())
@@ -443,9 +445,9 @@ p = data %>%
     geom_point(alpha = 0.3) +
     scale_color_manual(
         values = c(
-            'G1/G2 cells' = 'darkred',
-            'S-phase' = 'darkgreen',
-            'unknown cells' = 'darkorange'
+            'G1/G2 cells' = "#005095",
+            'S-phase' = "#78bd3e",
+            'unknown cells' = "#dfbd31"  
         )
     ) +
     theme(legend.position = 'top', legend.title = element_blank()) +
@@ -480,9 +482,9 @@ p = data %>%
     geom_point(alpha = 0.3) +
     scale_color_manual(
         values = c(
-            'G1/G2 cells' = 'darkred',
-            'S-phase' = 'darkgreen',
-            'unknown cells' = 'darkorange'
+            'G1/G2 cells' = "#005095",
+            'S-phase' = "#78bd3e",
+            'unknown cells' = "#dfbd31"  
         )
     ) +
     theme(legend.position = 'top', legend.title = element_blank()) +
@@ -785,15 +787,7 @@ mat = signal_smoothed %>%
     as.matrix()
 
 #correlation similarity distance
-similarity_distance=function(m,cl=4){
-  cl=makeCluster(cl)
-sim=parApply(cl = cl,X = m,MARGIN =  1,FUN =  function(x,m) {
-  apply(X = m,MARGIN =  1, FUN = function(y) {
-    mean(xor(x, y))
-  })},m=m)
-return(sim)
-}
-results = 1-similarity_distance(t(mat),cl=opt$cores)
+results = 1-as.matrix(dist.binary(t(mat),method = 2,diag = T,upper = T))
 basenames = str_remove(colnames(mat), ' _ [0-9]{1,10}$')
 Index = colnames(mat)
 basename_n = basenames
@@ -803,20 +797,19 @@ for (i in 1:length(unique(basename_n))) {
 }
 
 #write matrix and plot heatmap before filtering
-write.matrix(
-    x = results,
+saveRDS(object = results,
     file = paste0(
         opt$out,
         '/',
         opt$output_file_base_name,
-        '_correlation_per_cell_before_filtering.mx'
+        '_correlation_per_cell_before_filtering.rds'
     ),
     sep = '\t'
 )
 
 #prepare color patterns
 selcol <- colorRampPalette(brewer.pal(12, "Set3"))
-color = colorRampPalette(colors = c('blue', 'green', 'yellow', 'orange', 'red'))
+color = colorRampPalette(colors = c("#00204DFF","#233E6CFF","#575C6DFF","#7C7B78FF","#A69D75FF","#D3C164FF","#FFEA46FF"))
 
 color_basebanes = selcol(length(unique(basename_n)))
 
@@ -860,13 +853,12 @@ results = results[to_keep, to_keep]
 basename_n = basename_n[to_keep]
 Index = Index[to_keep]
 
-write.matrix(
-    x = results,
+saveRDS(object = results,
     file = paste0(
         opt$out,
         '/',
         opt$output_file_base_name,
-        '_correlation_per_cell_after_filtering.mx'
+        '_correlation_per_cell_after_filtering.rds'
     ),
     sep = '\t'
 )
@@ -930,7 +922,7 @@ suppressMessages(ggsave(
 results = 1-results
 Perplex=ceiling(ncol(results)/50)
 tsne <- Rtsne(X = results, dims = 2, perplexity=ifelse(Perplex<10,10,Perplex), check_duplicates = F, theta = 0.25,is_distance= T,
-              verbose=TRUE, max_iter = 7500, num_threads = 4, partial_pca=T)
+              verbose=F, max_iter = 5000, num_threads = opt$cores, partial_pca=T)
 
 tsne=tibble(cell=colnames(mat),
             x=tsne$Y[,1],
@@ -945,7 +937,7 @@ write_tsv(tsne,paste0(
     '_tsne.txt'
 ))
 
-plot=tsne%>%ggplot()+geom_point(aes(x,y,color=group),alpha=0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
+plot=tsne%>%ggplot()+geom_point(aes(x,y,color=group,shape=group),alpha=0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
 
 suppressMessages(ggsave(
     plot = plot,
@@ -956,7 +948,7 @@ suppressMessages(ggsave(
     )
 ))
 
-plot=tsne%>%ggplot()+geom_point(aes(x,y,color=basename),alpha=0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
+plot=tsne%>%ggplot()+geom_point(aes(x,y,color=basename,shape=group),alpha=0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
 
 suppressMessages(ggsave(
     plot = plot,
@@ -967,7 +959,7 @@ suppressMessages(ggsave(
     )
 ))
 
-plot=tsne%>%ggplot()+geom_point(aes(x,y,color=Rep_percentage,shape=basename),alpha=0.5)+scale_color_gradient2(low = "#FFEA46FF", mid = "#7C7B78FF", high = "#00204DFF",lim=c(0,1),midpoint = 0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
+plot=tsne%>%ggplot()+geom_point(aes(x,y,color=Rep_percentage,shape=group),alpha=0.5)+scale_color_gradient2(low = "#FFEA46FF", mid = "#7C7B78FF", high = "#00204DFF",lim=c(0,1),midpoint = 0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
 suppressMessages(ggsave(
     plot = plot,
     filename = paste0(
@@ -1235,8 +1227,8 @@ if (opt$plot) {
                     ) +
                     facet_grid(chr ~ group, scale = 'free') +
                     scale_fill_gradient(
-                        low = 'blue',
-                        high = 'red',
+                        low = '#005095',
+                        high = '#a7001b',
                         limits = c(0, 1)
                     ) +
                     scale_x_continuous(
@@ -1458,8 +1450,8 @@ if (opt$plot) {
                     ) +
                     facet_grid(chr ~ group, scale = 'free') +
                     scale_fill_gradient(
-                        low = 'blue',
-                        high = 'red',
+                        low = '#005095',
+                        high = '#a7001b',
                         limits = c(0, 1)
                     ) +
                     scale_x_continuous(
@@ -1604,7 +1596,7 @@ if (length(unique(RTs$group)) != 1) {
             cor(),
         lab = T,
         lab_col = 'white',legend.title = 'Pearson\ncorrelation',
-        colors = c('#21908CFF', '#F0F921FF', '#BB3754FF')
+        colors =  c('#00204DFF', '#7C7B78FF', '#BCAF6FFF')
     )
     
     suppressMessages( ggsave(
@@ -1642,7 +1634,7 @@ if (length(unique(RTs$group)) != 1) {
                            p <- ggplot(data,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax,fill=Corr)) + 
                                geom_rect()+
                                annotate('text',0.5,0.5,label=paste("Corr:",round(data$Corr,3),sep = '\n'))+
-                                scale_fill_gradient2(low = 'blue',high = 'red',mid = 'yellow',midpoint = 0,limits=c(-1,1))+
+                               scale_fill_gradient2(low = '#BCAF6FFF',high = '#00204DFF',mid = '#7C7B78FF',midpoint = 0,limits=c(-1,1))+
                                coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
                                 scale_x_continuous(breaks = c(0,0.5,1))+
                                 scale_y_continuous(breaks = c(0,0.5,1))
@@ -1652,7 +1644,7 @@ if (length(unique(RTs$group)) != 1) {
                        lower = list(continuous =function(data, mapping, ...){
                            p <- ggplot(data = data, mapping = mapping) + 
                                geom_hex(bins=50,aes(fill=..ndensity..))+
-                               scale_fill_gradientn('Density',colours =rainbow(7))+
+                               scale_fill_gradientn('Density',colours =c("#00204DFF","#233E6CFF","#575C6DFF","#7C7B78FF","#A69D75FF","#D3C164FF","#FFEA46FF"))+
                                coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
                                 scale_x_continuous(breaks = c(0,0.5,1))+
                                 scale_y_continuous(breaks = c(0,0.5,1))+

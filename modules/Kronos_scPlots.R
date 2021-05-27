@@ -353,8 +353,8 @@ for (i in 1:length(opt$region$chr)) {
                 ) +
                 facet_grid( ~ group) +
                 scale_fill_manual(values = c(
-                    "Replicated" = 'green',
-                    "Unreplicated" = 'red'
+                    "Replicated" = '#a7001b',
+                    "Unreplicated" = '#005095'
                 ))+
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
@@ -460,8 +460,8 @@ for (i in 1:length(opt$region$chr)) {
                     
                 ) + xlab(Chr) +
                 
-                scale_fill_gradient(low = 'blue',
-                                    high = 'orange',
+                scale_fill_gradient(low = '#dfbd31',
+                                    high = '#83007e',
                                     limits = c(0, 3 * x)) +
                 labs(fill= 'CNV')
             ggsave(
@@ -537,8 +537,8 @@ for (i in 1:length(opt$region$chr)) {
                     axis.title.y.left  = element_text(hjust = 0.92)
                     
                 ) + xlab(Chr) +
-                scale_fill_gradient(low = 'purple',
-                                    high = 'yellow',
+                scale_fill_gradient(low = '#ff7949',
+                                    high = '#70001e',
                                     limits = c(-1.5, 1.5),breaks=c(-1.5,0, 1.5)
                                     )+labs(fill = expression(
                                         over(
@@ -595,8 +595,8 @@ for (i in 1:length(opt$region$chr)) {
                 ) +
                 facet_grid( ~ group) +
                 scale_fill_manual(values = c(
-                    "Replicated" = 'green',
-                    "Unreplicated" = 'red'
+                    "Replicated" = '#a7001b',
+                    "Unreplicated" = '#005095'
                 )) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
@@ -692,8 +692,8 @@ for (i in 1:length(opt$region$chr)) {
                     
                 ) + xlab(Chr) +
                 
-                scale_fill_gradient(low = 'blue',
-                                    high = 'orange',
+                scale_fill_gradient(low = '#dfbd31',
+                                    high = '#83007e',
                                     limits = c(0, 3 * x)) +
                 labs(fill= 'CNV')
             
@@ -758,8 +758,8 @@ for (i in 1:length(opt$region$chr)) {
                     axis.title.y.left  = element_text(hjust = 0.92)
                     
                 ) + xlab(Chr) +
-                scale_fill_gradient(low = 'purple',
-                                    high = 'yellow',
+                scale_fill_gradient(low = '#ff7949',
+                                    high = '#70001e',
                                     limits = c(-1.5, 1.5),breaks=c(-1.5,0, 1.5)
                                     )+labs(fill = expression(
                                         over(

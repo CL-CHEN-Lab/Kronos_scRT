@@ -98,7 +98,7 @@ plot = ggcorrplot(
         cor(),
     lab = T,
     lab_col = 'white',legend.title = 'Pearson\ncorrelation',
-    colors = c('#21908CFF', '#F0F921FF', '#BB3754FF')
+    colors = c('#00204DFF', '#7C7B78FF', '#BCAF6FFF')
 )
 
 suppressMessages(ggsave(
@@ -134,7 +134,7 @@ suppressMessages( ggsave(
         p <- ggplot(data,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax,fill=Corr)) + 
             geom_rect()+
             annotate('text',0.5,0.5,label=paste("Corr:",round(data$Corr,3),sep = '\n'))+
-            scale_fill_gradient2(low = 'blue',high = 'red',mid = 'yellow',midpoint = 0,limits=c(-1,1))+
+            scale_fill_gradient2(low = '#BCAF6FFF',high = '#00204DFF',mid = '#7C7B78FF',midpoint = 0,limits=c(-1,1))+
             coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
             scale_x_continuous(breaks = c(0,0.5,1))+
             scale_y_continuous(breaks = c(0,0.5,1))
@@ -144,7 +144,7 @@ suppressMessages( ggsave(
     lower = list(continuous =function(data, mapping, ...){
         p <- ggplot(data = data, mapping = mapping) + 
             geom_hex(bins=50,aes(fill=..ndensity..))+
-            scale_fill_gradientn('Density',colours =rainbow(7))+
+            scale_fill_gradientn('Density',colours =c("#00204DFF","#233E6CFF","#575C6DFF","#7C7B78FF","#A69D75FF","#D3C164FF","#FFEA46FF"))+
             coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
             scale_x_continuous(breaks = c(0,0.5,1))+
             scale_y_continuous(breaks = c(0,0.5,1))+
