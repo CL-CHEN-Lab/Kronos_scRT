@@ -803,8 +803,7 @@ saveRDS(object = results,
         '/',
         opt$output_file_base_name,
         '_correlation_per_cell_before_filtering.rds'
-    ),
-    sep = '\t'
+    )
 )
 
 #prepare color patterns
@@ -859,8 +858,7 @@ saveRDS(object = results,
         '/',
         opt$output_file_base_name,
         '_correlation_per_cell_after_filtering.rds'
-    ),
-    sep = '\t'
+    )
 )
 
 color_basebanes = selcol(length(unique(basename_n)))
