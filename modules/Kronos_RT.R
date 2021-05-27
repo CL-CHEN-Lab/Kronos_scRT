@@ -922,7 +922,7 @@ Perplex=ceiling(ncol(results)/50)
 tsne <- Rtsne(X = results, dims = 2, perplexity=ifelse(Perplex<10,10,Perplex), check_duplicates = F, theta = 0.25,is_distance= T,
               verbose=F, max_iter = 5000, num_threads = opt$cores, partial_pca=T)
 
-tsne=tibble(cell=colnames(mat),
+tsne=tibble(cell=colnames(results),
             x=tsne$Y[,1],
             y=tsne$Y[,2])%>%
     separate(cell,into = c('group','index'),sep = ' _ ')%>%
@@ -1594,7 +1594,7 @@ if (length(unique(RTs$group)) != 1) {
             cor(),
         lab = T,
         lab_col = 'white',legend.title = 'Pearson\ncorrelation',
-        colors =  c('#00204DFF', '#7C7B78FF', '#BCAF6FFF')
+        colors =  c( '#BCAF6FFF', '#7C7B78FF','#00204DFF')
     )
     
     suppressMessages( ggsave(
@@ -1610,11 +1610,9 @@ if (length(unique(RTs$group)) != 1) {
     suppressMessages( ggsave(
         plot = ggpairs(RTs,
                        diag = list(continuous =function(data, mapping, ...){
-                           names=colnames(data)
-                           color=rainbow(length(names))
                            p <- ggplot(data,mapping)+
                                geom_density(aes(y=..density../max(..density..)),
-                                            fill=color[which(names==as_label(mapping$x))])+
+                                            fill='black')+
                                scale_x_continuous(breaks = c(0,0.5,1))+
                                scale_y_continuous(breaks = c(0,0.5,1))
                            return(p)
@@ -1631,7 +1629,7 @@ if (length(unique(RTs$group)) != 1) {
                            
                            p <- ggplot(data,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax,fill=Corr)) + 
                                geom_rect()+
-                               annotate('text',0.5,0.5,label=paste("Corr:",round(data$Corr,3),sep = '\n'))+
+                               annotate('text',0.5,0.5,label=paste("Corr:",round(data$Corr,3),sep = '\n'),color='white')+
                                scale_fill_gradient2(low = '#BCAF6FFF',high = '#00204DFF',mid = '#7C7B78FF',midpoint = 0,limits=c(-1,1))+
                                coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
                                 scale_x_continuous(breaks = c(0,0.5,1))+
@@ -1642,7 +1640,7 @@ if (length(unique(RTs$group)) != 1) {
                        lower = list(continuous =function(data, mapping, ...){
                            p <- ggplot(data = data, mapping = mapping) + 
                                geom_hex(bins=50,aes(fill=..ndensity..))+
-                               scale_fill_gradientn('Density',colours =c("#00204DFF","#233E6CFF","#575C6DFF","#7C7B78FF","#A69D75FF","#D3C164FF","#FFEA46FF"))+
+                               scale_fill_gradientn('Density',colours =c("#FFEA46FF","#D3C164FF","#A69D75FF","#7C7B78FF","#575C6DFF","#233E6CFF","#00204DFF"))+
                                coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
                                 scale_x_continuous(breaks = c(0,0.5,1))+
                                 scale_y_continuous(breaks = c(0,0.5,1))+
