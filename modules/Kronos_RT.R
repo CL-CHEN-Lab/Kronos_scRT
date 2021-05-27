@@ -784,8 +784,16 @@ mat = signal_smoothed %>%
     filter(complete.cases(.)) %>%
     as.matrix()
 
-#correlation jaccard distance
-results = 1-as.matrix(dist(t(mat), method = "binary",diag = T,upper = T))
+#correlation similarity distance
+similarity_distance=function(m,cl=4){
+  cl=makeCluster(cl)
+sim=parApply(cl = cl,X = m,MARGIN =  1,FUN =  function(x,m) {
+  apply(X = m,MARGIN =  1, FUN = function(y) {
+    mean(xor(x, y))
+  })},m=m)
+return(sim)
+}
+results = 1-similarity_distance(t(mat),cl=opt$cores)
 basenames = str_remove(colnames(mat), ' _ [0-9]{1,10}$')
 Index = colnames(mat)
 basename_n = basenames
@@ -919,22 +927,9 @@ suppressMessages(ggsave(
 ))
 
 #tsne
-mat = signal_smoothed %>%
-    unite(index, c(group, index), sep = ' _ ') %>%
-    mutate(index = factor(index, levels = unique(index))) %>%
-    unite(pos, c(chr, start), sep = ':') %>%
-    mutate(Rep = as.numeric(Rep)) %>%
-    dplyr::select(pos, index, Rep) %>%
-    spread(key = index, value = Rep) %>%
-    column_to_rownames('pos') %>%
-    filter(complete.cases(.)) %>%
-    as.matrix()
-
-#correlation jaccard distance
-
-results = (dist(t(mat), method = "binary"))
-Perplex=ceiling(ncol(mat)/50)
-tsne <- Rtsne(X = results, dims = 2, perplexity=ifelse(Perplex<10,10,Perplex), check_duplicates = F, theta = 0.25,
+results = 1-results
+Perplex=ceiling(ncol(results)/50)
+tsne <- Rtsne(X = results, dims = 2, perplexity=ifelse(Perplex<10,10,Perplex), check_duplicates = F, theta = 0.25,is_distance= T,
               verbose=TRUE, max_iter = 7500, num_threads = 4, partial_pca=T)
 
 tsne=tibble(cell=colnames(mat),
