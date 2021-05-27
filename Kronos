@@ -108,6 +108,13 @@ elif [ "$1" == "Corr" ];then
     else
        Rscript $DIR/modules/Kronos_Corr.R "${@:2}"
     fi
+elif [ "$1" == "TSNE" ];then
+    if test "$#" == 1 ; then
+        echo Usage: Kronos TSNE [options]
+        Rscript $DIR/modules/Kronos_TSNE.R -h | grep -v Kronos_TSNE.R
+    else
+       Rscript $DIR/modules/Kronos_TSNE.R "${@:2}"
+    fi
 else
 
 echo -e "\nProgram: Kronos (Tools for the single cell analysis of the replication timing program)\n
@@ -128,6 +135,7 @@ commands:\n
 \t compare TW \t\t Allowes to investigate variability using a categorical annotation of the genome (for example binding sites or genes of interest)
 \t population RT \t\t Calcualtes population RT starting from single cell BAM files and Kronos diagnostic outputs
 \t scPlots \t\t scRT plots
+\t TSNE \t\t Applies to identify possible scRT or scCN clusters
 "
 
 fi

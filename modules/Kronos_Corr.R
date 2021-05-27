@@ -114,7 +114,7 @@ suppressMessages( ggsave(
     plot = ggpairs(scRT,diag = list(continuous =function(data, mapping, ...){
         p <- ggplot(data,mapping)+
             geom_density(aes(y=..density../max(..density..)),
-                         fill='black')+
+                         fill='grey')+
             scale_x_continuous(breaks = c(0,0.5,1))+
             scale_y_continuous(breaks = c(0,0.5,1))
         return(p)

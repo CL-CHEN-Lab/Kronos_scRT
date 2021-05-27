@@ -44,7 +44,7 @@ option_list = list(
         c("-s", "--order"),
         type = "character",
         default = NULL,
-        help = "Basenames separated by a comma in the desired order for plotting.",
+        help = "Groups separated by a comma in the desired order for plotting.",
         metavar = "character"
     ),
     make_option(
