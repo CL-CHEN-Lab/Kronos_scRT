@@ -135,7 +135,7 @@ commands:\n
 \t compare TW \t\t Allowes to investigate variability using a categorical annotation of the genome (for example binding sites or genes of interest)
 \t population RT \t\t Calcualtes population RT starting from single cell BAM files and Kronos diagnostic outputs
 \t scPlots \t\t scRT plots
-\t TSNE \t\t Applies to identify possible scRT or scCN clusters
+\t TSNE \t\t Applies TSNE to identify possible scRT or scCN clusters
 "
 
 fi
