@@ -61,6 +61,8 @@ suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 suppressPackageStartupMessages(library(doSNOW, quietly = TRUE))
 suppressPackageStartupMessages(library(Rtsne, quietly = TRUE))
 suppressPackageStartupMessages(library(ade4, quietly = TRUE))
+#output dir
+system(paste0('mkdir -p ', opt$out))
 
 #set plotting theme
 theme_set(theme_bw())
@@ -111,7 +113,7 @@ chr=unique(scCNV$chr)
 
 scCNV=scCNV%>%
     mutate(pos=paste0(chr,':',start,'-',end))%>%
-    select_(
+    dplyr::select(
         'pos',
         'Cell',
         'PercentageReplication',
@@ -148,7 +150,7 @@ if(opt$CNV_values=='B') {
         names(results)=chr
         
     } else{
-        chr='all Chr'
+        results=list()
         results[['all Chr']]=as.matrix(dist.binary(mat, method = 2))
     }
     }else{
@@ -159,7 +161,7 @@ if(opt$CNV_values=='B') {
            registerDoSNOW(cl)
            
            
-           results = foreach(C = chr,.packages = 'ade4',.inorder = T) %dopar% {
+           results = foreach(C = chr,.inorder = T) %dopar% {
                as.matrix(mat[, grepl(pattern = paste0(C, ':'), x = colnames(mat))])
            }
            

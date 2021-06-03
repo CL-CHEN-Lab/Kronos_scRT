@@ -145,15 +145,23 @@ option_list = list(
         type = "logical",
         default = F,
         action = "store_true",
-        help = "If symmetry is disabled, all cells will be used to calculate the scRT [default= %default] ",
+        help = "If symmetry is disabled, all cells will be used to calculate the scRT [default= %default]",
         metavar = "logical"
     ),
     make_option(
         c("--min_correlation"),
         type = "double",
         default = 0.25,
-        help = "Minimum correlation value between one cell and its best correlating cell for this cell to not be discarded [default= %default] ",
+        help = "Minimum correlation value between one cell and its best correlating cell for this cell to not be discarded [default= %default]",
         metavar = "double"
+    ),
+    make_option(
+        c("--extract_G1_G2_cells"),
+        type = "logical",
+        default = F,
+        action = "store_true",
+        help = "Extract G1/G2 single cells copy numebr file [default= %default]",
+        metavar = "logical"
     )
 )
 
@@ -601,18 +609,63 @@ hits = findOverlaps(bins, G1_G2_cells_tracks)
 overlaps <-
     pintersect(G1_G2_cells_tracks[subjectHits(hits)], bins[queryHits(hits)])
 
-backgroud_smoothed = cbind(
+G1G2_smoothed = cbind(
     as_tibble(bins[queryHits(hits)]) %>% dplyr::select(seqnames, start, end) %>%
         `colnames<-`(c('chr', 'start', 'end')),
     as_tibble(overlaps) %>% dplyr::select(-seqnames, -start, -end)
 ) %>%
-    group_by(basename, group, chr, start, end) %>%
-    summarise(background = weightedMedian(x = copy_number, w =
+    group_by(Cell,basename, group, chr, start, end) %>%
+    summarise(CN = weightedMedian(x = copy_number, w =
                                               width, na.rm = T)) %>%
     ungroup()
 
+backgroud_smoothed=G1G2_smoothed%>%
+    group_by(basename, group, chr, start, end)%>%
+    summarise(background=median(CN))
 
+if(opt$extract_G1_G2_cells){
+    # create single G1/G2 single cell file
+    G1G2_smoothed = G1G2_smoothed %>%
+        ungroup() %>%
+        mutate(chr = factor(x =  chr, levels = chr_list)) %>%
+        inner_join(backgroud_smoothed,
+                   by = c("chr", "start", "end", "basename", 'group')) %>%
+        mutate(CN_bg = log2(CN / background)) %>%
+        drop_na() %>%
+        filter(is.finite(CN_bg))%>%
+        group_by(group)%>%
+        mutate(th=1,Rep=0,PercentageReplication=0,newIndex=as.numeric(factor(Cell)))
+    
+    G1G2_smoothed%>% 
+        dplyr::select(chr,
+                      start,
+                      end,
+                      CN,
+                      background,
+                      CN_bg,
+                      th,
+                      Rep,
+                      PercentageReplication,
+                      Cell,
+                      basename,
+                      group,
+                      newIndex)%>%
+        write_delim(
+                          path = paste0(
+                              opt$out,
+                              '/',
+                              opt$output_file_base_name,
+                              '_G1_G2_single_cells_CNV_',
+                              opt$binsSize,
+                              '.tsv'
+                          ),
+                          delim = '\t',
+                          col_names = T
+                      )
+    
+}
 #free some space
+rm('G1G2_smoothed')
 rm('G1_G2_cells_tracks')
 rm('hits')
 rm('overlaps')
