@@ -95,9 +95,9 @@ scRT = scRT %>% spread(group, RT) %>%
 
 plot = ggcorrplot(
     scRT%>%
-        cor(),
+        cor(method = 'spearman'),
     lab = T,
-    lab_col = 'white',legend.title = 'Pearson\ncorrelation',
+    lab_col = 'white',legend.title = 'Spearman\ncorrelation',
     colors =  c( '#BCAF6FFF', '#7C7B78FF','#00204DFF')
 )
 
@@ -106,7 +106,7 @@ suppressMessages(ggsave(
     filename = paste0(
         opt$out,
         opt$output_file_base_name,
-        'pearson_correlation',
+        'spearman_correlation',
         '.pdf'
     )
 ))

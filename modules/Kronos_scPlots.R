@@ -392,7 +392,7 @@ for (i in 1:length(opt$region$chr)) {
                     opt$out,
                     '/regions/',
                     opt$output_file_base_name,
-                    '_scPlot_binarized',
+                    '_scPlot_binarized_',
                     name_reg,
                     '.pdf'
                 ))
@@ -470,7 +470,7 @@ for (i in 1:length(opt$region$chr)) {
                     opt$out,
                     '/regions/',
                     opt$output_file_base_name,
-                    '_scPlot_CNV',
+                    '_scPlot_CNV_',
                     name_reg,
                     '.pdf'
                 ))
@@ -554,7 +554,7 @@ for (i in 1:length(opt$region$chr)) {
                     opt$out,
                     '/regions/',
                     opt$output_file_base_name,
-                    '_scPlot_log2',
+                    '_scPlot_log2_',
                     name_reg,
                     '.pdf'
                 ))
@@ -776,7 +776,7 @@ for (i in 1:length(opt$region$chr)) {
                     opt$out,
                     '/regions/',
                     opt$output_file_base_name,
-                    '_scPlot_binarized',
+                    '_scPlot_binarized_',
                     name_reg,
                     '.pdf'
                 )
@@ -787,7 +787,7 @@ for (i in 1:length(opt$region$chr)) {
                     opt$out,
                     '/regions/',
                     opt$output_file_base_name,
-                    '_scPlot_CNV',
+                    '_scPlot_CNV_',
                     name_reg,
                     '.pdf'
                 )
@@ -798,7 +798,7 @@ for (i in 1:length(opt$region$chr)) {
                     opt$out,
                     '/regions/',
                     opt$output_file_base_name,
-                    '_scPlot_log2',
+                    '_scPlot_log2_',
                     name_reg,
                     '.pdf'
                 )

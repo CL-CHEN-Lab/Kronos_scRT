@@ -883,7 +883,7 @@ heatmap.2(
     breaks = seq(0, 1, length.out = 101),
     col = color(100),
     density.info =  'density',
-    key.title = 'Pearson',
+    key.title = 'Simple matching coefficient',
     RowSideColors = color_basebanes[as.numeric(basename_n)],
     ColSideColors = color_basebanes[as.numeric(basename_n)],
     labRow = FALSE,
@@ -934,7 +934,7 @@ heatmap.2(
     breaks = seq(0, 1, length.out = 101),
     col = color(100),
     density.info =  'density',
-    key.title = 'Pearson',
+    key.title = 'Simple matching coefficient',
     RowSideColors = color_basebanes[as.numeric(basename_n)],
     ColSideColors = color_basebanes[as.numeric(basename_n)],
     labRow = FALSE,
@@ -1644,9 +1644,9 @@ if (length(unique(RTs$group)) != 1) {
     
     plot = ggcorrplot(
             RTs %>% 
-            cor(),
+            cor(method = 'spearman'),
         lab = T,
-        lab_col = 'white',legend.title = 'Pearson\ncorrelation',
+        lab_col = 'white',legend.title = 'Spearman\ncorrelation',
         colors =  c( '#BCAF6FFF', '#7C7B78FF','#00204DFF')
     )
     
