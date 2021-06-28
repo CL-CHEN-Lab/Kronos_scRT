@@ -29,11 +29,19 @@ option_list = list(
         make_option(
             c('-C', "--CrossingRT"),
             type = "logical",
-            default = F,
+            default = T,
             action = "store_false",
             help = "RT has to cross the 0.5 line to be considered as changing [default= %default]",
             metavar = "logical"
         ),
+    make_option(
+        c('-n', "--n_clusters"),
+        type = "integer",
+        default = NULL,
+        action = "store",
+        help = "Number of wanted clusters [default= Auto]",
+        metavar = "integer"
+    ),
     make_option(
         c("-f", "--group_filter"),
         type = "character",
@@ -97,36 +105,48 @@ distance=foreach(names1=1:(length(lines)-1),.combine = cbind)%:%
         data[lines[names1]]-data[lines[names2]]
         
     }
+
+
+keep=abs(distance)>=opt$deltaRT_threshold
+keep=rowSums(keep)>0
+
+if (opt$CrossingRT){
 crossing=foreach(names1=1:(length(lines)-1),.combine = cbind)%:%
     foreach(names2=(names1+1):length(lines),.combine = cbind)%do%{
         
         sign((0.5-data[lines[names1]])/(0.5-data[lines[names2]]))
         
     }
-
-keep=abs(distance)>=opt$deltaRT_threshold
 crossing=crossing==-1
 crossing=rowSums(crossing)>0
-keep=rowSums(keep)>0
 keep=  crossing & keep
 
-clusters=kmeans(x =distance[keep,],centers =length(lines)^2 ,iter.max = 10000,nstart = )
-data_cluster=data[keep,]
-data_cluster$clusters=clusters$cluster
+}
 
-data_cluster$rowmean=rowMeans(distance[keep,])
+if ("n_clusters" %in% names(opt)){
+    nk=opt$n_clusters
+}else{
+    nK=(2^length(lines))-2
+}
+
+data_cluster=data[keep,]
+clusters <- hclust(dist(data_cluster[!names(data_cluster) %in% c('chr','start','end')]))
+data_cluster$clusters <-  paste('Cluster', cutree(clusters, nK))
+
 
 data_cluster=data_cluster%>%
-    arrange(clusters,rowmean)%>%
+    mutate(clusters=factor(clusters, levels =paste('Cluster', 1:nK) ))%>%
     group_by(clusters)%>%
     mutate(n=1:n())%>%
     gather(group,RT,names(data)[!names(data) %in% c('chr','start','end','clusters','n')])
 
 p=data_cluster%>%
     ggplot(aes(x=group,y=n,hight=1,width=1,fill=RT))+
-    geom_raster()+facet_grid(clusters ~ .,scales = 'free')+
+    geom_raster()+facet_grid(clusters ~ group,scales = 'free')+
     scale_fill_gradient2(low = '#005095',midpoint = 0.5,high = '#a7001b',mid = 'white')+
-    theme(axis.text.y = element_blank(),axis.ticks.y = element_blank(),axis.title = element_blank(),panel.spacing = unit(0,'line'))
+    theme(axis.text = element_blank(),axis.ticks = element_blank(),axis.title = element_blank(),panel.spacing = unit(0,'line'))+
+    scale_x_discrete( expand = c(0, 0)) +
+    scale_y_continuous( expand = c(0, 0))
 
 
 suppressMessages(
@@ -136,13 +156,16 @@ suppressMessages(
                '.pdf'),
         plot = p,
         limitsize = FALSE,
-        device = cairo_pdf
+        device = cairo_pdf,width = unit(3*length(lines),'cm'),height = unit(nK,'cm')
     )
 )
-data_cluster%>%dplyr::select(-rowmean)%>% write_tsv(
+
+data_cluster%>% write_tsv(
 paste0(opt$out, '/Changing_bins_with_th_',opt$deltaRT_threshold,
-       ifelse(opt$CrossingRT,'_and_crossing_0.5',''),
+       ifelse(opt$CrossingRT,'_and_crossing',''),
        '.tsv'))
 
                           
 print('done')
+
+
