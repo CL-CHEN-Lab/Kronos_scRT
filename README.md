@@ -11,12 +11,12 @@ Kronos and Cell Ranger (10x Genomics) can calculate cell ploidy and variability 
 ![](https://github.com/CL-CHEN-Lab/Kronos_scRT/blob/master/img/1.png)
 
 ### Reconstructing the Replication Timing Program
-Once the copy number has been adjusted the median profile of the G1/G2 population can be used to normalize the profile of each cell in S-phase. Data from each cell are then binarized using a threshold that minimizes the euclidean distance between the real data and their binary counterpart (an example in fig 2A). Cells that poorly correlated with the rest of the sample are eliminated (fig 2B, Pearson correlation before and after filtering) and the rest is used to calculate the pseudo bulk RT profile (fig 2C, In the upper part of the plot referenceRT (population RT data) and RT (pseudo bulk RT calculated from scRT data): red=Early, blue=Late; below, Replication Tracks for individual cells, order from early to late from top to bottom (in blue=non replicated and in red=replicated). The pseudo bulk RT and the population RT have a very high correlation (Pearson correlation R=0.93).
+Once the copy number has been adjusted the median profile of the G1/G2 population can be used to normalize the profile of each cell in S-phase. Data from each cell are then binarized using a threshold that minimizes the euclidean distance between the real data and their binary counterpart (an example in fig 2A). Cells that poorly correlated with the rest of the sample are eliminated (fig 2B, Pearson correlation before and after filtering) and the rest is used to calculate the pseudo bulk RT profile (fig 2C, In the upper part of the plot referenceRT (population RT data) and RT (pseudo bulk RT calculated from scRT data): red=Early, blue=Late; below, Replication Tracks for individual cells, order from early to late from top to bottom (in blue=non replicated and in red=replicated). The pseudo bulk RT and the population RT have a very high correlation (Spearman correlation R=0.92).
 
 ![](https://github.com/CL-CHEN-Lab/Kronos_scRT/blob/master/img/2.png)
 
 ### Studying the DNA replication program
-Kronos offers a series of diagnostic plots. The main program delivers immediately the Twidth value (1) that describes the cell to cell variability (fig 3A). Kronos can compare as well multiple samples and identify RT changing regions (fig 3B and 3C).
+Kronos offers a series of diagnostic plots. The main program delivers immediately the Twidth value (1) that describes the cell to cell variability (fig 3A). Kronos can compare as well multiple samples and identify RT changing regions (fig 3B).
 
 ![](https://github.com/CL-CHEN-Lab/Kronos_scRT/blob/master/img/3.png)
 
@@ -183,15 +183,12 @@ Run the script
     ./Kronos compare RT [options]
 
     Options:
-    -S CHARACTER, --S50s=CHARACTER                      RT files with same binning
-    -R CHARACTER, --referenceRT=CHARACTER               Reference RT min=Late, max=Early, only one reference is allowed
+    -R CHARACTER, --RTs=CHARACTER                       RT files with same binning
     -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
-    -k, --keepXY                                        Keeps XY chr in the analysis
-    --Reference=CHARACTER                               Base name to use as a reference, if not provided the first basename in the S50 file will be used or , if provided , the reference RT even if this option is selected
-    -D DOUBLE, --deltaRT_threshold=DOUBLE               DeltaRT threshold to define changes
-    -n INTEGER, --n_regions=INTEGER                     Number of regions to plot
-    -r CHARACTER, --region=CHARACTER                    Region to plot  chr:start-end (multiple regions can be separated by a comma)
-    -f CHARACTER, --basename_filter=CHARACTER           Filter out unwanted samples for RT files
+    -D DOUBLE, --deltaRT_threshold=DOUBLE               DeltaRT threshold to define changes [default= 0.3]
+    -C, --CrossingRT                                    RT has to cross the 0.5 line to be considered as changing [default= TRUE]
+    -n INTEGER, --n_clusters=INTEGER                    Number of wanted clusters [default= Auto]
+    -f CHARACTER, --group_filter=CHARACTER              Filter out unwanted samples for RT files
     -h, --help                                          Show this help message and exit
 
 -- annotate module
