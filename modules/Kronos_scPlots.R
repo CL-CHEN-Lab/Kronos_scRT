@@ -44,7 +44,7 @@ option_list = list(
         c("-s", "--order"),
         type = "character",
         default = NULL,
-        help = "Basenames separated by a comma in the desired order for plotting.",
+        help = "Groups separated by a comma in the desired order for plotting.",
         metavar = "character"
     ),
     make_option(
@@ -127,12 +127,12 @@ if('order'%in% names(opt)){
 
 scRT=foreach(i=1:length(opt$scRT_Tracks),.packages = 'tidyverse',.combine = 'rbind')%do%{
     tmp=read_tsv(opt$scRT_Tracks[i],col_types = cols())%>%
-        mutate(Line=basename)
+        mutate(Line=group)
     if('order'%in% names(opt)){
         tmp%>%
             mutate(
-                basename=factor(basename, levels=opt$order),
-                Line=basename
+                group=factor(group, levels=opt$order),
+                Line=group
                 ) 
         
     }else{
@@ -145,7 +145,7 @@ scCNV=foreach(i=1:length(opt$scCNV),.packages = 'tidyverse',.combine = 'rbind')%
     if('order'%in% names(opt)){
         tmp%>%
             mutate(
-                basename=factor(basename, levels=opt$order)
+                group=factor(group, levels=opt$order)
             ) 
         
     }else{
@@ -162,7 +162,8 @@ if (str_extract(opt$out, '.$') != '/') {
 
 if('extra_RT_track' %in% names(opt)){
     opt$extra_RT_track=read_tsv(opt$extra_RT_track,col_types = cols())%>%
-        mutate(Line=opt$extra_RT_name)
+        mutate(Line=opt$extra_RT_name)%>%
+        dplyr::select(-group)
     
 }
 
@@ -350,10 +351,10 @@ for (i in 1:length(opt$region$chr)) {
                     ymax = Maxi / 20 - Maxi / 100,
                     fill = 'white'
                 ) +
-                facet_grid( ~ basename) +
+                facet_grid( ~ group) +
                 scale_fill_manual(values = c(
-                    "Replicated" = 'green',
-                    "Unreplicated" = 'red'
+                    "Replicated" = '#a7001b',
+                    "Unreplicated" = '#005095'
                 ))+
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
@@ -391,7 +392,7 @@ for (i in 1:length(opt$region$chr)) {
                     opt$out,
                     '/regions/',
                     opt$output_file_base_name,
-                    '_scPlot_binarized',
+                    '_scPlot_binarized_',
                     name_reg,
                     '.pdf'
                 ))
@@ -427,7 +428,7 @@ for (i in 1:length(opt$region$chr)) {
                     ymax = Maxi / 20 - Maxi / 100,
                     fill = 'white'
                 ) +
-                facet_grid( ~ basename) +
+                facet_grid( ~ group) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
                     labels = c('Early - 1', 'Mind - 0.5', 'Late - 0'),
@@ -459,8 +460,8 @@ for (i in 1:length(opt$region$chr)) {
                     
                 ) + xlab(Chr) +
                 
-                scale_fill_gradient(low = 'blue',
-                                    high = 'orange',
+                scale_fill_gradient(low = '#dfbd31',
+                                    high = '#83007e',
                                     limits = c(0, 3 * x)) +
                 labs(fill= 'CNV')
             ggsave(
@@ -469,7 +470,7 @@ for (i in 1:length(opt$region$chr)) {
                     opt$out,
                     '/regions/',
                     opt$output_file_base_name,
-                    '_scPlot_CNV',
+                    '_scPlot_CNV_',
                     name_reg,
                     '.pdf'
                 ))
@@ -505,7 +506,7 @@ for (i in 1:length(opt$region$chr)) {
                     ymax = Maxi / 20 - Maxi / 100,
                     fill = 'white'
                 ) +
-                facet_grid( ~ basename) +
+                facet_grid( ~ group) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
                     labels = c('Early - 1', 'Mind - 0.5', 'Late - 0'),
@@ -536,8 +537,8 @@ for (i in 1:length(opt$region$chr)) {
                     axis.title.y.left  = element_text(hjust = 0.92)
                     
                 ) + xlab(Chr) +
-                scale_fill_gradient(low = 'purple',
-                                    high = 'yellow',
+                scale_fill_gradient(low = '#ff7949',
+                                    high = '#70001e',
                                     limits = c(-1.5, 1.5),breaks=c(-1.5,0, 1.5)
                                     )+labs(fill = expression(
                                         over(
@@ -553,7 +554,7 @@ for (i in 1:length(opt$region$chr)) {
                     opt$out,
                     '/regions/',
                     opt$output_file_base_name,
-                    '_scPlot_log2',
+                    '_scPlot_log2_',
                     name_reg,
                     '.pdf'
                 ))
@@ -592,10 +593,10 @@ for (i in 1:length(opt$region$chr)) {
                     ymax = Maxi / 20 - Maxi / 100,
                     fill = 'white'
                 ) +
-                facet_grid( ~ basename) +
+                facet_grid( ~ group) +
                 scale_fill_manual(values = c(
-                    "Replicated" = 'green',
-                    "Unreplicated" = 'red'
+                    "Replicated" = '#a7001b',
+                    "Unreplicated" = '#005095'
                 )) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
@@ -659,7 +660,7 @@ for (i in 1:length(opt$region$chr)) {
                     ymax = Maxi / 20 - Maxi / 100,
                     fill = 'white'
                 ) +
-                facet_grid( ~ basename) +
+                facet_grid( ~ group) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
                     labels = c('Early - 1', 'Mind - 0.5', 'Late - 0'),
@@ -691,8 +692,8 @@ for (i in 1:length(opt$region$chr)) {
                     
                 ) + xlab(Chr) +
                 
-                scale_fill_gradient(low = 'blue',
-                                    high = 'orange',
+                scale_fill_gradient(low = '#dfbd31',
+                                    high = '#83007e',
                                     limits = c(0, 3 * x)) +
                 labs(fill= 'CNV')
             
@@ -726,7 +727,7 @@ for (i in 1:length(opt$region$chr)) {
                     ymax = Maxi / 20 - Maxi / 100,
                     fill = 'white'
                 ) +
-                facet_grid( ~ basename) +
+                facet_grid( ~ group) +
                 scale_y_continuous(
                     breaks = c(Maxi / 6 + Maxi / 20, Maxi / 3 + Maxi / 20, Maxi / 20),
                     labels = c('Early - 1', 'Mind - 0.5', 'Late - 0'),
@@ -757,8 +758,8 @@ for (i in 1:length(opt$region$chr)) {
                     axis.title.y.left  = element_text(hjust = 0.92)
                     
                 ) + xlab(Chr) +
-                scale_fill_gradient(low = 'purple',
-                                    high = 'yellow',
+                scale_fill_gradient(low = '#ff7949',
+                                    high = '#70001e',
                                     limits = c(-1.5, 1.5),breaks=c(-1.5,0, 1.5)
                                     )+labs(fill = expression(
                                         over(
@@ -775,7 +776,7 @@ for (i in 1:length(opt$region$chr)) {
                     opt$out,
                     '/regions/',
                     opt$output_file_base_name,
-                    '_scPlot_binarized',
+                    '_scPlot_binarized_',
                     name_reg,
                     '.pdf'
                 )
@@ -786,7 +787,7 @@ for (i in 1:length(opt$region$chr)) {
                     opt$out,
                     '/regions/',
                     opt$output_file_base_name,
-                    '_scPlot_CNV',
+                    '_scPlot_CNV_',
                     name_reg,
                     '.pdf'
                 )
@@ -797,7 +798,7 @@ for (i in 1:length(opt$region$chr)) {
                     opt$out,
                     '/regions/',
                     opt$output_file_base_name,
-                    '_scPlot_log2',
+                    '_scPlot_log2_',
                     name_reg,
                     '.pdf'
                 )

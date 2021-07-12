@@ -59,9 +59,6 @@ suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 suppressPackageStartupMessages(library(doSNOW, quietly = TRUE))
 suppressPackageStartupMessages(library(GenomicRanges, quietly = TRUE))
 
-#set plotting theme
-theme_set(theme_bw())
-
 #check inputs
 if (!'file' %in% names(opt)) {
   stop("Variability file must be provided. See script usage (--help)")

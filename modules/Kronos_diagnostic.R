@@ -158,13 +158,13 @@ if(opt$correct==F){
         geom_point(alpha = 0.3) +
         scale_color_manual(
             values = c(
-                'Low Coverage' = '#ffff00',
-                'Low Ployidy confidence' = 'black',
-                'Too low ploidy compared to G1/G2' =' dodgerblue4',
-                'Too high ploidy compared to G1/G2' ='darkmagenta',
-                'G1/G2 cells' = 'darkred',
-                'S-phase' = 'darkgreen',
-                'unknown cells' = 'darkorange'
+                'Low Coverage' = "#ff7949",
+                'Low Ployidy confidence' = "#70001e",
+                'Too low ploidy compared to G1/G2' = "#01e7ab",
+                'Too high ploidy compared to G1/G2' ="#a7001b",
+                'G1/G2 cells' = "#005095",
+                'S-phase' = "#78bd3e",
+                'unknown cells' = "#dfbd31"  
             )
         ) +
         theme(legend.position = 'top', legend.title = element_blank())+
@@ -206,9 +206,9 @@ if (!'threshold_Sphase' %in% names(opt)){
         geom_point(alpha = 0.3) +
         scale_color_manual(
             values = c(
-                'G1/G2 cells' = 'darkred',
-                'S-phase' = 'darkgreen',
-                'unknown cells' = 'darkorange'
+                'G1/G2 cells' = "#005095",
+                'S-phase' = "#78bd3e",
+                'unknown cells' = "#dfbd31"  
             )
         ) +
         theme(legend.position = 'top', legend.title = element_blank())+
@@ -259,9 +259,9 @@ if (!'threshold_Sphase' %in% names(opt)){
         geom_point(alpha = 0.3) +
         scale_color_manual(
             values = c(
-                'G1/G2 cells' = 'darkred',
-                'S-phase' = 'darkgreen',
-                'unknown cells' = 'darkorange'
+                'G1/G2 cells' = "#005095",
+                'S-phase' = "#78bd3e",
+                'unknown cells' = "#dfbd31"  
             )
         ) +
         theme(legend.position = 'top', legend.title = element_blank()) +
@@ -377,10 +377,10 @@ p = data %>%
     geom_point(alpha = 0.3) +
     scale_color_manual(
         values = c(
-            'G1/G2 cells' = 'darkred',
-            'S-phase first part' = 'darkgreen',
-            'S-phase second part'='blue',
-            'unknown cells' = 'darkorange'
+            'G1/G2 cells' = '#005095',
+            'S-phase first part' = '#78bd3e',
+            'S-phase second part'='#83007e',
+            'unknown cells' = '#dfbd31'
         )
     ) +
     theme(legend.position = 'top', legend.title = element_blank()) +

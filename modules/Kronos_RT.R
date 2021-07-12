@@ -141,11 +141,27 @@ option_list = list(
         metavar = "logical"
     ),
     make_option(
+        c("--disable_symmetry"),
+        type = "logical",
+        default = F,
+        action = "store_true",
+        help = "If symmetry is disabled, all cells will be used to calculate the scRT [default= %default]",
+        metavar = "logical"
+    ),
+    make_option(
         c("--min_correlation"),
         type = "double",
         default = 0.25,
-        help = "Minimum correlation value between one cell and its best correlating cell for this cell to not be discarded [default= %default] ",
+        help = "Minimum correlation value between one cell and its best correlating cell for this cell to not be discarded [default= %default]",
         metavar = "double"
+    ),
+    make_option(
+        c("--extract_G1_G2_cells"),
+        type = "logical",
+        default = F,
+        action = "store_true",
+        help = "Extract G1/G2 single cells copy numebr file [default= %default]",
+        metavar = "logical"
     )
 )
 
@@ -163,6 +179,9 @@ suppressPackageStartupMessages(library(matrixStats, quietly = TRUE))
 suppressPackageStartupMessages(library(RColorBrewer, quietly = TRUE))
 suppressPackageStartupMessages(library(GenomicRanges, quietly = TRUE))
 suppressPackageStartupMessages(library(MASS, quietly = TRUE))
+suppressPackageStartupMessages(library(Rtsne, quietly = TRUE))
+suppressPackageStartupMessages(library(ade4, quietly = TRUE))
+
 
 #set plotting theme
 theme_set(theme_bw())
@@ -434,9 +453,9 @@ p = data %>%
     geom_point(alpha = 0.3) +
     scale_color_manual(
         values = c(
-            'G1/G2 cells' = 'darkred',
-            'S-phase' = 'darkgreen',
-            'unknown cells' = 'darkorange'
+            'G1/G2 cells' = "#005095",
+            'S-phase' = "#78bd3e",
+            'unknown cells' = "#dfbd31"  
         )
     ) +
     theme(legend.position = 'top', legend.title = element_blank()) +
@@ -471,9 +490,9 @@ p = data %>%
     geom_point(alpha = 0.3) +
     scale_color_manual(
         values = c(
-            'G1/G2 cells' = 'darkred',
-            'S-phase' = 'darkgreen',
-            'unknown cells' = 'darkorange'
+            'G1/G2 cells' = "#005095",
+            'S-phase' = "#78bd3e",
+            'unknown cells' = "#dfbd31"  
         )
     ) +
     theme(legend.position = 'top', legend.title = element_blank()) +
@@ -590,18 +609,63 @@ hits = findOverlaps(bins, G1_G2_cells_tracks)
 overlaps <-
     pintersect(G1_G2_cells_tracks[subjectHits(hits)], bins[queryHits(hits)])
 
-backgroud_smoothed = cbind(
+G1G2_smoothed = cbind(
     as_tibble(bins[queryHits(hits)]) %>% dplyr::select(seqnames, start, end) %>%
         `colnames<-`(c('chr', 'start', 'end')),
     as_tibble(overlaps) %>% dplyr::select(-seqnames, -start, -end)
 ) %>%
-    group_by(basename, group, chr, start, end) %>%
-    summarise(background = weightedMedian(x = copy_number, w =
+    group_by(Cell,basename, group, chr, start, end) %>%
+    summarise(CN = weightedMedian(x = copy_number, w =
                                               width, na.rm = T)) %>%
     ungroup()
 
+backgroud_smoothed=G1G2_smoothed%>%
+    group_by(basename, group, chr, start, end)%>%
+    summarise(background=median(CN))
 
+if(opt$extract_G1_G2_cells){
+    # create single G1/G2 single cell file
+    G1G2_smoothed = G1G2_smoothed %>%
+        ungroup() %>%
+        mutate(chr = factor(x =  chr, levels = chr_list)) %>%
+        inner_join(backgroud_smoothed,
+                   by = c("chr", "start", "end", "basename", 'group')) %>%
+        mutate(CN_bg = log2(CN / background)) %>%
+        drop_na() %>%
+        filter(is.finite(CN_bg))%>%
+        group_by(group)%>%
+        mutate(th=1,Rep=0,PercentageReplication=0,newIndex=as.numeric(factor(Cell)))
+    
+    G1G2_smoothed%>% 
+        dplyr::select(chr,
+                      start,
+                      end,
+                      CN,
+                      background,
+                      CN_bg,
+                      th,
+                      Rep,
+                      PercentageReplication,
+                      Cell,
+                      basename,
+                      group,
+                      newIndex)%>%
+        write_delim(
+                          path = paste0(
+                              opt$out,
+                              '/',
+                              opt$output_file_base_name,
+                              '_G1_G2_single_cells_CNV_',
+                              opt$binsSize,
+                              '.tsv'
+                          ),
+                          delim = '\t',
+                          col_names = T
+                      )
+    
+}
 #free some space
+rm('G1G2_smoothed')
 rm('G1_G2_cells_tracks')
 rm('hits')
 rm('overlaps')
@@ -775,8 +839,8 @@ mat = signal_smoothed %>%
     filter(complete.cases(.)) %>%
     as.matrix()
 
-#correlation
-results = cor(mat, mat)
+#correlation similarity distance
+results = 1-as.matrix(dist.binary(t(mat),method = 2,diag = T,upper = T))
 basenames = str_remove(colnames(mat), ' _ [0-9]{1,10}$')
 Index = colnames(mat)
 basename_n = basenames
@@ -786,20 +850,18 @@ for (i in 1:length(unique(basename_n))) {
 }
 
 #write matrix and plot heatmap before filtering
-write.matrix(
-    x = results,
+saveRDS(object = results,
     file = paste0(
         opt$out,
         '/',
         opt$output_file_base_name,
-        '_correlation_per_cell_before_filtering.mx'
-    ),
-    sep = '\t'
+        '_correlation_per_cell_before_filtering.rds'
+    )
 )
 
 #prepare color patterns
 selcol <- colorRampPalette(brewer.pal(12, "Set3"))
-color = colorRampPalette(colors = c('blue', 'green', 'yellow', 'orange', 'red'))
+color = colorRampPalette(colors = c("#00204DFF","#233E6CFF","#575C6DFF","#7C7B78FF","#A69D75FF","#D3C164FF","#FFEA46FF"))
 
 color_basebanes = selcol(length(unique(basename_n)))
 
@@ -821,7 +883,7 @@ heatmap.2(
     breaks = seq(0, 1, length.out = 101),
     col = color(100),
     density.info =  'density',
-    key.title = 'Pearson',
+    key.title = 'Simple matching coefficient',
     RowSideColors = color_basebanes[as.numeric(basename_n)],
     ColSideColors = color_basebanes[as.numeric(basename_n)],
     labRow = FALSE,
@@ -835,7 +897,7 @@ invisible(dev.off())
 to_keep = foreach(i = 1:length(unique(basename_n))) %do% {
     sub_mat = results[basename_n == i, basename_n == i]
     diag(sub_mat) = 0
-    ! rowQuantiles(x = sub_mat, probs = 0.60) <= opt$min_correlation
+    ! rowQuantiles(x = sub_mat, probs = 0.60,na.rm = T) <= opt$min_correlation
 }
 
 to_keep = unlist(to_keep)
@@ -843,15 +905,13 @@ results = results[to_keep, to_keep]
 basename_n = basename_n[to_keep]
 Index = Index[to_keep]
 
-write.matrix(
-    x = results,
+saveRDS(object = results,
     file = paste0(
         opt$out,
         '/',
         opt$output_file_base_name,
-        '_correlation_per_cell_after_filtering.mx'
-    ),
-    sep = '\t'
+        '_correlation_per_cell_after_filtering.rds'
+    )
 )
 
 color_basebanes = selcol(length(unique(basename_n)))
@@ -874,7 +934,7 @@ heatmap.2(
     breaks = seq(0, 1, length.out = 101),
     col = color(100),
     density.info =  'density',
-    key.title = 'Pearson',
+    key.title = 'Simple matching coefficient',
     RowSideColors = color_basebanes[as.numeric(basename_n)],
     ColSideColors = color_basebanes[as.numeric(basename_n)],
     labRow = FALSE,
@@ -909,6 +969,58 @@ suppressMessages(ggsave(
     )
 ))
 
+#tsne
+results = 1-results
+Perplex=ceiling(ncol(results)/50)
+tsne <- Rtsne(X = results, dims = 2, perplexity=ifelse(Perplex<10,10,Perplex), check_duplicates = F, theta = 0.25,is_distance= T,
+              verbose=F, max_iter = 5000, num_threads = opt$cores, partial_pca=T)
+
+tsne=tibble(cell=colnames(results),
+            x=tsne$Y[,1],
+            y=tsne$Y[,2])%>%
+    separate(cell,into = c('group','index'),sep = ' _ ')%>%
+    inner_join(rep_percentage, by = c("group", "index"))
+
+write_tsv(tsne,paste0(
+    opt$out,
+    '/',
+    opt$output_file_base_name,
+    '_tsne.txt'
+))
+
+plot=tsne%>%ggplot()+geom_point(aes(x,y,color=group,shape=group),alpha=0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
+
+suppressMessages(ggsave(
+    plot = plot,
+    filename = paste0(
+        opt$out,
+        opt$output_file_base_name,
+        '_tsne_color_by_group.pdf'
+    )
+))
+
+plot=tsne%>%ggplot()+geom_point(aes(x,y,color=basename,shape=group),alpha=0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
+
+suppressMessages(ggsave(
+    plot = plot,
+    filename = paste0(
+        opt$out,
+        opt$output_file_base_name,
+        '_tsne_color_by_basename.pdf'
+    )
+))
+
+plot=tsne%>%ggplot()+geom_point(aes(x,y,color=Rep_percentage,shape=group),alpha=0.5)+scale_color_gradient2(low = "#FFEA46FF", mid = "#7C7B78FF", high = "#00204DFF",lim=c(0,1),midpoint = 0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
+suppressMessages(ggsave(
+    plot = plot,
+    filename = paste0(
+        opt$out,
+        opt$output_file_base_name,
+        '_tsne_color_by_rep_percentage.pdf'
+    )
+))
+
+#new index
 new_index_list = rep_percentage %>%
     ungroup() %>%
     arrange(Rep_percentage) %>%
@@ -980,18 +1092,20 @@ rm('G1_G2_cells')
 rm('new_index_list')
 
 #calculate replication timing normalizing each bin by the number of cells in each bin and then calculating the average of the average
-# select simmetrically distributed cells.
-
-rep_percentage = rep_percentage%>%
-    group_by(group)%>%
-    mutate(min_perc=1-max(Rep_percentage),
-           max_perc=1-min(Rep_percentage))%>%
-    filter(Rep_percentage >= round(min_perc,2),
-           Rep_percentage <= round(max_perc,2))%>%
-    mutate(min_perc=1-max(Rep_percentage),
-           max_perc=1-min(Rep_percentage))%>%
-    filter(Rep_percentage >= round(min_perc,2),
-           Rep_percentage <= round(max_perc,2))
+# select symmetrically distributed cells.
+if (!opt$disable_symmetry){
+    
+ rep_percentage = rep_percentage%>%
+     group_by(group)%>%
+     mutate(min_perc=1-max(Rep_percentage),
+            max_perc=1-min(Rep_percentage))%>%
+     filter(Rep_percentage >= round(min_perc,2),
+            Rep_percentage <= round(max_perc,2))%>%
+     mutate(min_perc=1-max(Rep_percentage),
+            max_perc=1-min(Rep_percentage))%>%
+     filter(Rep_percentage >= round(min_perc,2),
+            Rep_percentage <= round(max_perc,2))
+}
 
 plot = rep_percentage %>%
     ggplot(aes(Rep_percentage, color = group)) +
@@ -1040,17 +1154,24 @@ RT_binning=RT_binning%>%
     group_by(group)%>%
     summarise(Binning_step=min(Binning_step))
 
-
+if (!opt$disable_symmetry){
+    
 scRT =signal_smoothed%>%
     group_by(group)%>%
     mutate(min_perc=1-max(PercentageReplication),
-           max_perc=1-min(PercentageReplication)) %>%
-    filter(PercentageReplication >= min_perc,
-           PercentageReplication <= max_perc)%>%
+          max_perc=1-min(PercentageReplication)) %>%
+   filter(PercentageReplication >= min_perc,
+          PercentageReplication <= max_perc)%>%
     mutate(min_perc=1-max(PercentageReplication),
            max_perc=1-min(PercentageReplication)) %>%
     filter(PercentageReplication >= min_perc,
-           PercentageReplication <= max_perc)%>%
+           PercentageReplication <= max_perc)
+}else{
+    scRT =signal_smoothed%>%
+        group_by(group)
+}
+
+scRT=scRT%>%
     inner_join(RT_binning, by = "group")%>%
     mutate(RepGroup=(ceiling(100*PercentageReplication/Binning_step)))%>%
     group_by(chr, start, end, RepGroup, group) %>%
@@ -1157,8 +1278,8 @@ if (opt$plot) {
                     ) +
                     facet_grid(chr ~ group, scale = 'free') +
                     scale_fill_gradient(
-                        low = 'blue',
-                        high = 'red',
+                        low = '#005095',
+                        high = '#a7001b',
                         limits = c(0, 1)
                     ) +
                     scale_x_continuous(
@@ -1380,8 +1501,8 @@ if (opt$plot) {
                     ) +
                     facet_grid(chr ~ group, scale = 'free') +
                     scale_fill_gradient(
-                        low = 'blue',
-                        high = 'red',
+                        low = '#005095',
+                        high = '#a7001b',
                         limits = c(0, 1)
                     ) +
                     scale_x_continuous(
@@ -1523,10 +1644,10 @@ if (length(unique(RTs$group)) != 1) {
     
     plot = ggcorrplot(
             RTs %>% 
-            cor(),
+            cor(method = 'spearman'),
         lab = T,
-        lab_col = 'white',legend.title = 'Pearson\ncorrelation',
-        colors = c('#21908CFF', '#F0F921FF', '#BB3754FF')
+        lab_col = 'white',legend.title = 'Spearman\ncorrelation',
+        colors =  c( '#BCAF6FFF', '#7C7B78FF','#00204DFF')
     )
     
     suppressMessages( ggsave(
@@ -1542,11 +1663,9 @@ if (length(unique(RTs$group)) != 1) {
     suppressMessages( ggsave(
         plot = ggpairs(RTs,
                        diag = list(continuous =function(data, mapping, ...){
-                           names=colnames(data)
-                           color=rainbow(length(names))
                            p <- ggplot(data,mapping)+
                                geom_density(aes(y=..density../max(..density..)),
-                                            fill=color[which(names==as_label(mapping$x))])+
+                                            fill='grey')+
                                scale_x_continuous(breaks = c(0,0.5,1))+
                                scale_y_continuous(breaks = c(0,0.5,1))
                            return(p)
@@ -1563,8 +1682,8 @@ if (length(unique(RTs$group)) != 1) {
                            
                            p <- ggplot(data,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax,fill=Corr)) + 
                                geom_rect()+
-                               annotate('text',0.5,0.5,label=paste("Corr:",round(data$Corr,3),sep = '\n'))+
-                                scale_fill_gradient2(low = 'blue',high = 'red',mid = 'yellow',midpoint = 0,limits=c(-1,1))+
+                               annotate('text',0.5,0.5,label=paste("Corr:",round(data$Corr,3),sep = '\n'),color='white')+
+                               scale_fill_gradient2(low = '#BCAF6FFF',high = '#00204DFF',mid = '#7C7B78FF',midpoint = 0,limits=c(-1,1))+
                                coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
                                 scale_x_continuous(breaks = c(0,0.5,1))+
                                 scale_y_continuous(breaks = c(0,0.5,1))
@@ -1574,7 +1693,7 @@ if (length(unique(RTs$group)) != 1) {
                        lower = list(continuous =function(data, mapping, ...){
                            p <- ggplot(data = data, mapping = mapping) + 
                                geom_hex(bins=50,aes(fill=..ndensity..))+
-                               scale_fill_gradientn('Density',colours =rainbow(7))+
+                               scale_fill_gradientn('Density',colours =c("#FFEA46FF","#D3C164FF","#A69D75FF","#7C7B78FF","#575C6DFF","#233E6CFF","#00204DFF"))+
                                coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
                                 scale_x_continuous(breaks = c(0,0.5,1))+
                                 scale_y_continuous(breaks = c(0,0.5,1))+
@@ -1841,6 +1960,23 @@ if (opt$Var_against_reference) {
                 '_scRT_variability_on_reference.tsv'
             )
         )
+    
+    x = rbind(x  %>%
+                  mutate(
+                      Cat_RT = split_into_categoreis(RT,number = opt$N_of_RT_groups),
+                      Cat_RT = factor(
+                          Cat_RT,
+                          levels = cat_levels( opt$N_of_RT_groups)
+                      )
+                  ),
+              x%>%
+                  mutate(
+                      Cat_RT = '0 - All',
+                      Cat_RT = factor(
+                          Cat_RT,
+                          levels = cat_levels( opt$N_of_RT_groups)
+                      )
+                  ))
     
     x=x%>%
         group_by(group,time,Cat_RT)%>%
