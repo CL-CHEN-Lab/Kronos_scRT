@@ -11,12 +11,12 @@ Kronos and Cell Ranger (10x Genomics) can calculate cell ploidy and variability 
 ![](https://github.com/CL-CHEN-Lab/Kronos_scRT/blob/master/img/1.png)
 
 ### Reconstructing the Replication Timing Program
-Once the copy number has been adjusted the median profile of the G1/G2 population can be used to normalize the profile of each cell in S-phase. Data from each cell are then binarized using a threshold that minimizes the euclidean distance between the real data and their binary counterpart (an example in fig 2A). Cells that poorly correlated with the rest of the sample are eliminated (fig 2B, Pearson correlation before and after filtering) and the rest is used to calculate the pseudo bulk RT profile (fig 2C, In the upper part of the plot referenceRT (population RT data) and RT (pseudo bulk RT calculated from scRT data): red=Early, blue=Late; below, Replication Tracks for individual cells, order from early to late from top to bottom (in blue=non replicated and in red=replicated). The pseudo bulk RT and the population RT have a very high correlation (Pearson correlation R=0.93).
+Once the copy number has been adjusted the median profile of the G1/G2 population can be used to normalize the profile of each cell in S-phase. Data from each cell are then binarized using a threshold that minimizes the euclidean distance between the real data and their binary counterpart (an example in fig 2A). Cells that poorly correlated with the rest of the sample are eliminated (fig 2B, Pearson correlation before and after filtering) and the rest is used to calculate the pseudo bulk RT profile (fig 2C, In the upper part of the plot referenceRT (population RT data) and RT (pseudo bulk RT calculated from scRT data): red=Early, blue=Late; below, Replication Tracks for individual cells, order from early to late from top to bottom (in blue=non replicated and in red=replicated). The pseudo bulk RT and the population RT have a very high correlation (Spearman correlation R=0.92).
 
 ![](https://github.com/CL-CHEN-Lab/Kronos_scRT/blob/master/img/2.png)
 
 ### Studying the DNA replication program
-Kronos offers a series of diagnostic plots. The main program delivers immediately the Twidth value (1) that describes the cell to cell variability (fig 3A). Kronos can compare as well multiple samples and identify RT changing regions (fig 3B and 3C).
+Kronos offers a series of diagnostic plots. The main program delivers immediately the Twidth value (1) that describes the cell to cell variability (fig 3A). Kronos can compare as well multiple samples and identify RT changing regions (fig 3B).
 
 ![](https://github.com/CL-CHEN-Lab/Kronos_scRT/blob/master/img/3.png)
 
@@ -183,15 +183,12 @@ Run the script
     ./Kronos compare RT [options]
 
     Options:
-    -S CHARACTER, --S50s=CHARACTER                      RT files with same binning
-    -R CHARACTER, --referenceRT=CHARACTER               Reference RT min=Late, max=Early, only one reference is allowed
+    -R CHARACTER, --RTs=CHARACTER                       RT files with same binning
     -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
-    -k, --keepXY                                        Keeps XY chr in the analysis
-    --Reference=CHARACTER                               Base name to use as a reference, if not provided the first basename in the S50 file will be used or , if provided , the reference RT even if this option is selected
-    -D DOUBLE, --deltaRT_threshold=DOUBLE               DeltaRT threshold to define changes
-    -n INTEGER, --n_regions=INTEGER                     Number of regions to plot
-    -r CHARACTER, --region=CHARACTER                    Region to plot  chr:start-end (multiple regions can be separated by a comma)
-    -f CHARACTER, --basename_filter=CHARACTER           Filter out unwanted samples for RT files
+    -D DOUBLE, --deltaRT_threshold=DOUBLE               DeltaRT threshold to define changes [default= 0.3]
+    -C, --CrossingRT                                    RT has to cross the 0.5 line to be considered as changing [default= TRUE]
+    -n INTEGER, --n_clusters=INTEGER                    Number of wanted clusters [default= Auto]
+    -f CHARACTER, --group_filter=CHARACTER              Filter out unwanted samples for RT files
     -h, --help                                          Show this help message and exit
 
 -- annotate module
@@ -245,7 +242,7 @@ Run the script
 
 -- Kronos scPlots module
 
-    ./Kronos_scPlots.R [options]
+    ./Kronos scPlots [options]
 
     Options:
     -L CHARACTER, --List=CHARACTER                  A Tab separated file containing in each column scRT_Tracks and scCNV files paths. Alternative to -R,-T and -C options.
@@ -256,6 +253,18 @@ Run the script
     -r CHARACTER, --region=CHARACTER                Region to plot  chr:start-end (multiple regions can be separated by a comma) or provided as a bed file
     -o CHARACTER, --out=CHARACTER                   Output directory [default= output]
     -f CHARACTER, --output_file_base_name=CHARACTER Base name for the output file [default= out]
+    -h, --help                                      Show this help message and exit
+    
+-- Kronos TSNE module
+
+    ./Kronos TSNE [options]
+    Options:
+    -C CHARACTER, --scCNV=CHARACTER                 *single_cells_CNV* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.
+    --CNV_values=CHARACTER                          What type of date to plot for the sigle cell traks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells)) [default= B]
+    --per_Chr                                       Calculate TSNE on each chromosome
+    -o CHARACTER, --out=CHARACTER                   Output directory [default= output]
+    -f CHARACTER, --output_file_base_name=CHARACTER Base name for the output file [default= out]
+    -c INTEGER, --cores=INTEGER                     Numbers of cores to use [default= 3]
     -h, --help                                      Show this help message and exit
 
 ### Requirements
@@ -302,42 +311,43 @@ Run the script
      [8] methods   base     
 
      other attached packages:
-     [1] Rsamtools_1.34.1     Rbowtie2_1.4.0       GenomicRanges_1.34.0
-     [4] GenomeInfoDb_1.18.2  Biostrings_2.50.2    XVector_0.22.0      
-     [7] IRanges_2.16.0       S4Vectors_0.20.1     BiocGenerics_0.28.0 
-     [10] DNAcopy_1.56.0       BiocManager_1.30.4   GGally_1.4.0        
-     [13] ggcorrplot_0.1.3     gridExtra_2.3        forcats_0.4.0       
-     [16] stringr_1.4.0        dplyr_0.8.3          purrr_0.3.2         
-     [19] readr_1.3.1          tidyr_0.8.3          tibble_2.1.3        
-     [22] ggplot2_3.2.0        tidyverse_1.2.1      scales_1.0.0        
-     [25] RColorBrewer_1.1-2   optparse_1.6.2       matrixStats_0.54.0  
-     [28] MASS_7.3-51.4        LaplacesDemon_16.1.1 gplots_3.0.1.1      
-     [31] foreach_1.4.4        Cairo_1.5-10        
+     [1]    Rsamtools_1.34.1     Rbowtie2_1.4.0       GenomicRanges_1.34.0
+     [4]    GenomeInfoDb_1.18.2  Biostrings_2.50.2    XVector_0.22.0      
+     [7]    IRanges_2.16.0       S4Vectors_0.20.1     BiocGenerics_0.28.0 
+     [10]   DNAcopy_1.56.0       BiocManager_1.30.4   GGally_1.4.0        
+     [13]   ggcorrplot_0.1.3     gridExtra_2.3        forcats_0.4.0       
+     [16]   stringr_1.4.0        dplyr_0.8.3          purrr_0.3.2         
+     [19]   readr_1.3.1          tidyr_0.8.3          tibble_2.1.3        
+     [22]   ggplot2_3.2.0        tidyverse_1.2.1      scales_1.0.0        
+     [25]   RColorBrewer_1.1-2   optparse_1.6.2       matrixStats_0.54.0  
+     [28]   MASS_7.3-51.4        LaplacesDemon_16.1.1 gplots_3.0.1.1      
+     [31]   foreach_1.4.4        Cairo_1.5-10         Rtsne_0.15  
+     [34]   ade4_1.7-16    
 
      loaded via a namespace (and not attached):
-     [1] httr_1.4.0             jsonlite_1.6           modelr_0.1.4          
-     [4] gtools_3.8.1           assertthat_0.2.1       GenomeInfoDbData_1.2.0
-     [7] cellranger_1.1.0       pillar_1.4.2           backports_1.1.4       
-     [10] lattice_0.20-38        glue_1.3.1             rvest_0.3.4           
-     [13] colorspace_1.4-1       plyr_1.8.4             pkgconfig_2.0.2       
-     [16] broom_0.5.2            haven_2.1.1            zlibbioc_1.28.0       
-     [19] gdata_2.18.0           getopt_1.20.3          BiocParallel_1.16.6   
-     [22] generics_0.0.2         withr_2.1.2            lazyeval_0.2.2        
-     [25] cli_1.1.0              magrittr_1.5           crayon_1.3.4          
-     [28] readxl_1.3.1           nlme_3.1-140           xml2_1.2.0            
-     [31] tools_3.5.2            hms_0.5.0              munsell_0.5.0         
-     [34] compiler_3.5.2         caTools_1.17.1.2       rlang_0.4.0           
-     [37] RCurl_1.95-4.12        grid_3.5.2             iterators_1.0.10      
-     [40] rstudioapi_0.10        bitops_1.0-6           gtable_0.3.0          
-     [43] codetools_0.2-16       reshape_0.8.8          R6_2.4.0              
-     [46] lubridate_1.7.4        zeallot_0.1.0          KernSmooth_2.23-15    
-     [49] stringi_1.4.3          Rcpp_1.0.1             vctrs_0.2.0           
-     [52] tidyselect_0.2.5  
+     [1]    httr_1.4.0             jsonlite_1.6           modelr_0.1.4          
+     [4]    gtools_3.8.1           assertthat_0.2.1       GenomeInfoDbData_1.2.0
+     [7]    cellranger_1.1.0       pillar_1.4.2           backports_1.1.4       
+     [10]   lattice_0.20-38        glue_1.3.1             rvest_0.3.4           
+     [13]   colorspace_1.4-1       plyr_1.8.4             pkgconfig_2.0.2       
+     [16]   broom_0.5.2            haven_2.1.1            zlibbioc_1.28.0       
+     [19]   gdata_2.18.0           getopt_1.20.3          BiocParallel_1.16.6   
+     [22]   generics_0.0.2         withr_2.1.2            lazyeval_0.2.2        
+     [25]   cli_1.1.0              magrittr_1.5           crayon_1.3.4          
+     [28]   readxl_1.3.1           nlme_3.1-140           xml2_1.2.0            
+     [31]   tools_3.5.2            hms_0.5.0              munsell_0.5.0         
+     [34]   compiler_3.5.2         caTools_1.17.1.2       rlang_0.4.0           
+     [37]   RCurl_1.95-4.12        grid_3.5.2             iterators_1.0.10      
+     [40]   rstudioapi_0.10        bitops_1.0-6           gtable_0.3.0          
+     [43]   codetools_0.2-16       reshape_0.8.8          R6_2.4.0              
+     [46]   lubridate_1.7.4        zeallot_0.1.0          KernSmooth_2.23-15    
+     [49]   stringi_1.4.3          Rcpp_1.0.1             vctrs_0.2.0           
+     [52]   tidyselect_0.2.5  
 
 ### Authors
 
 Please contact the authors for any further questions:
 
-[Stefano Gnan](mailto:stefano.gnan@curie.fr) and [Chunlong Chen](mailto:chunlong.chen@curie.fr) (Institut Curie)
+[Stefano Gnan](mailto:stefano.gnan@curie.fr), [Joseph Josephides](mailto:joseph.josephides@curie.fr) and [Chunlong Chen](mailto:chunlong.chen@curie.fr) (Institut Curie)
 
 
