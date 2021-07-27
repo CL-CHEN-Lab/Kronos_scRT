@@ -10,7 +10,7 @@ option_list = list(
         c("-F", "--file"),
         type = "character",
         default = NULL,
-        help = "Variability file with groups produced by Kronos assign TW groupsl, if multiple files are provided they have to be separated by a comma",
+        help = "Variability file with groups produced by Kronos assign TW groups, if multiple files are provided they have to be separated by a comma",
         metavar = "character"
     ),
     make_option(

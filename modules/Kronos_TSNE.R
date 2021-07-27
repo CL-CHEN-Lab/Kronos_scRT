@@ -17,7 +17,7 @@ option_list = list(
         c("--CNV_values"),
         type = "character",
         default = "B",
-        help = "What type of date to plot for the sigle cell traks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells)) [default= %default]",
+        help = "What type of date to plot for the single cell traks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells)) [default= %default]",
         metavar = "character"
     ),
     make_option(
@@ -48,6 +48,28 @@ option_list = list(
         default = 3,
         help = "Numbers of cores to use [default= %default]",
         metavar = "integer"
+    ),
+    make_option(
+        c("-X", "--keep_X"),
+        type = "logical",
+        default = FALSE,
+        action = "store_true",
+        help = "Include X chromosomes",
+        metavar = "logical"
+    ),
+    make_option(
+        c("-Y", "--keep_Y"),
+        type = "logical",
+        default = FALSE,
+        action = "store_true",
+        help = "Keep Y chromosomes",
+        metavar = "logical"
+    ),
+    make_option(
+        c("-s", "--seed"),
+        type = "integer",
+        help = "Set seed for reproducibility (optional).",
+        metavar = "integer"
     )
 )
 
@@ -67,15 +89,17 @@ system(paste0('mkdir -p ', opt$out))
 #set plotting theme
 theme_set(theme_bw())
 
+#Set seed
+if('seed' %in% names(opt)){
+    set.seed(opt$seed)
+}
+
 #load files
 if (!'scCNV' %in% names(opt)) {
-        stop("scCNV file must be provided. See script usage (--help)")
+    stop("scCNV file must be provided. See script usage (--help)")
 }
-    
+
 opt$scCNV = str_split(opt$scCNV, ',')[[1]]
-    
-
-
 
 if('order'%in% names(opt)){
     opt$order = str_split(opt$order, ',')[[1]]
@@ -96,6 +120,13 @@ scCNV=foreach(i=1:length(opt$scCNV),.packages = 'tidyverse',.combine = 'rbind')%
     }
 }
 
+if(!opt$keep_X){
+    scCNV = scCNV[which(scCNV$chr != "chrX"),]
+}
+if(!opt$keep_Y){
+    scCNV = scCNV[which(scCNV$chr != "chrY"),]
+}
+
 #create directory
 if (str_extract(opt$out, '.$') != '/') {
     opt$out = paste0(opt$out, '/')
@@ -109,7 +140,6 @@ if(!opt$CNV_values %in% c('B','CNV','Log2','all')){
 
 #store chr info
 chr=unique(scCNV$chr)
-
 
 scCNV=scCNV%>%
     mutate(pos=paste0(chr,':',start,'-',end))%>%
@@ -128,8 +158,9 @@ scCNV=scCNV%>%
     mutate(data=as.numeric(data))%>%
     spread(pos,data)
 
-#removue na colums
-scCNV=scCNV[ , colSums(is.na(scCNV)) == 0]
+#remove NA columns
+scCNV=scCNV[,colSums(is.na(scCNV)) == 0]
+
 mat=scCNV[,-c(1:4)]
 scCNV=scCNV[,c(1:4)]
 
@@ -139,12 +170,12 @@ if(opt$CNV_values=='B') {
         cl = makeCluster(opt$cores)
         registerDoSNOW(cl)
         
-
+        
         results = foreach(C = chr,.packages = 'ade4',.inorder = T) %dopar% {
             as.matrix(dist.binary(mat[, grepl(pattern = paste0(C, ':'), x = colnames(mat))], method = 2))
             
         }
-            
+        
         stopCluster(cl)
         
         names(results)=chr
@@ -153,34 +184,34 @@ if(opt$CNV_values=='B') {
         results=list()
         results[['all Chr']]=as.matrix(dist.binary(mat, method = 2))
     }
-    }else{
-       
-       if (opt$per_Chr) {
-           # calculate distance per each chr
-           cl = makeCluster(opt$cores)
-           registerDoSNOW(cl)
-           
-           
-           results = foreach(C = chr,.inorder = T) %dopar% {
-               as.matrix(mat[, grepl(pattern = paste0(C, ':'), x = colnames(mat))])
-           }
-           
-           stopCluster(cl)
-           
-           names(results)=chr
-           
-       } else{
-           results=list()
-           results[['all Chr']]=as.matrix(mat)
-       }
+}else{
+    
+    if (opt$per_Chr) {
+        # calculate distance per each chr
+        cl = makeCluster(opt$cores)
+        registerDoSNOW(cl)
         
-   }
+        
+        results = foreach(C = chr,.inorder = T) %dopar% {
+            as.matrix(mat[, grepl(pattern = paste0(C, ':'), x = colnames(mat))])
+        }
+        
+        stopCluster(cl)
+        
+        names(results)=chr
+        
+    } else{
+        results=list()
+        results[['all Chr']]=as.matrix(mat)
+    }
+    
+}
 
 #free mem
-    rm('mat')
-    
-    scCNV=foreach(C = names(results),.packages = c('Rtsne','tidyverse'),.combine = 'rbind') %do% {    
-        Perplex = ceiling(ncol(results[[C]]) / 50)
+rm('mat')
+
+scCNV=foreach(C = names(results),.packages = c('Rtsne','tidyverse'),.combine = 'rbind') %do% {    
+    Perplex = ceiling(nrow(results[[C]]) / 50)
     tsne <-
         Rtsne(
             X = results[[C]],
@@ -194,23 +225,23 @@ if(opt$CNV_values=='B') {
             num_threads = opt$cores,
             partial_pca = T
         )
-
-    scCNV%>%mutate(Chr=C,
-                x=tsne$Y[,1],
-                y=tsne$Y[,2])
-    }
     
-    write_tsv(scCNV,paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_tsne.txt'
-    ))
+    scCNV%>%mutate(Chr=C,
+                   x=tsne$Y[,1],
+                   y=tsne$Y[,2])
+}
+
+write_tsv(scCNV,paste0(
+    opt$out,
+    '/',
+    opt$output_file_base_name,
+    '_tsne.txt'
+))
 X=foreach(C = names(results),.packages = c('Rtsne','tidyverse'),.combine = 'rbind') %do% {
-    plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=group,shape=group),alpha=0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')+facet_wrap(~Chr)
+    plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=group,shape=group),alpha=0.4,size=2)+xlab('TSNE1')+ylab('TSNE2')+facet_wrap(~Chr)
     
     suppressMessages(ggsave(
-        plot = plot,
+        plot = plot, dpi = 300,
         filename = paste0(
             opt$out,
             opt$output_file_base_name,
@@ -218,10 +249,10 @@ X=foreach(C = names(results),.packages = c('Rtsne','tidyverse'),.combine = 'rbin
         )
     ))
     
-    plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=basename,shape=group),alpha=0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')+facet_wrap(~Chr)
+    plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=basename,shape=basename),alpha=0.4,size=2)+xlab('TSNE1')+ylab('TSNE2')+facet_wrap(~Chr)
     
     suppressMessages(ggsave(
-        plot = plot,
+        plot = plot, dpi = 300,
         filename = paste0(
             opt$out,
             opt$output_file_base_name,
@@ -229,9 +260,9 @@ X=foreach(C = names(results),.packages = c('Rtsne','tidyverse'),.combine = 'rbin
         )
     ))
     
-    plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=PercentageReplication,shape=group),alpha=0.5)+scale_color_gradient2(low = "#FFEA46FF", mid = "#7C7B78FF", high = "#00204DFF",lim=c(0,1),midpoint = 0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')+facet_wrap(~Chr)
+    plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=PercentageReplication,shape=group),alpha=0.4,size=2)+scale_color_gradient2(low = "#FFEA46FF", mid = "#7C7B78FF", high = "#00204DFF",lim=c(0,1),midpoint = 0.5)+xlab('TSNE1')+ylab('TSNE2')+facet_wrap(~Chr)
     suppressMessages(ggsave(
-        plot = plot,
+        plot = plot, dpi = 300,
         filename = paste0(
             opt$out,
             opt$output_file_base_name,
@@ -241,4 +272,4 @@ X=foreach(C = names(results),.packages = c('Rtsne','tidyverse'),.combine = 'rbin
     C
 }
 print('done')
-                 
+

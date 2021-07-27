@@ -190,20 +190,20 @@ theme_set(theme_bw())
 if('Kronos_conf_file' %in% names(opt)) {
     
     settings=tryCatch(expr = read_tsv(opt$Kronos_conf_file,col_names = c('file','traks','settings','basename','groups'),col_types = cols())%>%
-        mutate(
-            basename=ifelse(is.na(basename),paste0('exp',row_number()),basename),
-            groups=ifelse(is.na(groups),basename,groups)
-        ),
-        error=function(e){stop('Settings file does not exitst. See script usage (--help)')},
-        warning=function(w){
-            tmp=suppressWarnings(
-            read_tsv(opt$Kronos_conf_file,col_names = c('file','traks','settings','basename','groups'),col_types = cols())%>%
-                mutate(
-                    basename=ifelse(is.na(basename),paste0('exp',row_number()),basename),
-                    groups=ifelse(is.na(groups),basename,groups)
-                ))
-            warning('missing basenames and groups were replaced with default parameters')
-            return(tmp)})
+                          mutate(
+                              basename=ifelse(is.na(basename),paste0('exp',row_number()),basename),
+                              groups=ifelse(is.na(groups),basename,groups)
+                          ),
+                      error=function(e){stop('Settings file does not exitst. See script usage (--help)')},
+                      warning=function(w){
+                          tmp=suppressWarnings(
+                              read_tsv(opt$Kronos_conf_file,col_names = c('file','traks','settings','basename','groups'),col_types = cols())%>%
+                                  mutate(
+                                      basename=ifelse(is.na(basename),paste0('exp',row_number()),basename),
+                                      groups=ifelse(is.na(groups),basename,groups)
+                                  ))
+                          warning('missing basenames and groups were replaced with default parameters')
+                          return(tmp)})
     
     #reformat files
     opt$file = settings$file
@@ -306,7 +306,7 @@ if (length(opt$base_name) != length(opt$file)) {
         length.out = length(opt$file)
     )
     opt$base_name = paste(rep_len(opt$base_name, length(opt$file)), index, sep = '-')
-    warning('basenames will be cyclicly recicled')
+    warning('basenames will be cyclically recycled')
 }
 
 if (length(opt$groups) != length(opt$file)) {
@@ -317,7 +317,7 @@ if (length(opt$groups) != length(opt$file)) {
         length.out = length(opt$file)
     )
     opt$groups = paste(rep_len(opt$groups, length(opt$groups)), index, sep = '-')
-    warning('groups variable will be cyclicly recicled')
+    warning('groups variable will be cyclically recycled')
 }
 
 #load genome sizes
@@ -337,7 +337,7 @@ Chr_Size = Chr_Size %>%
     mutate(chr = factor(x =  chr, levels = chr_list)) %>%
     drop_na()
 
-#load single cells infor
+#load single cells info
 data <-
     foreach(
         i = 1:length(opt$file),
@@ -616,7 +616,7 @@ G1G2_smoothed = cbind(
 ) %>%
     group_by(Cell,basename, group, chr, start, end) %>%
     summarise(CN = weightedMedian(x = copy_number, w =
-                                              width, na.rm = T)) %>%
+                                      width, na.rm = T)) %>%
     ungroup()
 
 backgroud_smoothed=G1G2_smoothed%>%
@@ -651,17 +651,17 @@ if(opt$extract_G1_G2_cells){
                       group,
                       newIndex)%>%
         write_delim(
-                          path = paste0(
-                              opt$out,
-                              '/',
-                              opt$output_file_base_name,
-                              '_G1_G2_single_cells_CNV_',
-                              opt$binsSize,
-                              '.tsv'
-                          ),
-                          delim = '\t',
-                          col_names = T
-                      )
+            path = paste0(
+                opt$out,
+                '/',
+                opt$output_file_base_name,
+                '_G1_G2_single_cells_CNV_',
+                opt$binsSize,
+                '.tsv'
+            ),
+            delim = '\t',
+            col_names = T
+        )
     
 }
 #free some space
@@ -851,12 +851,12 @@ for (i in 1:length(unique(basename_n))) {
 
 #write matrix and plot heatmap before filtering
 saveRDS(object = results,
-    file = paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_correlation_per_cell_before_filtering.rds'
-    )
+        file = paste0(
+            opt$out,
+            '/',
+            opt$output_file_base_name,
+            '_correlation_per_cell_before_filtering.rds'
+        )
 )
 
 #prepare color patterns
@@ -906,12 +906,12 @@ basename_n = basename_n[to_keep]
 Index = Index[to_keep]
 
 saveRDS(object = results,
-    file = paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_correlation_per_cell_after_filtering.rds'
-    )
+        file = paste0(
+            opt$out,
+            '/',
+            opt$output_file_base_name,
+            '_correlation_per_cell_after_filtering.rds'
+        )
 )
 
 color_basebanes = selcol(length(unique(basename_n)))
@@ -999,7 +999,7 @@ suppressMessages(ggsave(
     )
 ))
 
-plot=tsne%>%ggplot()+geom_point(aes(x,y,color=basename,shape=group),alpha=0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
+plot=tsne%>%ggplot()+geom_point(aes(x,y,color=basename,shape=basename),alpha=0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
 
 suppressMessages(ggsave(
     plot = plot,
@@ -1095,16 +1095,16 @@ rm('new_index_list')
 # select symmetrically distributed cells.
 if (!opt$disable_symmetry){
     
- rep_percentage = rep_percentage%>%
-     group_by(group)%>%
-     mutate(min_perc=1-max(Rep_percentage),
-            max_perc=1-min(Rep_percentage))%>%
-     filter(Rep_percentage >= round(min_perc,2),
-            Rep_percentage <= round(max_perc,2))%>%
-     mutate(min_perc=1-max(Rep_percentage),
-            max_perc=1-min(Rep_percentage))%>%
-     filter(Rep_percentage >= round(min_perc,2),
-            Rep_percentage <= round(max_perc,2))
+    rep_percentage = rep_percentage%>%
+        group_by(group)%>%
+        mutate(min_perc=1-max(Rep_percentage),
+               max_perc=1-min(Rep_percentage))%>%
+        filter(Rep_percentage >= round(min_perc,2),
+               Rep_percentage <= round(max_perc,2))%>%
+        mutate(min_perc=1-max(Rep_percentage),
+               max_perc=1-min(Rep_percentage))%>%
+        filter(Rep_percentage >= round(min_perc,2),
+               Rep_percentage <= round(max_perc,2))
 }
 
 plot = rep_percentage %>%
@@ -1156,16 +1156,16 @@ RT_binning=RT_binning%>%
 
 if (!opt$disable_symmetry){
     
-scRT =signal_smoothed%>%
-    group_by(group)%>%
-    mutate(min_perc=1-max(PercentageReplication),
-          max_perc=1-min(PercentageReplication)) %>%
-   filter(PercentageReplication >= min_perc,
-          PercentageReplication <= max_perc)%>%
-    mutate(min_perc=1-max(PercentageReplication),
-           max_perc=1-min(PercentageReplication)) %>%
-    filter(PercentageReplication >= min_perc,
-           PercentageReplication <= max_perc)
+    scRT =signal_smoothed%>%
+        group_by(group)%>%
+        mutate(min_perc=1-max(PercentageReplication),
+               max_perc=1-min(PercentageReplication)) %>%
+        filter(PercentageReplication >= min_perc,
+               PercentageReplication <= max_perc)%>%
+        mutate(min_perc=1-max(PercentageReplication),
+               max_perc=1-min(PercentageReplication)) %>%
+        filter(PercentageReplication >= min_perc,
+               PercentageReplication <= max_perc)
 }else{
     scRT =signal_smoothed%>%
         group_by(group)
@@ -1627,7 +1627,7 @@ pdf(
 
 RTs %>%
     ggplot(aes(RT, fill = group)) + geom_density(alpha = 0.2, aes(y = ..count.. /
-                                                                         sum(..count..))) +
+                                                                      sum(..count..))) +
     xlab('RT') + ylab('density')
 
 invisible(dev.off())
@@ -1643,7 +1643,7 @@ if (length(unique(RTs$group)) != 1) {
         dplyr::select(-chr,-start,-end)
     
     plot = ggcorrplot(
-            RTs %>% 
+        RTs %>% 
             cor(method = 'spearman'),
         lab = T,
         lab_col = 'white',legend.title = 'Spearman\ncorrelation',
@@ -1685,8 +1685,8 @@ if (length(unique(RTs$group)) != 1) {
                                annotate('text',0.5,0.5,label=paste("Corr:",round(data$Corr,3),sep = '\n'),color='white')+
                                scale_fill_gradient2(low = '#BCAF6FFF',high = '#00204DFF',mid = '#7C7B78FF',midpoint = 0,limits=c(-1,1))+
                                coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
-                                scale_x_continuous(breaks = c(0,0.5,1))+
-                                scale_y_continuous(breaks = c(0,0.5,1))
+                               scale_x_continuous(breaks = c(0,0.5,1))+
+                               scale_y_continuous(breaks = c(0,0.5,1))
                            
                            return(p)
                        }),
@@ -1695,8 +1695,8 @@ if (length(unique(RTs$group)) != 1) {
                                geom_hex(bins=50,aes(fill=..ndensity..))+
                                scale_fill_gradientn('Density',colours =c("#FFEA46FF","#D3C164FF","#A69D75FF","#7C7B78FF","#575C6DFF","#233E6CFF","#00204DFF"))+
                                coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
-                                scale_x_continuous(breaks = c(0,0.5,1))+
-                                scale_y_continuous(breaks = c(0,0.5,1))+
+                               scale_x_continuous(breaks = c(0,0.5,1))+
+                               scale_y_continuous(breaks = c(0,0.5,1))+
                                geom_abline(slope = 1,color='black',alpha=0.5)
                            
                            return(p)
@@ -1709,8 +1709,8 @@ if (length(unique(RTs$group)) != 1) {
             '_paired_density_plot_RTs.pdf'
         )
     ))
- 
- }
+    
+}
 
 #joing RTs with relative signals
 signal_smoothed = signal_smoothed %>%
@@ -1743,71 +1743,71 @@ x %>%
         )
     )
 
-# fucntion to assigne categories
-    split_into_categoreis=Vectorize(function(RT,number){
-            if(number==3){
-                return( case_when(
-                    RT < 3 ~ '1 - Early',
-                    RT >= 3 & RT < 6 ~ '2 - Mid',
-                    RT >= 6  ~ '3 - Late'
-                ))
-            }else if (number==5){
-                return( case_when(
-                    RT < 2 ~ '1 - Very Early',
-                    RT >= 2 & RT < 4  ~ '2 - Early',
-                    RT >= 4 & RT < 6 ~ '3 - Mid',
-                    RT >= 6 & RT < 8 ~ '4 - Late',
-                    RT >= 8  ~ '5 - Very Late'))
-            }else {
-                return( case_when(
-                    RT < 5 ~ '1 - Early',
-                    RT >= 5  ~ '2 - Late'
-                ))
+# function to assign categories
+split_into_categoreis=Vectorize(function(RT,number){
+    if(number==3){
+        return( case_when(
+            RT < 3 ~ '1 - Early',
+            RT >= 3 & RT < 6 ~ '2 - Mid',
+            RT >= 6  ~ '3 - Late'
+        ))
+    }else if (number==5){
+        return( case_when(
+            RT < 2 ~ '1 - Very Early',
+            RT >= 2 & RT < 4  ~ '2 - Early',
+            RT >= 4 & RT < 6 ~ '3 - Mid',
+            RT >= 6 & RT < 8 ~ '4 - Late',
+            RT >= 8  ~ '5 - Very Late'))
+    }else {
+        return( case_when(
+            RT < 5 ~ '1 - Early',
+            RT >= 5  ~ '2 - Late'
+        ))
     }
-        },vectorize.args = 'RT' )
-    cat_levels=function(number){
-            if(number==3){
-                return( c(
-                    '0 - All',
-                    '1 - Early',
-                    '2 - Mid',
-                    '3 - Late'
-                ))
-            }else if (number==5){
-                return( c(
-                    '0 - All',
-                    '1 - Very Early',
-                    '2 - Early',
-                    '3 - Mid',
-                    '4 - Late',
-                    '5 - Very Late'
-                ))
-            }else {
-                return( c(
-                    '0 - All',
-                    '1 - Early',
-                    '2 - Late'
-                )
-                )
-            }
-        }
+},vectorize.args = 'RT' )
+cat_levels=function(number){
+    if(number==3){
+        return( c(
+            '0 - All',
+            '1 - Early',
+            '2 - Mid',
+            '3 - Late'
+        ))
+    }else if (number==5){
+        return( c(
+            '0 - All',
+            '1 - Very Early',
+            '2 - Early',
+            '3 - Mid',
+            '4 - Late',
+            '5 - Very Late'
+        ))
+    }else {
+        return( c(
+            '0 - All',
+            '1 - Early',
+            '2 - Late'
+        )
+        )
+    }
+}
 
 x = rbind(x  %>%
-    mutate(
-        Cat_RT = split_into_categoreis(RT,number = opt$N_of_RT_groups),
-        Cat_RT = factor(
-            Cat_RT,
-            levels = cat_levels( opt$N_of_RT_groups)
-        )
-    ),
-    x%>%
-    mutate(
-        Cat_RT = '0 - All',
-        Cat_RT = factor(
-            Cat_RT,
-            levels = cat_levels( opt$N_of_RT_groups)
-        )
-    ))
+              mutate(
+                  Cat_RT = split_into_categoreis(RT,number = opt$N_of_RT_groups),
+                  Cat_RT = factor(
+                      Cat_RT,
+                      levels = cat_levels( opt$N_of_RT_groups)
+                  )
+              ),
+          x%>%
+              mutate(
+                  Cat_RT = '0 - All',
+                  Cat_RT = factor(
+                      Cat_RT,
+                      levels = cat_levels( opt$N_of_RT_groups)
+                  )
+              ))
 
 
 x=x%>%
@@ -1825,7 +1825,7 @@ T25_75 = function(df, name, EL) {
             control = nls.control(maxiter = 100),
             algorithm = 'port',
             start = c(Asym=1,xmid=0,scal=-0.5)
-            ),
+        ),
         #If the data cannot be fitted with a Gauss-Newton algorithm, try the
         #Golub and Pereyra algorithm for the solution of a nonlinear least squares
         #problem which assumes a number of the parameters are linear.
@@ -1840,7 +1840,7 @@ T25_75 = function(df, name, EL) {
                 control = nls.control(maxiter = 100,tol = 1e-04, warnOnly = T)
             ),
             error = function(e) print('Try to reduce the number of RT groups') 
-            )
+        )
     )
     min = min(df$time)
     max = max(df$time)
@@ -1877,7 +1877,7 @@ fitted_data = foreach(
     .errorhandling = 'remove'
 ) %do% {
     temp = foreach(
-            EL = unique(x$Cat_RT),
+        EL = unique(x$Cat_RT),
         .combine = 'rbind',
         .packages = c('tidyverse', 'foreach'),
         .errorhandling = 'remove'
@@ -1947,8 +1947,8 @@ if (opt$Var_against_reference) {
     x = signal_smoothed%>%
         group_by(group,time,RT,chr,start,end)%>%
         summarise(percentage=mean(Rep))
-        
-        
+    
+    
     x %>%
         ungroup()%>%
         dplyr::select(-RT)%>%
