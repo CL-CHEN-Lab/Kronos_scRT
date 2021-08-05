@@ -2,7 +2,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 if [ "$1" == "InstRpacks" ];then
-        Rscript $DIR/modules/Kronos_scRT_Rpackages_installer.R 
+        Rscript $DIR/modules/Kronos_scRT_Rpackages_installer.R
 
 elif [ "$1" == "10xtoKronos" ];then
     if test "$#" == 1 ; then
@@ -11,7 +11,7 @@ elif [ "$1" == "10xtoKronos" ];then
     else
         Rscript $DIR/modules/10XtoKronos.R "${@:2}"
     fi
-    
+
 elif  [ "$1" == "binning" ];then
     if test "$#" == 1 ; then
         echo Usage: Kronos binning [options]
@@ -19,8 +19,8 @@ elif  [ "$1" == "binning" ];then
     else
        Rscript $DIR/modules/Kronos_binning.R "${@:2}"
     fi
-    
-    
+
+
 elif [ "$1" == "RT" ];then
     if test "$#" == 1 ; then
         echo Usage: Kronos RT [options]
@@ -28,7 +28,7 @@ elif [ "$1" == "RT" ];then
     else
        Rscript $DIR/modules/Kronos_RT.R "${@:2}"
     fi
-    
+
 elif [ "$1" == "WhoIsWho" ];then
     if test "$#" == 1 ; then
         echo Usage: Kronos WhoIsWho [options]
@@ -76,7 +76,7 @@ elif [ "$1" == "annotate" ];then
     else
        Rscript $DIR/modules/Kronos_annotate.R "${@:2}"
     fi
-   
+
 elif [ "$1" == "compare" ] && [ "$2" == "TW" ];then
     if test "$#" == 2 ; then
         echo Usage: Kronos compare TW [options]
@@ -84,7 +84,7 @@ elif [ "$1" == "compare" ] && [ "$2" == "TW" ];then
     else
        Rscript $DIR/modules/Kronos_compare_TW.R "${@:3}"
     fi
-    
+
 elif [ "$1" == "population" ] && [ "$2" == "RT" ];then
     if test "$#" == 2 ; then
         echo Usage: Kronos population RT [options]
@@ -92,7 +92,7 @@ elif [ "$1" == "population" ] && [ "$2" == "RT" ];then
     else
        Rscript $DIR/modules/Kronos_population_RT.R "${@:3}"
     fi
-    
+
 elif [ "$1" == "scPlots" ];then
     if test "$#" == 1 ; then
         echo Usage: Kronos scPlots [options]
@@ -100,7 +100,7 @@ elif [ "$1" == "scPlots" ];then
     else
        Rscript $DIR/modules/Kronos_scPlots.R "${@:2}"
     fi
-    
+
 elif [ "$1" == "Corr" ];then
     if test "$#" == 1 ; then
         echo Usage: Kronos Corr [options]
@@ -108,12 +108,12 @@ elif [ "$1" == "Corr" ];then
     else
        Rscript $DIR/modules/Kronos_Corr.R "${@:2}"
     fi
-elif [ "$1" == "TSNE" ];then
+elif [ "$1" == "DRed" ];then
     if test "$#" == 1 ; then
-        echo Usage: Kronos TSNE [options]
-        Rscript $DIR/modules/Kronos_TSNE.R -h | grep -v Kronos_TSNE.R
+        echo Usage: Kronos DRed [options]
+        Rscript $DIR/modules/Kronos_DRed.R -h | grep -v Kronos_DRed.R
     else
-       Rscript $DIR/modules/Kronos_TSNE.R "${@:2}"
+       Rscript $DIR/modules/Kronos_DRed.R "${@:2}"
     fi
 else
 
@@ -124,18 +124,18 @@ commands:\n
 \t fastqtoBAM \t\t Trims and maps reads
 \t suggests \t\t Suggests parameters for binning, cell filtering and RT resolution starting from fastqtoBAM report or manual input
 \t binning\t\t Calculates mappability and gc content for bins to be used with Kronos CNV
-\t CNV\t\t\t Calculates copy number variation 
+\t CNV\t\t\t Calculates copy number variation
 \t 10xtoKronos\t\t Converts 10X genomics files in a format that Kronos can use
 \t WhoIsWho \t\t Manually assign cell cycle stage
 \t diagnostic \t\t Plotting tools to identify appropriate tresholds for Kronos RT
 \t RT \t\t\t Calculates scReplication profiles and scRT
-\t Corr \t\t\t Calculates pearson correlation between multipe calculated replication timing/ rescaled reference RT files 
+\t Corr \t\t\t Calculates pearson correlation between multipe calculated replication timing/ rescaled reference RT files
 \t compare RT \t\t Compares RT results from multiple experiments
 \t annotate \t\t Annotates sc variability files for Kronos compare TW
 \t compare TW \t\t Allowes to investigate variability using a categorical annotation of the genome (for example binding sites or genes of interest)
 \t population RT \t\t Calcualtes population RT starting from single cell BAM files and Kronos diagnostic outputs
 \t scPlots \t\t scRT plots
-\t TSNE \t\t Applies TSNE to identify possible scRT or scCN clusters
+\t DRed \t\t Applies DRed to identify possible scRT or scCN clusters
 "
 
 fi
