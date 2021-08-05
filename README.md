@@ -55,6 +55,7 @@ Run the script
     annotate        Annotates sc variability files for Kronos compare TW
     compare TW      Compares variability from multiple experiments and/or over multiple regions
     population RT   Calculates population RT starting from single cell BAM files and Kronos diagnostic outputs
+    DRed            Performs Dimension Reduction using TSNE and UMAP
 
 --InstRpacks
 
@@ -255,16 +256,19 @@ Run the script
     -f CHARACTER, --output_file_base_name=CHARACTER Base name for the output file [default= out]
     -h, --help                                      Show this help message and exit
     
--- Kronos TSNE module
+-- Kronos DRed module
 
-    ./Kronos TSNE [options]
+    ./Kronos DRed [options]
     Options:
     -C CHARACTER, --scCNV=CHARACTER                 *single_cells_CNV* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.
     --CNV_values=CHARACTER                          What type of date to plot for the sigle cell traks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells)) [default= B]
-    --per_Chr                                       Calculate TSNE on each chromosome
+    --per_Chr                                       Calculate TSNE/UMAP on each chromosome
     -o CHARACTER, --out=CHARACTER                   Output directory [default= output]
     -f CHARACTER, --output_file_base_name=CHARACTER Base name for the output file [default= out]
     -c INTEGER, --cores=INTEGER                     Numbers of cores to use [default= 3]
+    -X, --keep_X                                    Keep X chromosomes. [default= FALSE]
+    -Y, --keep_Y                                    Keep Y chromosome. [default= FALSE]
+    -s INTEGER, --seed=INTEGER                      Set seed for reproducibility (optional) [default= Current Date]
     -h, --help                                      Show this help message and exit
 
 ### Requirements

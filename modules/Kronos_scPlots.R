@@ -51,7 +51,7 @@ option_list = list(
         c("--CNV_values"),
         type = "character",
         default = "B",
-        help = "What type of date to plot for the sigle cell traks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells) or 'all'= one file per option) [default= %default]",
+        help = "What type of date to plot for the single cell traks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells) or 'all'= one file per option) [default= %default]",
         metavar = "character"
     ),
     make_option(
@@ -115,13 +115,12 @@ if('List' %in% names(opt)) {
 }
 
 if (!'region' %in% names(opt)) {
-    stop("No reagion of interest has been selected. See script usage (--help)")
+    stop("No region of interest has been selected. See script usage (--help)")
     
 }
 
 if('order'%in% names(opt)){
     opt$order = str_split(opt$order, ',')[[1]]
-    
 }
 
 
