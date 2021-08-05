@@ -95,7 +95,7 @@ theme_set(theme_bw())
 if('seed' %in% names(opt)){
     set.seed(opt$seed)
 }else{ #if no seed is predefined, a numeric form of the date will be used.
-    opt$seed = as.numeric(Sys.Date())
+    opt$seed = as.integer(Sys.Date())
     set.seed(opt$seed)
 }
 
