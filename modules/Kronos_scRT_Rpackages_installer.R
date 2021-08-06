@@ -3,7 +3,7 @@
 #install all the required R packages
 
 install.packages(pkgs =c('Cairo','doSNOW','foreach','gplots','LaplacesDemon','MASS','matrixStats','optparse',
-                   'RColorBrewer','scales','tidyverse','gridExtra','ggcorrplot','GGally','Rtsne','ade4','uwot','Matrix'), dependencies = T , repos = "http://cran.us.r-project.org")
+                   'RColorBrewer','scales','tidyverse','gridExtra','ggcorrplot','GGally','Rtsne','ade4','umap'), dependencies = T , repos = "http://cran.us.r-project.org")
 
 
 if (!requireNamespace("BiocManager", quietly = TRUE))

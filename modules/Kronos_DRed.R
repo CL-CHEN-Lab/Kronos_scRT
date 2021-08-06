@@ -68,10 +68,27 @@ option_list = list(
     make_option(
         c("-s", "--seed"),
         type = "integer",
-        default = opt$seed = as.integer(Sys.Date()),
+        default = as.integer(Sys.Date()),
         help = "Set seed for reproducibility (optional).",
         metavar = "integer"
+    ),
+    make_option(
+        c("-U", "--UMAP"),
+        type = "logical",
+        default = FALSE,
+        action = "store_true",
+        help = "Skip t-SNE, only plot UMAP.",
+        metavar = "logical"
+    ),
+    make_option(
+        c("-T", "--TSNE"),
+        type = "logical",
+        default = FALSE,
+        action = "store_true",
+        help = "Skip UMAP, only plot t-SNE.",
+        metavar = "logical"
     )
+    
 )
 
 #recover inputs
@@ -84,8 +101,7 @@ suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 suppressPackageStartupMessages(library(doSNOW, quietly = TRUE))
 suppressPackageStartupMessages(library(Rtsne, quietly = TRUE))
 suppressPackageStartupMessages(library(ade4, quietly = TRUE))
-suppressPackageStartupMessages(library(uwot, quietly = TRUE))
-suppressPackageStartupMessages(library(Matrix, quietly = TRUE))
+suppressPackageStartupMessages(library(umap, quietly = TRUE))
 #output dir
 system(paste0('mkdir -p ', opt$out))
 
@@ -212,121 +228,123 @@ if(opt$CNV_values=='B') {
 rm('mat')
 
 scCNV_umap = scCNV
-scCNV=foreach(C = names(results),.packages = c('Rtsne','tidyverse'),.combine = 'rbind') %do% {    
-    Perplex = ceiling(nrow(results[[C]]) / 50)
-    tsne <-
-        Rtsne(
-            X = results[[C]],
-            dims = 2,
-            perplexity = ifelse(Perplex < 10, 10, Perplex),
-            check_duplicates = F,
-            theta = 0.25,
-            is_distance = opt$CNV_values=='B',
-            verbose = F,
-            max_iter = 5000,
-            num_threads = opt$cores,
-            partial_pca = T
-        )
-    
-    scCNV%>%mutate(Chr=C,
-                   x=tsne$Y[,1],
-                   y=tsne$Y[,2])
-}
-scCNV_umap=foreach(C = names(results),.packages = c('uwot','tidyverse','Matrix'),.combine = 'rbind') %do% {    
-    if(opt$CNV_values=='B'){
-        umap_mat <- Matrix(results[[C]], sparse = TRUE)
-    }else{
-        umap_mat = results[[C]]
+# TSNE
+if (!opt$UMAP){
+    scCNV=foreach(C = names(results),.packages = c('Rtsne','tidyverse'),.combine = 'rbind') %do% {    
+        Perplex = ceiling(nrow(results[[C]]) / 50)
+        tsne <-
+            Rtsne(
+                X = results[[C]],
+                dims = 2,
+                perplexity = ifelse(Perplex < 10, 10, Perplex),
+                check_duplicates = F,
+                theta = 0.25,
+                is_distance = opt$CNV_values=='B',
+                verbose = F,
+                max_iter = 5000,
+                num_threads = opt$cores,
+                partial_pca = T
+            )
+        
+        scCNV%>%mutate(Chr=C,
+                       x=tsne$Y[,1],
+                       y=tsne$Y[,2])
     }
-    umap <- uwot::umap(X = umap_mat,
-                       n_threads = opt$cores,
-                       n_sgd_threads = 1)
-    rm(umap_mat)
-    scCNV_umap%>%mutate(Chr=C,
-                        x=umap[,1],
-                        y=umap[,2])
+    write_tsv(scCNV,paste0(
+        opt$out,
+        '/',
+        opt$output_file_base_name,
+        '_tsne.txt'
+    ))
+    X=foreach(C = names(results),.packages = c('tidyverse'),.combine = 'rbind') %do% {
+        plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=group,shape=group),alpha=0.4,size=2)+xlab('TSNE1')+ylab('TSNE2')+facet_wrap(~Chr)
+        
+        suppressMessages(ggsave(
+            plot = plot, dpi = 300,
+            filename = paste0(
+                opt$out,
+                opt$output_file_base_name,
+                '_',C,'_tsne_color_by_group.pdf'
+            )
+        ))
+        
+        plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=basename,shape=basename),alpha=0.4,size=2)+xlab('TSNE1')+ylab('TSNE2')+facet_wrap(~Chr)
+        
+        suppressMessages(ggsave(
+            plot = plot, dpi = 300,
+            filename = paste0(
+                opt$out,
+                opt$output_file_base_name,
+                '_',C,'_tsne_color_by_basename.pdf'
+            )
+        ))
+        
+        plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=PercentageReplication,shape=group),alpha=0.4,size=2)+scale_color_gradient2(low = "#FFEA46FF", mid = "#7C7B78FF", high = "#00204DFF",lim=c(0,1),midpoint = 0.5)+xlab('TSNE1')+ylab('TSNE2')+facet_wrap(~Chr)
+        suppressMessages(ggsave(
+            plot = plot, dpi = 300,
+            filename = paste0(
+                opt$out,
+                opt$output_file_base_name,
+                '_',C,'_tsne_color_by_rep_percentage.pdf'
+            )
+        ))
+        C
+    }
 }
 
-write_tsv(scCNV,paste0(
-    opt$out,
-    '/',
-    opt$output_file_base_name,
-    '_tsne.txt'
-))
-write_tsv(scCNV_umap,paste0(
-    opt$out,
-    '/',
-    opt$output_file_base_name,
-    '_umap.txt'
-))
+# UMAP
+if (!opt$TSNE){
+    scCNV_umap=foreach(C = names(results),.packages = c('umap','tidyverse'),.combine = 'rbind') %do% {    
+        if(opt$CNV_values=='B'){
+            input_mat = 'dist'
+        }else{
+            input_mat = "data"
+        }
+        umap <- umap::umap(d = results[[C]], input = input_mat, random_state = opt$seed)
+        scCNV_umap%>%mutate(Chr=C,
+                            x=umap$layout[,1],
+                            y=umap$layout[,2])
+    }
+    write_tsv(scCNV_umap,paste0(
+        opt$out,
+        '/',
+        opt$output_file_base_name,
+        '_umap.txt'
+    ))
+    X_umap=foreach(C = names(results),.packages = c('tidyverse'),.combine = 'rbind') %do% {
+        plot=scCNV_umap%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=group,shape=group),alpha=0.4,size=2)+xlab('UMAP1')+ylab('UMAP2')+facet_wrap(~Chr)
+        
+        suppressMessages(ggsave(
+            plot = plot, dpi = 300,
+            filename = paste0(
+                opt$out,
+                opt$output_file_base_name,
+                '_',C,'_umap_color_by_group.pdf'
+            )
+        ))
+        
+        plot=scCNV_umap%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=basename,shape=basename),alpha=0.4,size=2)+xlab('UMAP1')+ylab('UMAP2')+facet_wrap(~Chr)
+        
+        suppressMessages(ggsave(
+            plot = plot, dpi = 300,
+            filename = paste0(
+                opt$out,
+                opt$output_file_base_name,
+                '_',C,'_umap_color_by_basename.pdf'
+            )
+        ))
+        
+        plot=scCNV_umap%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=PercentageReplication,shape=group),alpha=0.4,size=2)+scale_color_gradient2(low = "#FFEA46FF", mid = "#7C7B78FF", high = "#00204DFF",lim=c(0,1),midpoint = 0.5)+xlab('UMAP1')+ylab('UMAP2')+facet_wrap(~Chr)
+        suppressMessages(ggsave(
+            plot = plot, dpi = 300,
+            filename = paste0(
+                opt$out,
+                opt$output_file_base_name,
+                '_',C,'_umap_color_by_rep_percentage.pdf'
+            )
+        ))
+        C
+    }
+}
 
-X=foreach(C = names(results),.packages = c('Rtsne','tidyverse'),.combine = 'rbind') %do% {
-    plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=group,shape=group),alpha=0.4,size=2)+xlab('TSNE1')+ylab('TSNE2')+facet_wrap(~Chr)
-    
-    suppressMessages(ggsave(
-        plot = plot, dpi = 300,
-        filename = paste0(
-            opt$out,
-            opt$output_file_base_name,
-            '_',C,'_tsne_color_by_group.pdf'
-        )
-    ))
-    
-    plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=basename,shape=basename),alpha=0.4,size=2)+xlab('TSNE1')+ylab('TSNE2')+facet_wrap(~Chr)
-    
-    suppressMessages(ggsave(
-        plot = plot, dpi = 300,
-        filename = paste0(
-            opt$out,
-            opt$output_file_base_name,
-            '_',C,'_tsne_color_by_basename.pdf'
-        )
-    ))
-    
-    plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=PercentageReplication,shape=group),alpha=0.4,size=2)+scale_color_gradient2(low = "#FFEA46FF", mid = "#7C7B78FF", high = "#00204DFF",lim=c(0,1),midpoint = 0.5)+xlab('TSNE1')+ylab('TSNE2')+facet_wrap(~Chr)
-    suppressMessages(ggsave(
-        plot = plot, dpi = 300,
-        filename = paste0(
-            opt$out,
-            opt$output_file_base_name,
-            '_',C,'_tsne_color_by_rep_percentage.pdf'
-        )
-    ))
-    C
-}
-X_umap=foreach(C = names(results),.packages = c('tidyverse'),.combine = 'rbind') %do% {
-    plot=scCNV_umap%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=group,shape=group),alpha=0.4,size=2)+xlab('UMAP1')+ylab('UMAP2')+facet_wrap(~Chr)
-    
-    suppressMessages(ggsave(
-        plot = plot, dpi = 300,
-        filename = paste0(
-            opt$out,
-            opt$output_file_base_name,
-            '_',C,'_umap_color_by_group.pdf'
-        )
-    ))
-    
-    plot=scCNV_umap%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=basename,shape=basename),alpha=0.4,size=2)+xlab('UMAP1')+ylab('UMAP2')+facet_wrap(~Chr)
-    
-    suppressMessages(ggsave(
-        plot = plot, dpi = 300,
-        filename = paste0(
-            opt$out,
-            opt$output_file_base_name,
-            '_',C,'_umap_color_by_basename.pdf'
-        )
-    ))
-    
-    plot=scCNV_umap%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=PercentageReplication,shape=group),alpha=0.4,size=2)+scale_color_gradient2(low = "#FFEA46FF", mid = "#7C7B78FF", high = "#00204DFF",lim=c(0,1),midpoint = 0.5)+xlab('UMAP1')+ylab('UMAP2')+facet_wrap(~Chr)
-    suppressMessages(ggsave(
-        plot = plot, dpi = 300,
-        filename = paste0(
-            opt$out,
-            opt$output_file_base_name,
-            '_',C,'_umap_color_by_rep_percentage.pdf'
-        )
-    ))
-    C
-}
 print('done')
-
