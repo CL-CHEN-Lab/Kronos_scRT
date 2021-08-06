@@ -68,6 +68,7 @@ option_list = list(
     make_option(
         c("-s", "--seed"),
         type = "integer",
+        default = opt$seed = as.integer(Sys.Date()),
         help = "Set seed for reproducibility (optional).",
         metavar = "integer"
     )
@@ -92,12 +93,7 @@ system(paste0('mkdir -p ', opt$out))
 theme_set(theme_bw())
 
 #Set seed for reproducibility
-if('seed' %in% names(opt)){
-    set.seed(opt$seed)
-}else{ #if no seed is predefined, a numeric form of the date will be used.
-    opt$seed = as.integer(Sys.Date())
-    set.seed(opt$seed)
-}
+set.seed(opt$seed)
 
 #load files
 if (!'scCNV' %in% names(opt)) {
@@ -231,23 +227,10 @@ scCNV=foreach(C = names(results),.packages = c('Rtsne','tidyverse'),.combine = '
             num_threads = opt$cores,
             partial_pca = T
         )
-    if(opt$CNV_values=='B'){
-        #umap_mat = results[[C]]
-        #umap_mat[lower.tri(umap_mat)] <- NA
-        umap_mat <- Matrix(results[[C]], sparse = TRUE)
-    }else{
-        umap_mat = results[[C]]
-    }
-    umap <- uwot::umap(X = umap_mat,
-                       n_threads = opt$cores, 
-    )
     
     scCNV%>%mutate(Chr=C,
                    x=tsne$Y[,1],
                    y=tsne$Y[,2])
-    scCNV_umap%>%mutate(Chr=C,
-                        x=umap[,1],
-                        y=umap[,2])
 }
 scCNV_umap=foreach(C = names(results),.packages = c('uwot','tidyverse','Matrix'),.combine = 'rbind') %do% {    
     if(opt$CNV_values=='B'){
