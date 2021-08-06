@@ -268,7 +268,9 @@ Run the script
     -c INTEGER, --cores=INTEGER                     Numbers of cores to use [default= 3]
     -X, --keep_X                                    Keep X chromosomes. [default= FALSE]
     -Y, --keep_Y                                    Keep Y chromosome. [default= FALSE]
-    -s INTEGER, --seed=INTEGER                      Set seed for reproducibility (optional) [default= Current Date]
+    -s INTEGER, --seed=INTEGER                      Set seed for reproducibility [default= Current Date]
+    -U, --UMAP                                      Skip t-SNE, only plot UMAP
+    -T, --TSNE                                      Skip UMAP, only plot t-SNE
     -h, --help                                      Show this help message and exit
 
 ### Requirements
