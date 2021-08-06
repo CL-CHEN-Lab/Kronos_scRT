@@ -179,7 +179,6 @@ suppressPackageStartupMessages(library(matrixStats, quietly = TRUE))
 suppressPackageStartupMessages(library(RColorBrewer, quietly = TRUE))
 suppressPackageStartupMessages(library(GenomicRanges, quietly = TRUE))
 suppressPackageStartupMessages(library(MASS, quietly = TRUE))
-suppressPackageStartupMessages(library(Rtsne, quietly = TRUE))
 suppressPackageStartupMessages(library(ade4, quietly = TRUE))
 
 
@@ -704,7 +703,7 @@ if ('referenceRT' %in% names(opt)) {
     write_delim(
         x = Reference_RT%>%
             mutate(group=opt$ref_name),
-        path = paste0(
+        file = paste0(
             opt$out,
             '/',
             opt$output_file_base_name,
@@ -966,57 +965,6 @@ suppressMessages(ggsave(
         opt$out,
         opt$output_file_base_name,
         '_percentage_of_replicating_cells_after_filtering.pdf'
-    )
-))
-
-#tsne
-results = 1-results
-Perplex=ceiling(ncol(results)/50)
-tsne <- Rtsne(X = results, dims = 2, perplexity=ifelse(Perplex<10,10,Perplex), check_duplicates = F, theta = 0.25,is_distance= T,
-              verbose=F, max_iter = 5000, num_threads = opt$cores, partial_pca=T)
-
-tsne=tibble(cell=colnames(results),
-            x=tsne$Y[,1],
-            y=tsne$Y[,2])%>%
-    separate(cell,into = c('group','index'),sep = ' _ ')%>%
-    inner_join(rep_percentage, by = c("group", "index"))
-
-write_tsv(tsne,paste0(
-    opt$out,
-    '/',
-    opt$output_file_base_name,
-    '_tsne.txt'
-))
-
-plot=tsne%>%ggplot()+geom_point(aes(x,y,color=group,shape=group),alpha=0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
-
-suppressMessages(ggsave(
-    plot = plot,
-    filename = paste0(
-        opt$out,
-        opt$output_file_base_name,
-        '_tsne_color_by_group.pdf'
-    )
-))
-
-plot=tsne%>%ggplot()+geom_point(aes(x,y,color=basename,shape=basename),alpha=0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
-
-suppressMessages(ggsave(
-    plot = plot,
-    filename = paste0(
-        opt$out,
-        opt$output_file_base_name,
-        '_tsne_color_by_basename.pdf'
-    )
-))
-
-plot=tsne%>%ggplot()+geom_point(aes(x,y,color=Rep_percentage,shape=group),alpha=0.5)+scale_color_gradient2(low = "#FFEA46FF", mid = "#7C7B78FF", high = "#00204DFF",lim=c(0,1),midpoint = 0.5)+xlab('TSNE - 1')+ylab('TSNE - 2')
-suppressMessages(ggsave(
-    plot = plot,
-    filename = paste0(
-        opt$out,
-        opt$output_file_base_name,
-        '_tsne_color_by_rep_percentage.pdf'
     )
 ))
 
