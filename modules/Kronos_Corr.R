@@ -161,7 +161,7 @@ suppressMessages( ggsave(
         
         return(p)
     }),legend = c(2,1))+ theme(legend.position = "right",
-                               axis.text.x = element_text(angle = 45,hjust = 1),aspect.ratio = 1),
+                               axis.text.x = element_text(angle = 45,hjust = 1)),
     filename =paste0(
         opt$out,
         '/',
