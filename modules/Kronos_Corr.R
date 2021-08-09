@@ -94,11 +94,13 @@ scRT = scRT %>% spread(group, RT) %>%
     dplyr::select(-chr, -start, -end) 
 
 plot = ggcorrplot(
-    scRT%>%
+    scRT %>%
         cor(method = 'spearman'),
     lab = T,
-    lab_col = 'white',legend.title = 'Spearman\ncorrelation',
-    colors =  c( '#BCAF6FFF', '#7C7B78FF','#00204DFF')
+    lab_col = 'red',
+    legend.title = 'Spearman\ncorrelation',
+    colors =  c('#BCAF6FFF', '#7C7B78FF', '#00204DFF'),
+    ggtheme = ggplot2::theme(aspect.ratio = 1)
 )
 
 suppressMessages(ggsave(
@@ -121,21 +123,30 @@ suppressMessages( ggsave(
     }),
     upper = list(continuous =function(data, mapping, ...){
         
+        Spearman=cor(data[as_label(mapping$x)],data[as_label(mapping$y)],method = 'spearman')
         data=tibble(
-            xmin=-Inf,
-            xmax=Inf,
-            ymin=-Inf,
-            ymax=Inf,
-            Corr=cor(data[as_label(mapping$x)],data[as_label(mapping$y)])
-        )
+            x=seq(0,2*pi,length.out = 200),
+            Corr=Spearman
+        )%>%
+            mutate(y=0.5+Corr/2*sin(x),
+                   x=0.5+Corr/2*cos(x))
         
-        p <- ggplot(data,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax,fill=Corr)) + 
-            geom_rect()+
-            annotate('text',0.5,0.5,label=paste("Corr:",round(data$Corr,3),sep = '\n'),color='white')+
-            scale_fill_gradient2(low = '#BCAF6FFF',high = '#00204DFF',mid = '#7C7B78FF',midpoint = 0,limits=c(-1,1))+
-            coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
-            scale_x_continuous(breaks = c(0,0.5,1))+
-            scale_y_continuous(breaks = c(0,0.5,1))
+        p <- ggplot(data, aes(x = x, y = y, fill = Corr))+
+            geom_polygon() + theme(
+                axis.title = element_blank(),
+                panel.grid = element_blank()
+            ) +
+            annotate('text',x = 0.5,
+                     y = 0.5,
+                     label = paste("Corr:", round(unique(Spearman), 3), sep = '\n'),
+                     color = 'red') +
+            scale_fill_gradient2(
+                low = '#BCAF6FFF',
+                high = '#00204DFF',
+                mid = '#7C7B78FF',
+                midpoint = 0,
+                limits = c(-1, 1)
+            ) + coord_cartesian(xlim = c(0,1), ylim = c(0,1))
         
         return(p)
     }),
@@ -150,7 +161,7 @@ suppressMessages( ggsave(
         
         return(p)
     }),legend = c(2,1))+ theme(legend.position = "right",
-                               axis.text.x = element_text(angle = 45,hjust = 1)),
+                               axis.text.x = element_text(angle = 45,hjust = 1),aspect.ratio = 1),
     filename =paste0(
         opt$out,
         '/',
