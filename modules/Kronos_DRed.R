@@ -268,7 +268,7 @@ if (!opt$UMAP){
             )
         ))
         
-        plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=basename,shape=basename),alpha=0.4,size=2)+xlab('TSNE1')+ylab('TSNE2')+facet_wrap(~Chr)
+        plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=basename,shape=group),alpha=0.4,size=2)+xlab('TSNE1')+ylab('TSNE2')+facet_wrap(~Chr)
         
         suppressMessages(ggsave(
             plot = plot, dpi = 300,
@@ -323,7 +323,7 @@ if (!opt$TSNE){
             )
         ))
         
-        plot=scCNV_umap%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=basename,shape=basename),alpha=0.4,size=2)+xlab('UMAP1')+ylab('UMAP2')+facet_wrap(~Chr)
+        plot=scCNV_umap%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=basename,shape=group),alpha=0.4,size=2)+xlab('UMAP1')+ylab('UMAP2')+facet_wrap(~Chr)
         
         suppressMessages(ggsave(
             plot = plot, dpi = 300,
