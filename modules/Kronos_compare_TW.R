@@ -940,7 +940,8 @@ if ('Cat2' %in% names(data) & !opt$pval) {
             geom_col(aes(Cat1, Twidth, fill = group), position = 'dodge') +
             ylab('Twidth') + xlab('')+
             theme(axis.text.x = element_text(angle = 45, hjust=1))+
-            geom_text(aes(Cat1,Twidth/2, label=paste0('n bins: ',`N of bins`)),angle=90, hjust=0.5, vjust=0.5)
+            geom_text(aes(Cat1,Twidth/2, label=paste0('n bins: ',`N of bins`)),angle=90, hjust=0.5, vjust=0.5)+
+            facet_grid(~group)
             
     }
     suppressMessages(ggsave(

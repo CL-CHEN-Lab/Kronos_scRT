@@ -108,7 +108,7 @@ suppressMessages(ggsave(
     filename = paste0(
         opt$out,
         opt$output_file_base_name,
-        'spearman_correlation',
+        '_spearman_correlation',
         '.pdf'
     )
 ))

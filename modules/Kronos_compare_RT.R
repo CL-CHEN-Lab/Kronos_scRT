@@ -142,7 +142,7 @@ data_cluster=data_cluster%>%
 
 p=data_cluster%>%
     ggplot(aes(x=group,y=n,hight=1,width=1,fill=RT))+
-    geom_raster()+facet_grid(clusters ~ group,scales = 'free')+
+    geom_raster()+facet_grid(clusters ~ group,scales = 'free',space = 'free')+
     scale_fill_gradient2(low = '#005095',midpoint = 0.5,high = '#a7001b',mid = 'white')+
     theme(axis.text = element_blank(),axis.ticks = element_blank(),axis.title = element_blank(),panel.spacing = unit(0,'line'))+
     scale_x_discrete( expand = c(0, 0)) +
