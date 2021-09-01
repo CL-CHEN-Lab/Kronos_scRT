@@ -10,7 +10,7 @@ option_list = list(
         c("-l", "--fastq_list"),
         type = "character",
         default = NULL,
-        help = "A table formatted in the following way: sam_file_basename\tFastq_1\tFastq_2(optional for PE sequencing). Compressed files are not allowed. Alternative to -1/-2/-b",
+        help = "A table formatted in the following way: sam_file_basename\tFastq_1\tFastq_2(optional for PE sequencing). Compressed files are not allowed. Alternative to -O/-T/-b",
         metavar = "character"
     ),
     make_option(

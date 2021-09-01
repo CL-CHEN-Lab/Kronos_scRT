@@ -166,7 +166,7 @@ suppressMessages( ggsave(
         opt$out,
         '/',
         opt$output_file_base_name,
-        'pair_scatter_plot_RTs.pdf'
+        '_pair_scatter_plot_RTs.pdf'
     )
 ))
 

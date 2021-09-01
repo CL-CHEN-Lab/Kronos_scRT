@@ -66,9 +66,11 @@ Run the script
     ./Kronos fastqtoBAM [options]
     
     Options:
-    -l CHARACTER, --fastq_list=CHARACTER                A table formatted in the following way: sam_file_basename\tFastq_1\tFastq_2(optional for PE sequencing). Compressed files are not allowed. Alternative to --one/--two/-b
-    --one=CHARACTER                                     Fastq files, for multiple files they have to be separated by a comma. Compressed files are not allowed.  Alternative to -l
-    --two=CHARACTER                                     Fastq files (for paired ends), for multiple files they have to be separated by a comma. Compressed files are not allowed.  Alternative to -l
+    -l CHARACTER, --fastq_list=CHARACTER                A table formatted in the following way: sam_file_basename\tFastq_1\tFastq_2(optional for PE sequencing). Compressed files are not allowed. Alternative to --O/--T/-b
+	-O CHARACTER, --one=CHARACTER
+		Fastq files, for multiple files they have to be separated by a comma. Compressed files are not allowed.  Alternative to -l
+	-T CHARACTER, --two=CHARACTER
+		Fastq files (for paired ends), for multiple files they have to be separated by a comma. Compressed files are not allowed.  Alternative to -l
     -b CHARACTER, --sam_file_basename=CHARACTER         Sam file name, for multiple files they have to be separated by a comma.  Alternative to -l
     -i CHARACTER, --index=CHARACTER                     Bowtie 2 index
     -c INTEGER, --cores=INTEGER                         Number of cores to use. [default= 3]
