@@ -72,7 +72,7 @@ option_list = list(
         type = "double",
         default = 160,
         action = 'store',
-        help = "Min n of reads per million per haploid genome to keep a cell in the analysis. For SE reads it can be halved [default= %default]",
+        help = "Min n of reads per million per haploid genome to keep a cell in the analysis [default= %default]",
         metavar = "double"
     )
 )

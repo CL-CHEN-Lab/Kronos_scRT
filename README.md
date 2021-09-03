@@ -152,7 +152,7 @@ Run the script
     -f DOUBLE, --Sphase_first_part=DOUBLE               Correction parameter for the first part of the S-phase [0.95,1]
     -s DOUBLE, --Sphase_second_part=DOUBLE              Correction parameter for the second part of the S-phase [0.5,0.55]
     -c INTEGER, --cores=INTEGER                         Numbers of parallel jobs to run [default= 3] 
-    -m DOUBLE, --min_n_reads=DOUBLE                     Min n of reads per million per haploid genome to keep a cell in the analysis. For SE it can be halved [default= 160]
+    -m DOUBLE, --min_n_reads=DOUBLE                     Min n of reads per million per haploid genome to keep a cell in the analysis [default= 160]
     -h, --help                                          Show this help message and exit
 
 -- RT module
