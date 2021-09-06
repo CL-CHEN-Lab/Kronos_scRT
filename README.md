@@ -13,7 +13,7 @@ Kronos and Cell Ranger (10x Genomics) can calculate cell ploidy and variability 
 
 ![](https://github.com/CL-CHEN-Lab/Kronos_scRT/blob/master/img/1.png)
 
-### Reconstructing the Replication Timing Program
+### Reconstructing the Replication Timing program
 Once the copy number has been adjusted the median profile of the G1/G2 population can be used to normalize the profile of each cell in S-phase. Data from each cell are then binarized using a threshold that minimizes the euclidean distance between the real data and their binary counterpart (an example in fig 2A). Cells that poorly correlated with the rest of the sample are eliminated (fig 2B, Pearson correlation before and after filtering) and the rest is used to calculate the pseudo bulk RT profile (fig 2C, In the upper part of the plot referenceRT (population RT data) and RT (pseudo bulk RT calculated from scRT data): red=Early, blue=Late; below, Replication Tracks for individual cells, order from early to late from top to bottom (in blue=non replicated and in red=replicated). The pseudo bulk RT and the population RT have a very high correlation (Spearman correlation R=0.92).
 
 ![](https://github.com/CL-CHEN-Lab/Kronos_scRT/blob/master/img/2.png)
