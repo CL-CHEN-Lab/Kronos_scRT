@@ -122,7 +122,6 @@ Usage: Kronos <command> [options]\n
 commands:\n
 \t InstRpacks \t\t Install all the required R packages
 \t fastqtoBAM \t\t Trims and maps reads
-\t suggests \t\t Suggests parameters for binning, cell filtering and RT resolution starting from fastqtoBAM report or manual input
 \t binning\t\t Calculates mappability and gc content for bins to be used with Kronos CNV
 \t CNV\t\t\t Calculates copy number variation
 \t 10xtoKronos\t\t Converts 10X genomics files in a format that Kronos can use
@@ -135,7 +134,7 @@ commands:\n
 \t compare TW \t\t Allowes to investigate variability using a categorical annotation of the genome (for example binding sites or genes of interest)
 \t population RT \t\t Calcualtes population RT starting from single cell BAM files and Kronos diagnostic outputs
 \t scPlots \t\t scRT plots
-\t DRed \t\t Applies DRed to identify possible scRT or scCN clusters
+\t DRed \t\t\t Applies DRed to identify possible scRT or scCN clusters
 "
 
 fi
