@@ -364,6 +364,6 @@ Please contact the authors for any further questions:
 
 ### Reference
 
-If you use Kronos scRT in you study, please cite the following reference:
+If you use Kronos scRT in your study, please cite the following reference:
 
 Gnan S., Josephides J.M., Wu X., Spanguolo M., Saulebekova D., Bohec M., Baudrin L., Baulande S. and Chen C.L. (2021) Kronos scRT: a uniform framework for single-cell replication timing analysis. ***bioRxiv.*** https://doi.org/10.1101/2021.09.01.458599.
