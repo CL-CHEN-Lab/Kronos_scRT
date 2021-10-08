@@ -215,7 +215,7 @@ Run the script
     ./Kronos compare TW [options]
 
     Options:
-    -F CHARACTER, --file=CHARACTER                      Variability file with groups produced by Kronos assign TW groupsl, if multiple files are provided they have to be separated by a comma
+    -F CHARACTER, --file=CHARACTER                      Variability file with groups produced by Kronos annotate, if multiple files are provided they have to be separated by a comma
     -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
     -f CHARACTER, --output_file_base_name=CHARACTER     Base name for the output file [default= out]
     -p, --pval                                          Bootstrap pValue for the difference in TW between groups (it works only with one annotation) [default= FALSE]
