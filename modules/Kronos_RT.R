@@ -790,7 +790,7 @@ write_tsv(new_index_list,paste0(
     opt$out,
     '/',
     opt$output_file_base_name,
-    '_new_old_index_correspondance_before_filtering'
+    '_new_old_index_correspondance_before_filtering.tsv'
 ))
 
 signal_smoothed = signal_smoothed %>%

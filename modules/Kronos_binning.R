@@ -104,6 +104,14 @@ option_list = list(
         help = "Coverage for simulated genome. [default= %default]",
         default = '1x',
         metavar = "character"
+    ),
+    make_option(
+        c("-e","--errorRate"),
+        type = "character",
+        action = 'store',
+        help = "Simulated sequencing error rate (%) [default= %default]",
+        default = "0.1%",
+        metavar = "character"
     )
 )
 
@@ -229,8 +237,9 @@ recover_and_mutate = function(simulated_reads, Chr_reference) {
         mutate(reads=str_remove(reads,'N'))
     
     # simulate mutations 0.1 % rate
+    errorRate=as.numeric(str_remove(string =opt$errorRate ,pattern ='%'))/100
     mutate = sample(1:length(simulated_reads$reads),
-                    0.001 * length(simulated_reads$reads))
+                    errorRate * length(simulated_reads$reads))
     to_mutate = simulated_reads[mutate,]
     simulated_reads = simulated_reads[-mutate,]
     
@@ -630,9 +639,9 @@ write_tsv(bins, paste0(opt$output_dir, basename(opt$index),'_',
                        opt$coverage,'X_coverage_',
                        opt$reads_size,'bp_reads_',
                        ifelse(opt$paired_ends,paste0('PE_',opt$insert_size,'bp_InsertSize')
-                              ,'SE'),
-                       ifelse('black_list' %in% names(opt),'_blacklisted_',''),
-                              paste0('_min_mappability_',opt$lower_mappability_th,
+                              ,'SE_'),
+                       ifelse('black_list' %in% names(opt),'blacklisted_',''),
+                              paste0('error_rate_',opt$errorRate,'_min_mappability_',opt$lower_mappability_th,
                                      '_max_mappability_',opt$upper_mappability_th),'.tsv'))
 
 print('done')

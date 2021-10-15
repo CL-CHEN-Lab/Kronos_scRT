@@ -128,7 +128,7 @@ commands:\n
 \t WhoIsWho \t\t Manually assign cell cycle stage
 \t diagnostic \t\t Plotting tools to identify appropriate tresholds for Kronos RT
 \t RT \t\t\t Calculates scReplication profiles and scRT
-\t Corr \t\t\t Calculates pearson correlation between multipe calculated replication timing/ rescaled reference RT files
+\t Corr \t\t\t Calculates pairwise spearman correlation between multipe pseudo-bulk replication timing/ rescaled bulk RT files
 \t compare RT \t\t Compares RT results from multiple experiments
 \t annotate \t\t Annotates sc variability files for Kronos compare TW
 \t compare TW \t\t Allowes to investigate variability using a categorical annotation of the genome (for example binding sites or genes of interest)

@@ -54,6 +54,7 @@ Run the script
     WhoIsWho        Manually assign cell cycle stage
     diagnostic      Plotting tools to identify appropriate thresholds for Kronos RT
     RT              Calculates scReplication profiles and scRT
+    Corr            Calculates pairwise spearman correlation between multipe pseudo-bulk replication timing/ rescaled bulk RT files
     compare RT      Compares RT results from multiple experiments
     annotate        Annotates sc variability files for Kronos compare TW
     compare TW      Compares variability from multiple experiments and/or over multiple regions
@@ -102,6 +103,7 @@ Run the script
     -l DOUBLE, --lower_mappability_th=DOUBLE            Minimum mappability for a bin to be considered in the analysis  [default= 0.8]
     -B CHARACTER, --black_list=CHARACTER                Regions to ignore
     -x CHARACTER, --coverage=CHARACTER                  Coverage for simulated genome. [default= 1x]
+    -e CHARACTER, --errorRate=CHARACTER                 Simulated sequencing error rate (%) [default= 0.1%]
     -h, --help                                          Show this help message and exit
     
 -- CNV module
@@ -184,6 +186,17 @@ Run the script
     --min_correlation=DOUBLE                            Minimum correlation value between one cell and its best correlating cell for this cell to not be discarded [default= 0.25] 
     -h, --help                                          Show this help message and exit
 
+-- Corr module
+
+    ./Kronos Corr [options]
+
+    Options:
+    -F CHARACTER, --File=CHARACTER                      Replication timing files separated by a comma. Format: chr <TAB> start <TAB> end <TAB> group
+    -s CHARACTER, --sort=CHARACTER                      Group names orders
+    -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
+    -f CHARACTER, --output_file_base_name=CHARACTER     Base name for the output file [default= out]
+    -h, --help                                          Show this help message and exit
+        
 -- compare  RT module
 
     ./Kronos compare RT [options]
@@ -284,6 +297,7 @@ Run the script
      - picard
     
     R Packages:
+     - ade4
      - Biostrings
      - Cairo
      - DNAcopy
@@ -301,59 +315,52 @@ Run the script
      - Rbowtie2
      - RColorBrewer
      - Rsamtools
+     - Rtsne
      - scales
      - tidyverse
+     - umap
 
 ### Session Info
 
-     R version 3.5.2 (2018-12-20)
-     Platform: x86_64-apple-darwin15.6.0 (64-bit)
-     Running under: macOS  10.15.6
+    R version 3.6.3 (2020-02-29)
+    Platform: x86_64-apple-darwin15.6.0 (64-bit)
+    Running under: macOS  10.16
 
-     Matrix products: default
-     BLAS: /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRblas.0.dylib
-     LAPACK: /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRlapack.dylib
+    Matrix products: default
+    LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
 
-     locale:
-     [1] en_GB.UTF-8/en_GB.UTF-8/en_GB.UTF-8/C/en_GB.UTF-8/en_GB.UTF-8
+    Random number generation:
+    RNG:     Mersenne-Twister 
+    Normal:  Inversion 
+    Sample:  Rounding 
+ 
+    locale:
+    [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
 
-     attached base packages:
-     [1] stats4    parallel  stats     graphics  grDevices utils     datasets 
-     [8] methods   base     
+    attached base packages:
+    [1] parallel  stats4    stats     graphics  grDevices utils     datasets  methods   base     
 
-     other attached packages:
-     [1]    Rsamtools_1.34.1     Rbowtie2_1.4.0       GenomicRanges_1.34.0
-     [4]    GenomeInfoDb_1.18.2  Biostrings_2.50.2    XVector_0.22.0      
-     [7]    IRanges_2.16.0       S4Vectors_0.20.1     BiocGenerics_0.28.0 
-     [10]   DNAcopy_1.56.0       BiocManager_1.30.4   GGally_1.4.0        
-     [13]   ggcorrplot_0.1.3     gridExtra_2.3        forcats_0.4.0       
-     [16]   stringr_1.4.0        dplyr_0.8.3          purrr_0.3.2         
-     [19]   readr_1.3.1          tidyr_0.8.3          tibble_2.1.3        
-     [22]   ggplot2_3.2.0        tidyverse_1.2.1      scales_1.0.0        
-     [25]   RColorBrewer_1.1-2   optparse_1.6.2       matrixStats_0.54.0  
-     [28]   MASS_7.3-51.4        LaplacesDemon_16.1.1 gplots_3.0.1.1      
-     [31]   foreach_1.4.4        Cairo_1.5-10         Rtsne_0.15  
-     [34]   ade4_1.7-16    
+    other attached packages:
+     [1] gridExtra_2.3        matrixStats_0.60.0   umap_0.2.7.0         ade4_1.7-17          Rtsne_0.15           RColorBrewer_1.1-2  
+     [7] LaplacesDemon_16.1.6 ggcorrplot_0.1.3     GGally_2.1.2         scales_1.1.1         Cairo_1.5-12.2       MASS_7.3-54         
+    [13] gplots_3.1.1         DNAcopy_1.60.0       Rsamtools_2.2.3      Rbowtie2_1.8.0       Biostrings_2.54.0    XVector_0.26.0      
+    [19] GenomicRanges_1.38.0 GenomeInfoDb_1.22.1  IRanges_2.20.2       S4Vectors_0.24.4     BiocGenerics_0.32.0  doSNOW_1.0.19       
+    [25] snow_0.4-3           iterators_1.0.13     foreach_1.5.1        forcats_0.5.1        stringr_1.4.0        dplyr_1.0.7         
+    [31] purrr_0.3.4          readr_1.4.0          tidyr_1.1.3          tibble_3.1.4         ggplot2_3.3.5        tidyverse_1.3.1     
+    [37] optparse_1.6.6      
 
-     loaded via a namespace (and not attached):
-     [1]    httr_1.4.0             jsonlite_1.6           modelr_0.1.4          
-     [4]    gtools_3.8.1           assertthat_0.2.1       GenomeInfoDbData_1.2.0
-     [7]    cellranger_1.1.0       pillar_1.4.2           backports_1.1.4       
-     [10]   lattice_0.20-38        glue_1.3.1             rvest_0.3.4           
-     [13]   colorspace_1.4-1       plyr_1.8.4             pkgconfig_2.0.2       
-     [16]   broom_0.5.2            haven_2.1.1            zlibbioc_1.28.0       
-     [19]   gdata_2.18.0           getopt_1.20.3          BiocParallel_1.16.6   
-     [22]   generics_0.0.2         withr_2.1.2            lazyeval_0.2.2        
-     [25]   cli_1.1.0              magrittr_1.5           crayon_1.3.4          
-     [28]   readxl_1.3.1           nlme_3.1-140           xml2_1.2.0            
-     [31]   tools_3.5.2            hms_0.5.0              munsell_0.5.0         
-     [34]   compiler_3.5.2         caTools_1.17.1.2       rlang_0.4.0           
-     [37]   RCurl_1.95-4.12        grid_3.5.2             iterators_1.0.10      
-     [40]   rstudioapi_0.10        bitops_1.0-6           gtable_0.3.0          
-     [43]   codetools_0.2-16       reshape_0.8.8          R6_2.4.0              
-     [46]   lubridate_1.7.4        zeallot_0.1.0          KernSmooth_2.23-15    
-     [49]   stringi_1.4.3          Rcpp_1.0.1             vctrs_0.2.0           
-     [52]   tidyselect_0.2.5  
+    loaded via a namespace (and not attached):
+     [1] bitops_1.0-7           fs_1.5.0               lubridate_1.7.10       httr_1.4.2             tools_3.6.3            backports_1.2.1       
+     [7] utf8_1.2.2             R6_2.5.1               KernSmooth_2.23-16     DBI_1.1.1              colorspace_2.0-2       withr_2.4.2           
+    [13] tidyselect_1.1.1       compiler_3.6.3         cli_3.0.1              rvest_1.0.0            xml2_1.3.2             caTools_1.18.2        
+    [19] askpass_1.1            pkgconfig_2.0.3        dbplyr_2.1.1           rlang_0.4.11           readxl_1.3.1           rstudioapi_0.13       
+    [25] generics_0.1.0         jsonlite_1.7.2         BiocParallel_1.20.1    gtools_3.9.2           RCurl_1.98-1.5         magrittr_2.0.1        
+    [31] GenomeInfoDbData_1.2.2 Matrix_1.3-4           Rcpp_1.0.6             munsell_0.5.0          fansi_0.5.0            reticulate_1.20       
+    [37] lifecycle_1.0.0        stringi_1.6.2          yaml_2.2.1             zlibbioc_1.32.0        plyr_1.8.6             grid_3.6.3            
+    [43] crayon_1.4.1           lattice_0.20-38        haven_2.4.1            hms_1.1.0              pillar_1.6.2           codetools_0.2-16      
+    [49] reprex_2.0.0           glue_1.4.2             BiocManager_1.30.16    modelr_0.1.8           png_0.1-7              vctrs_0.3.8           
+    [55] cellranger_1.1.0       openssl_1.4.4          gtable_0.3.0           getopt_1.20.3          reshape_0.8.8          assertthat_0.2.1      
+    [61] broom_0.7.8            RSpectra_0.16-0        ellipsis_0.3.2    
 
 ### Authors
 
