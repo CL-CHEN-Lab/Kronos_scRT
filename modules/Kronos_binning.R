@@ -25,7 +25,7 @@ option_list = list(
         type = "integer",
         default = 40,
         action = 'store',
-        help = "Lengh of the simulated reads. [default= %default bp]",
+        help = "Length of the simulated reads. [default= %default bp]",
         metavar = "integer"
     ),
     make_option(
@@ -217,66 +217,51 @@ if ('dir_indexed_bam' %in% names(opt)){
 chr_list = paste0('chr', c(1:56, 'X', 'Y'))
 chr_list = chr_list[chr_list %in% unique(names(reference))]
 
-# Identify reagins in wich the sequence is known
+# Identify regins in which the sequence is known
 find_known_sequences = function(x) {
     library(tidyverse)
     y = str_locate_all(x, '.[TACG]+')
     return(tibble(start = y[[1]][, 1], end = y[[1]][, 2]))
 }
 #recover reads and mutate them
-recover_and_mutate = function(simulated_reads, Chr_reference) {
+recover_and_mutate = function(simulated_reads, Chr_reference,errorRate=opt$errorRate) {
     library(tidyverse)
+    # simulate mutations 0.1 % rate
+    errorRate=as.numeric(str_remove(string = errorRate ,pattern ='%'))/100
+    mutate = sample(1:str_length(Chr_reference),
+                    errorRate*str_length(Chr_reference))
+
+    #convert characters into int
+    REF_mutated=utf8ToInt(as.character(Chr_reference[[1]]))
+
+    # applies mutation
+    mutate_sequence=Vectorize(function(Base){
+        
+        bases=c(65,67,84,71)
+        bases=bases[bases != Base]
+        
+        return(sample(bases,1))
+        
+    },vectorize.args = 'Base')
+    
+    #mutation
+    REF_mutated[mutate]= mutate_sequence(REF_mutated[mutate])
+    
+    #convert back to string 
+    REF_mutated=intToUtf8(REF_mutated)
+    
+    #recover reads sequences
     simulated_reads = tibble(
         reads = str_sub(
-            Chr_reference,
+            REF_mutated,
             start = simulated_reads$start,
             end = simulated_reads$end - 1
         ),
         order = simulated_reads$order
     )%>%
-        mutate(reads=str_remove(reads,'N'))
+        mutate(reads=str_remove(reads,'N{1,1000}$'),
+               reads=str_remove(reads,'^N{1,1000}'))
     
-    # simulate mutations 0.1 % rate
-    errorRate=as.numeric(str_remove(string =opt$errorRate ,pattern ='%'))/100
-    mutate = sample(1:length(simulated_reads$reads),
-                    errorRate * length(simulated_reads$reads))
-    to_mutate = simulated_reads[mutate,]
-    simulated_reads = simulated_reads[-mutate,]
-    
-    to_mutate = to_mutate %>%
-        group_by(reads) %>%
-        mutate(
-            len = str_length(reads),
-            mutate = sample(1:40, 1),
-            before = str_sub(reads, 0, mutate - 1),
-            after = str_sub(reads, mutate + 1, len),
-            mutate_b = str_sub(reads, mutate, mutate),
-            mutated_base = ifelse(
-                mutate_b == 'A',
-                sample(c('T', 'C', 'G'), 1),
-                ifelse(
-                    mutate_b == 'C',
-                    sample(c('A', 'T', 'G'), 1),
-                    ifelse(
-                        mutate_b == 'G',
-                        sample(c('A', 'T', 'C'), 1),
-                        ifelse(mutate_b == 'T' ,
-                               sample(c(
-                                   'A', 'C', 'G'
-                               ), 1),
-                               sample(c(
-                                   'A', 'C', 'G', 'T'
-                               ), 1))
-                    )
-                )
-            ),
-            new_seq = paste0(before, mutated_base, after),
-            check = str_length(new_seq)
-        ) %>%
-        ungroup() %>%
-        select(new_seq, order) %>%
-        `colnames<-`(names(simulated_reads))
-    simulated_reads = rbind(simulated_reads, to_mutate)
     return(simulated_reads)
 }
 #reshape reads for the fastq file
@@ -334,7 +319,7 @@ genome.Chromsizes = foreach(
     #look for seeds
     if (opt$paired_ends) {
         #initialize simulated reads
-        size = (2 * opt$reads_size + opt$insert_size)
+        size =  opt$insert_size
         
     }else{
         
@@ -364,7 +349,7 @@ genome.Chromsizes = foreach(
                                    end = start + opt$reads_size) %>%
             mutate(order =  row_number())
         simulated_reads_2 = simulated_reads_1 %>%
-            mutate(start = end + opt$insert_size,
+            mutate(start = start + opt$insert_size-opt$reads_size,
                    end = start + opt$reads_size)
         
     } else{
@@ -518,7 +503,7 @@ if(opt$paired_ends){
     )%>%
         drop_na()
     #parameter used to estiamte mappability th
-    theoretical_reads = opt$bin_size/(2 * opt$reads_size + opt$insert_size)
+    theoretical_reads = opt$bin_size/(opt$insert_size)
 
 }else{
     param <- ScanBamParam(what=c('rname','pos','mapq'),
