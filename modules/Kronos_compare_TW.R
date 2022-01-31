@@ -115,7 +115,7 @@ data <-
     foreach(file = opt$file,
             .combine = 'rbind',
             .packages = 'tidyverse') %do% {
-                read_tsv(file, col_types = cols())
+                read_tsv(file, col_types = cols(chr='c'))
             }
 
 

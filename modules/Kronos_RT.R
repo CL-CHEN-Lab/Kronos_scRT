@@ -95,22 +95,6 @@ option_list = list(
         metavar = "character"
     ),
     make_option(
-        c("-X", "--keep_X"),
-        type = "logical",
-        default = FALSE,
-        action = "store_true",
-        help = "Keep X chromosomes in the analysis",
-        metavar = "logical"
-    ),
-    make_option(
-        c("-Y", "--keep_Y"),
-        type = "logical",
-        default = FALSE,
-        action = "store_true",
-        help = "Keep Y chromosomes in the analysis",
-        metavar = "logical"
-    ),
-    make_option(
         c("-c", "--cores"),
         type = "integer",
         default = 3,
@@ -162,6 +146,22 @@ option_list = list(
         action = "store_true",
         help = "Extract G1/G2 single cells copy numebr file [default= %default]",
         metavar = "logical"
+    ),
+    make_option(
+        c("--chr_prefix"),
+        type = "character",
+        action = 'store',
+        help = "Chromosome prefix, if there is no prefix use none [default= %default]",
+        default = "chr",
+        metavar = "character"
+    ),
+    make_option(
+        c("--chr_range"),
+        type = "character",
+        action = 'store',
+        help = "Chromosomes to consider in the analysis (example 1:5,8,15:18,X) [default= %default]",
+        default = "1:22",
+        metavar = "character"
     )
 )
 
@@ -319,22 +319,29 @@ if (length(opt$groups) != length(opt$file)) {
     warning('groups variable will be cyclically recycled')
 }
 
-#load genome sizes
-Chr_Size=read_tsv(opt$chrSizes,col_names =c('chr','size'),col_types = cols())%>%
-    filter(case_when(
-        !opt$keep_X & chr=='chrX' ~ F,
-        !opt$keep_Y & chr=='chrY' ~ F,
-        T~T
-    ))
 
-#chr order
-chr_list = paste0('chr', c(1:100, 'X', 'Y'))
+# select chrs of interest
+# convert string into range
+Convert_to_range = Vectorize(function(x){
+    if (str_detect(x, ':')) {
+        x = str_split(x, ':')[[1]]
+        return(as.numeric(x[1]):as.numeric(x[2]))
+    } else{
+        return(x)
+    }
+})
+
+#select chrs
+chr_list = paste0(ifelse(opt$chr_prefix=='none','',opt$chr_prefix), unlist(Convert_to_range(str_split(opt$chr_range,',')[[1]])))
+
+#load genome sizes
+Chr_Size=read_tsv(opt$chrSizes,col_names =c('chr','size'),col_types = cols(chr='c'))%>%
+    filter(chr %in% chr_list)%>%
+    mutate(chr = factor(x =  chr, levels = chr_list)) %>%
+    drop_na()
 
 chr_list = chr_list[chr_list %in% unique(Chr_Size$chr)]
 
-Chr_Size = Chr_Size %>%
-    mutate(chr = factor(x =  chr, levels = chr_list)) %>%
-    drop_na()
 
 #load single cells info
 data <-
@@ -368,7 +375,7 @@ all_tracks <-
         .combine = 'rbind',
         .packages = 'tidyverse'
     ) %do% {
-        read_delim(opt$tracks[i], delim = '\t', col_types = cols()) %>%
+        read_delim(opt$tracks[i], delim = '\t', col_types = cols(chr='c')) %>%
             mutate(
                 basename = factor(opt$base_name[i], levels = opt$base_name),
                 group = factor(opt$groups[i], levels = unique(opt$groups)),
@@ -392,7 +399,7 @@ if ('referenceRT' %in% names(opt)) {
             opt$referenceRT,
             delim = '\t',
             col_names = c('chr', 'start', 'end', 'RT'),
-            col_types = cols()
+            col_types = cols(chr='c')
         ) %>%
         mutate(chr = factor(x =  chr, levels = chr_list))
 }
@@ -633,9 +640,64 @@ if(opt$extract_G1_G2_cells){
         drop_na() %>%
         filter(is.finite(CN_bg))%>%
         group_by(group)%>%
-        mutate(th=1,Rep=0,PercentageReplication=0,newIndex=as.numeric(factor(Cell)))
+        mutate(index=as.numeric(factor(Cell)))
     
-    G1G2_smoothed%>% 
+    selecte_th = foreach(
+        line = unique(G1G2_smoothed$basename),
+        .combine = 'rbind',
+        .packages = c('foreach', 'tidyverse')
+    ) %dopar% {
+        sub_sig = G1G2_smoothed %>%
+            filter(basename == line)
+        
+        #identify range within looking for a CNV treshold to define replicated and not replicated values
+        range = seq(0, 1, 0.01)
+        
+        th_temp = foreach(i = range,
+                          .combine = 'rbind',
+                          .packages = 'tidyverse') %do% {
+                              summary = sub_sig %>%
+                                  mutate(Rep = ifelse(CN_bg >= i, T, F),
+                                         Error = (Rep - CN_bg)^2) %>%
+                                  group_by(Cell,index, basename, group)  %>%
+                                  summarise(summary = sum(Error))
+                              
+                              data.frame(
+                                  th = i,
+                                  basename = summary$basename,
+                                  index = summary$index,
+                                  sum_error = summary$summary
+                              )
+                          }
+        th_temp
+    }
+    
+    selecte_th = selecte_th %>%
+        group_by(index, basename) %>%
+        filter(sum_error == min(sum_error)) %>%
+        summarise(th = min(th)) %>%
+        ungroup()
+    
+    # mark replicated bins
+    G1G2_smoothed = G1G2_smoothed %>%
+        inner_join(selecte_th, by = c("index", "basename")) %>%
+        mutate(Rep = ifelse(CN_bg >= th, T, F))
+    
+    #identify new distribution in the S phase based the ammount of replicated bins
+    new_index_list = G1G2_smoothed %>%
+        group_by(Cell,index, basename, group) %>%
+        summarise(PercentageReplication = mean(Rep)) %>%
+        ungroup() %>%
+        arrange(PercentageReplication) %>%
+        group_by(group) %>%
+        mutate(newIndex = 1:n()) %>%
+        dplyr::select(oldIndex=index, newIndex,Cell, basename, group,PercentageReplication)
+    
+    
+    G1G2_smoothed = G1G2_smoothed %>%
+        inner_join(new_index_list, by = c('Cell','index'='oldIndex', 'basename','group'))
+    
+    G1G2_smoothed%>%
         dplyr::select(chr,
                       start,
                       end,
@@ -1318,7 +1380,7 @@ if (opt$plot) {
     } else{
         if (file.exists(opt$region)) {
             #load bed file if exist
-            opt$region = read_tsv(opt$region, col_names = c('chr', 'start', 'end')) %>%
+            opt$region = read_tsv(opt$region, col_names = c('chr', 'start', 'end'), col_types = cols(chr='c')) %>%
                 mutate(
                     n_0_start = str_length(str_extract(start, '0{1,10}$')),
                     n_0_end = str_length(str_extract(end, '0{1,10}$')),

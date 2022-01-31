@@ -18,7 +18,7 @@ option_list = list(
         c("-W", "--whoSwho"),
         type = "character",
         default = NULL,
-        help = "Who's who file path",
+        help = "Who's who file path ( tsv file with header: Cell \t Phase)",
         metavar = "character"
     ),
     make_option(

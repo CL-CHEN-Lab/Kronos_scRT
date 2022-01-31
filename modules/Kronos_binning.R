@@ -112,6 +112,22 @@ option_list = list(
         help = "Simulated sequencing error rate (%) [default= %default]",
         default = "0.1%",
         metavar = "character"
+    ),
+    make_option(
+      c("--chr_prefix"),
+      type = "character",
+      action = 'store',
+      help = "Chromosome prefix, if there is no prefix use none [default= %default]",
+      default = "chr",
+      metavar = "character"
+    ),
+    make_option(
+      c("--chr_range"),
+      type = "character",
+      action = 'store',
+      help = "Chromosomes to consider in the analysis (example 1:5,8,15:18,X) [default= %default]",
+      default = "1:22,X,Y",
+      metavar = "character"
     )
 )
 
@@ -138,7 +154,7 @@ system(paste0('mkdir -p ', opt$output_dir))
 
 # check inputs 
 if(!"RefGenome" %in% names(opt)){
-    stop("Fastq file not provided. See script usage (--help)")
+    stop("Fasta file not provided. See script usage (--help)")
 }
 
 if(!"index" %in% names(opt)){
@@ -213,8 +229,19 @@ if ('dir_indexed_bam' %in% names(opt)){
   
 }
 
+# select chrs of interest
+# convert string into range
+Convert_to_range = Vectorize(function(x){
+  if (str_detect(x, ':')) {
+    x = str_split(x, ':')[[1]]
+    return(as.numeric(x[1]):as.numeric(x[2]))
+  } else{
+    return(x)
+  }
+})
 
-chr_list = paste0('chr', c(1:56, 'X', 'Y'))
+#select chrs
+chr_list = paste0(ifelse(opt$chr_prefix=='none','',opt$chr_prefix), unlist(Convert_to_range(str_split(opt$chr_range,',')[[1]])))
 chr_list = chr_list[chr_list %in% unique(names(reference))]
 
 # Identify regins in which the sequence is known
@@ -330,7 +357,7 @@ genome.Chromsizes = foreach(
     
     
     tmp=foreach(
-        variability=round(seq(-size,size,by = 2*size/(opt$coverage+1)))[1:opt$coverage+1],
+        variability=round(seq(-size,size,by = 2*size/(opt$coverage+1)))[(1:opt$coverage)+1],
     .packages = c('Biostrings', 'foreach', 'tidyverse')
 ) %do% {
     
@@ -349,8 +376,8 @@ genome.Chromsizes = foreach(
                                    end = start + opt$reads_size) %>%
             mutate(order =  row_number())
         simulated_reads_2 = simulated_reads_1 %>%
-            mutate(start = start + opt$insert_size-opt$reads_size,
-                   end = start + opt$reads_size)
+            mutate(end = start + opt$insert_size,
+                   start= end - opt$reads_size)
         
     } else{
         
@@ -387,7 +414,7 @@ genome.Chromsizes = foreach(
             simulated_reads_1,
             file = paste0(
                 opt$output_dir,
-                basename(opt$index),
+                basename(opt$index),'_',
                 Chr,
                 '_simulated_reads_1.fq'
             ),
@@ -398,7 +425,7 @@ genome.Chromsizes = foreach(
             simulated_reads_2,
             file = paste0(
                 opt$output_dir,
-                basename(opt$index),
+                basename(opt$index),'_',
                 Chr,
                 '_simulated_reads_2.fq'
             ),
@@ -412,7 +439,7 @@ genome.Chromsizes = foreach(
             simulated_reads,
             file = paste0(
                 opt$output_dir,
-                basename(opt$index),
+                basename(opt$index),'_',
                 Chr,
                 '_simulated_reads.fq'
             ),
@@ -431,17 +458,17 @@ stopCluster(cl)
 if(opt$paired_ends){
     #merge files
     system(paste0('cat ',
-        opt$output_dir,
-        '*_simulated_reads_2.fq > ', opt$output_dir,
+        opt$output_dir,basename(opt$index),
+        '_*_simulated_reads_2.fq > ', opt$output_dir,
         basename(opt$index),
         '_simulated_reads_2.fq; cat ',
-        opt$output_dir,
-        '*_simulated_reads_1.fq > ', opt$output_dir,
+        opt$output_dir,basename(opt$index),
+        '_*_simulated_reads_1.fq > ', opt$output_dir,
         basename(opt$index),
         '_simulated_reads_1.fq'
     ))
-    system(paste0('rm ',opt$output_dir, basename(opt$index),'chr*_simulated_reads_1.fq'))
-    system(paste0('rm ',opt$output_dir, basename(opt$index),'chr*_simulated_reads_2.fq'))
+    system(paste0('rm ',opt$output_dir, basename(opt$index),'_*_simulated_reads_1.fq'))
+    system(paste0('rm ',opt$output_dir, basename(opt$index),'_*_simulated_reads_2.fq'))
     #align with bowtie2
     bowtie2(
         bt2Index = opt$index,
@@ -459,13 +486,13 @@ if(opt$paired_ends){
 }else{
     #merge files
     system(paste0('cat ',
-                  opt$output_dir,
-                  '*_simulated_reads.fq > ', opt$output_dir,
+                  opt$output_dir,basename(opt$index),
+                  '_*_simulated_reads.fq > ', opt$output_dir,
                   basename(opt$index),
                   '_simulated_reads.fq'
     ))
     
-    system(paste0('rm ',opt$output_dir, basename(opt$index),'chr*_simulated_reads.fq'))
+    system(paste0('rm ',opt$output_dir, basename(opt$index),'_*_simulated_reads.fq'))
     #align with bowtie2
     suppressMessages(bowtie2(
         bt2Index = opt$index,
@@ -599,7 +626,7 @@ bins=bins %>%
     mutate(type=ifelse(opt$paired_ends,'PE','SE'))
 
 if('black_list' %in% names(opt)){
-  bl=read_tsv(opt$black_list,col_names = c('chr','start','end'))%>%
+  bl=read_tsv(opt$black_list,col_names = c('chr','start','end'),col_types = cols(chr='c'))%>%
     makeGRangesFromDataFrame()
   
   tbins=bins%>%makeGRangesFromDataFrame()
@@ -613,7 +640,8 @@ if('black_list' %in% names(opt)){
   
   bins=bins%>%
     mutate(mappability_th=ifelse(!is.na(hit),F,mappability_th))%>%
-    dplyr::select(-hit)
+    dplyr::select(-hit)%>%
+    arrange(chr,start)
   
   }
 

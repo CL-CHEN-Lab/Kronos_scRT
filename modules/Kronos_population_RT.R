@@ -41,22 +41,6 @@ option_list = list(
         metavar = "character"
     ),
     make_option(
-        c("-X", "--keep_X"),
-        type = "logical",
-        action = 'store_TRUE',
-        default = F,
-        help = "Keep X chromosomes. [default= %default]",
-        metavar = "logical"
-    ),
-    make_option(
-        c("-Y", "--keep_Y"),
-        type = "logical",
-        default = F,
-        action = 'store_TRUE',
-        help = "Keep Y chromosome. [default= %default]",
-        metavar = "logical"
-    ),
-    make_option(
         c("-c", "--cores"),
         type = "integer",
         default = 3,
@@ -83,6 +67,22 @@ option_list = list(
         type = "character",
         action = 'store',
         help = "Regions to ignore",
+        metavar = "character"
+    ),
+    make_option(
+        c("--chr_prefix"),
+        type = "character",
+        action = 'store',
+        help = "Chromosome prefix, if there is no prefix use none [default= %default]",
+        default = "chr",
+        metavar = "character"
+    ),
+    make_option(
+        c("--chr_range"),
+        type = "character",
+        action = 'store',
+        help = "Chromosomes to consider in the analysis (example 1:5,8,15:18,X) [default= %default]",
+        default = "1:22",
         metavar = "character"
     )
 )
@@ -164,7 +164,7 @@ if(any(is.na(opt$bin_size)) & length(opt$bin_size) >1){
 }
 
 if('black_list' %in% names(opt)){
-    bl=read_tsv(opt$black_list,col_names = c('chr','start','end'))%>%
+    bl=read_tsv(opt$black_list,col_names = c('chr','start','end'),col_types = cols(chr='c'))%>%
         makeGRangesFromDataFrame()
 }
 
@@ -213,14 +213,24 @@ is_paired=files%>%
     dplyr::select(group,is_paired)
 
 files=files%>%inner_join(is_paired,Joining, by = "group")
+# select chrs of interest
+# convert string into range
+Convert_to_range = Vectorize(function(x){
+    if (str_detect(x, ':')) {
+        x = str_split(x, ':')[[1]]
+        return(as.numeric(x[1]):as.numeric(x[2]))
+    } else{
+        return(x)
+    }
+})
+
+#select chrs
+chr_list = paste0(ifelse(opt$chr_prefix=='none','',opt$chr_prefix), unlist(Convert_to_range(str_split(opt$chr_range,',')[[1]])))
 
 #load bins
-ChrSize=read_tsv(opt$chrSizes,col_names =c('chr','size'))%>%
-    filter(case_when(
-        !opt$keep_X & chr=='chrX' ~ F,
-        !opt$keep_Y & chr=='chrY' ~ F,
-        T~T
-    ))
+ChrSize=read_tsv(opt$chrSizes,col_names =c('chr','size'), col_types = c(chr='c'))%>%
+    filter(chr %in% chr_list)
+
 bins_200=ChrSize%>%
     rowwise()%>%
     mutate(start=list(seq(0,size-200,200)))%>%

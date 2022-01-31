@@ -20,22 +20,6 @@ option_list = list(
         metavar = "character"
     ),
     make_option(
-        c("-X", "--keep_X"),
-        type = "logical",
-        action = 'store_TRUE',
-        default = F,
-        help = "Keep X chromosomes. [default= %default]",
-        metavar = "logical"
-    ),
-    make_option(
-        c("-Y", "--keep_Y"),
-        type = "logical",
-        default = F,
-        action = 'store_TRUE',
-        help = "Keep Y chromosome. [default= %default]",
-        metavar = "logical"
-    ),
-    make_option(
         c("-n", "--min_n_reads"),
         type = "double",
         default = 200000,
@@ -86,6 +70,22 @@ option_list = list(
         help = "Max mean CNV accepted as result. [default= %default]",
         default = 8,
         metavar = "numeric"
+    ),
+    make_option(
+        c("--chr_prefix"),
+        type = "character",
+        action = 'store',
+        help = "Chromosome prefix, if there is no prefix use none [default= %default]",
+        default = "chr",
+        metavar = "character"
+    ),
+    make_option(
+        c("--chr_range"),
+        type = "character",
+        action = 'store',
+        help = "Chromosomes to consider in the analysis (example 1:5,8,15:18,X) [default= %default]",
+        default = "1:22",
+        metavar = "character"
     )
 )
 
@@ -117,7 +117,7 @@ if (!"directory" %in% names(opt)) {
 }
 
 # load bins and gc percentage
-bins = read_tsv(opt$bins, col_types = cols())%>%
+bins = read_tsv(opt$bins, col_types = cols(chr='c'))%>%
     arrange(chr,start)
 
 if (str_extract(opt$directory, '.$') != '/') {
@@ -134,28 +134,22 @@ genome.Chromsizes <-  bins %>%
     group_by(chr) %>%
     summarise(size = max(end))
 
+# convert string into range
+Convert_to_range = Vectorize(function(x){
+    if (str_detect(x, ':')) {
+        x = str_split(x, ':')[[1]]
+        return(as.numeric(x[1]):as.numeric(x[2]))
+    } else{
+        return(x)
+    }
+})
 
-if (opt$keep_X & opt$keep_Y) {
-    chromosome = genome.Chromsizes$chr[str_detect(genome.Chromsizes$chr, 'chr[0-9XY]{1,2}')]
-    genome_size = sum(genome.Chromsizes$size[str_detect(genome.Chromsizes$chr, 'chr[0-9]{1,2}')])
-    genome_size = genome_size + genome.Chromsizes$size[str_detect(genome.Chromsizes$chr, 'chrX')]
-    genome_size = genome_size + genome.Chromsizes$size[str_detect(genome.Chromsizes$chr, 'chrY')]
-    bins = bins[bins$chr %in% chromosome, ]
-} else if (!opt$keep_X & opt$keep_Y) {
-    chromosome = genome.Chromsizes$chr[str_detect(genome.Chromsizes$chr, 'chr[0-9Y]{1,2}')]
-    genome_size = sum(genome.Chromsizes$size[str_detect(genome.Chromsizes$chr, 'chr[0-9]{1,2}')])
-    genome_size = genome_size + genome.Chromsizes$size[str_detect(genome.Chromsizes$chr, 'chrY')]
-    bins = bins[bins$chr %in% chromosome, ]
-} else if (opt$keep_X & !opt$keep_Y) {
-    chromosome = genome.Chromsizes$chr[str_detect(genome.Chromsizes$chr, 'chr[0-9X]{1,2}')]
-    genome_size = sum(genome.Chromsizes$size[str_detect(genome.Chromsizes$chr  , 'chr[0-9]{1,2}')])
-    genome_size = genome_size + genome.Chromsizes$size[str_detect(genome.Chromsizes$chr, 'chrX')]
-    bins = bins[bins$chr %in% chromosome, ]
-} else if (!opt$keep_X & !opt$keep_Y) {
-    chromosome = genome.Chromsizes$chr[str_detect(genome.Chromsizes$chr, 'chr[0-9]{1,2}')]
-    genome_size = sum(genome.Chromsizes$size[str_detect(genome.Chromsizes$chr, 'chr[0-9]{1,2}')])
-    bins = bins[bins$chr %in% chromosome, ]
-}
+#select chrs
+chromosome = paste0(ifelse(opt$chr_prefix=='none','',opt$chr_prefix), unlist(Convert_to_range(str_split(opt$chr_range,',')[[1]])))
+bins = bins[bins$chr %in% chromosome, ]
+
+#calcualte genome size 
+genome_size = sum(genome.Chromsizes$size)
 
 # SE or PE ?
 type = bins %>%
@@ -177,7 +171,7 @@ files = foreach (
     file = files,
     .combine = 'rbind',
     .packages = c('Rsamtools', 'tidyverse', 'foreach')
-) %dopar% {
+)%dopar% {
     if (type == 'PE') {
         # Single reads
         param1 <- ScanBamParam(
@@ -307,8 +301,8 @@ files = foreach (
     if (count_reads >= opt$min_n_reads) {
         # save one file per cell with a coverage track
         bins %>%
-            left_join(sam %>% mutate(chr = as.character(chr)), by =
-                          c('chr', 'bin')) %>%
+            left_join(sam %>% mutate(chr = as.character(chr)),
+                      by = c('chr', 'bin')) %>%
             mutate(reads = ifelse(is.na(reads), 0, reads),
                    Cell = file) %>%
             dplyr::select(-bin) %>%
@@ -325,7 +319,7 @@ data = bins
 data$reads = foreach(file = files$file,
                      .combine = '+',
                      .packages = 'tidyverse') %dopar% {
-                         read_tsv(paste0(opt$output_dir, file)) %>%
+                         read_tsv(paste0(opt$output_dir, file),col_types = cols(chr='c')) %>%
                              pull(reads)
                      }
 
@@ -351,7 +345,7 @@ mapd = foreach (
     .packages = c('tidyverse', 'foreach', 'DNAcopy', 'MASS', 'gplots'),
     .errorhandling =  "remove"
 ) %dopar% {
-    data = read_tsv(paste0(opt$output_dir, file))
+    data = read_tsv(paste0(opt$output_dir, file),col_types = cols(chr='c'))
     data = left_join(data, gc_correction_value, by = c('chr', 'start', 'end')) %>%
         mutate(
             reads_mappability = reads / mappability,

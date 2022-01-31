@@ -71,7 +71,7 @@ if ('file' %in% names(opt)) {
 }
 if ('tracks' %in% names(opt)) {
     for (tracks in opt$tracks) {
-        read_tsv(tracks, skip = 2, col_types = cols()) %>%
+        read_tsv(tracks, skip = 2, col_types = cols(`#chrom`='c')) %>%
             select(id, `#chrom`, start, end, copy_number) %>%
             `colnames<-`(c('Cell', 'chr', 'start', 'end', 'copy_number')) %>%
 	mutate(reads= '10X')%>%

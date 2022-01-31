@@ -125,7 +125,7 @@ if('order'%in% names(opt)){
 
 
 scRT=foreach(i=1:length(opt$scRT_Tracks),.packages = 'tidyverse',.combine = 'rbind')%do%{
-    tmp=read_tsv(opt$scRT_Tracks[i],col_types = cols())%>%
+    tmp=read_tsv(opt$scRT_Tracks[i],col_types = cols(chr='c'))%>%
         mutate(Line=group)
     if('order'%in% names(opt)){
         tmp%>%
@@ -140,7 +140,7 @@ scRT=foreach(i=1:length(opt$scRT_Tracks),.packages = 'tidyverse',.combine = 'rbi
 }
 
 scCNV=foreach(i=1:length(opt$scCNV),.packages = 'tidyverse',.combine = 'rbind')%do%{
-    tmp=read_tsv(opt$scCNV[i],col_types = cols())
+    tmp=read_tsv(opt$scCNV[i],col_types = cols(chr='c'))
     if('order'%in% names(opt)){
         tmp%>%
             mutate(
@@ -160,7 +160,7 @@ if (str_extract(opt$out, '.$') != '/') {
 #load reference if provided
 
 if('extra_RT_track' %in% names(opt)){
-    opt$extra_RT_track=read_tsv(opt$extra_RT_track,col_types = cols())%>%
+    opt$extra_RT_track=read_tsv(opt$extra_RT_track,col_types = cols(chr='c'))%>%
         mutate(Line=opt$extra_RT_name)%>%
         dplyr::select(-group)
     
@@ -171,7 +171,7 @@ system(paste0('mkdir -p ', opt$out, '/regions'))
     
 if (file.exists(opt$region)) {
         #load bed file if exist
-        opt$region = read_tsv(opt$region, col_names = c('chr', 'start', 'end'),col_types = cols()) %>%
+        opt$region = read_tsv(opt$region, col_names = c('chr', 'start', 'end'),col_types = cols(chr='c')) %>%
             mutate(
                 n_0_start = str_length(str_extract(start, '0{1,10}$')),
                 n_0_end = str_length(str_extract(end, '0{1,10}$')),

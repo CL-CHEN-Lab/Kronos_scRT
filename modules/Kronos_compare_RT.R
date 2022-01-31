@@ -84,7 +84,7 @@ data <-
         .packages = 'tidyverse'
     ) %do% {
         read_tsv(i,
-                 col_types = cols())
+                 col_types = cols(chr='c'))
     }
 
 if('group_filter' %in% names(opt)){

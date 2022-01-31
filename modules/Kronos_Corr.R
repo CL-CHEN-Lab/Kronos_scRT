@@ -71,7 +71,7 @@ scRT = foreach(
     .packages = 'tidyverse',
     .combine = 'rbind'
 ) %do% {
-    tmp = read_tsv(opt$File[i], col_types = cols())
+    tmp = read_tsv(opt$File[i], col_types = cols(chr='c'))
     if ('sort' %in% names(opt)) {
         tmp %>%
             mutate(group = factor(group, levels = opt$sort))

@@ -50,22 +50,6 @@ option_list = list(
         metavar = "integer"
     ),
     make_option(
-        c("-X", "--keep_X"),
-        type = "logical",
-        default = FALSE,
-        action = "store_true",
-        help = "Include X chromosomes",
-        metavar = "logical"
-    ),
-    make_option(
-        c("-Y", "--keep_Y"),
-        type = "logical",
-        default = FALSE,
-        action = "store_true",
-        help = "Keep Y chromosomes",
-        metavar = "logical"
-    ),
-    make_option(
         c("-s", "--seed"),
         type = "integer",
         default = as.integer(Sys.Date()),
@@ -87,6 +71,22 @@ option_list = list(
         action = "store_true",
         help = "Skip UMAP, only plot t-SNE.",
         metavar = "logical"
+    ),
+    make_option(
+        c("--chr_prefix"),
+        type = "character",
+        action = 'store',
+        help = "Chromosome prefix, if there is no prefix use none [default= %default]",
+        default = "chr",
+        metavar = "character"
+    ),
+    make_option(
+        c("--chr_range"),
+        type = "character",
+        action = 'store',
+        help = "Chromosomes to consider in the analysis (example 1:5,8,15:18,X) [default= %default]",
+        default = "1:22",
+        metavar = "character"
     )
     
 )
@@ -111,7 +111,7 @@ theme_set(theme_bw())
 #Set seed for reproducibility
 set.seed(opt$seed)
 
-#load files
+#check files
 if (!'scCNV' %in% names(opt)) {
     stop("scCNV file must be provided. See script usage (--help)")
 }
@@ -125,7 +125,7 @@ if('order'%in% names(opt)){
 
 #load CNV files
 scCNV=foreach(i=1:length(opt$scCNV),.packages = 'tidyverse',.combine = 'rbind')%do%{
-    tmp=read_tsv(opt$scCNV[i],col_types = cols())
+    tmp=read_tsv(opt$scCNV[i],col_types = cols(chr='c'))
     if('order'%in% names(opt)){
         tmp%>%
             mutate(
@@ -137,12 +137,14 @@ scCNV=foreach(i=1:length(opt$scCNV),.packages = 'tidyverse',.combine = 'rbind')%
     }
 }
 
-if(!opt$keep_X){
-    scCNV = scCNV[which(scCNV$chr != "chrX"),]
-}
-if(!opt$keep_Y){
-    scCNV = scCNV[which(scCNV$chr != "chrY"),]
-}
+chr_list = paste0(ifelse(opt$chr_prefix=='none','',opt$chr_prefix), unlist(Convert_to_range(str_split(opt$chr_range,',')[[1]])))
+
+#filter chr and convert into factor
+scCNV=scCNV%>%
+    filter(chr %in% chr_list)%>%
+    mutate(chr = factor(x =  chr, levels = chr_list)) %>%
+    drop_na()
+
 
 #create directory
 if (str_extract(opt$out, '.$') != '/') {

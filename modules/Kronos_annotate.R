@@ -79,11 +79,11 @@ data <-
   foreach(file = opt$file,
           .combine = 'rbind',
           .packages = 'tidyverse') %do% {
-            read_tsv(file, col_types = cols())
+            read_tsv(file, col_types = cols(chr='c'))
           }
 
 Annotation_file = read_tsv(opt$Annotation,
-                           col_names = c('chr', 'start', 'end', 'annotation'), col_types = cols())%>%
+                           col_names = c('chr', 'start', 'end', 'annotation'), col_types = cols(chr='c'))%>%
   makeGRangesFromDataFrame(
     keep.extra.columns = T,
     seqnames.field = 'chr',
@@ -141,7 +141,7 @@ data = data %>%
 if ('Annotation2' %in% names(opt)) {
   
   Annotation_file = read_tsv(opt$Annotation2,
-                             col_names = c('chr', 'start', 'end', 'annotation'), col_types = cols()) %>%
+                             col_names = c('chr', 'start', 'end', 'annotation'), col_types = cols(chr='c')) %>%
     makeGRangesFromDataFrame(
       keep.extra.columns = T,
       seqnames.field = 'chr',
