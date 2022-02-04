@@ -137,6 +137,17 @@ scCNV=foreach(i=1:length(opt$scCNV),.packages = 'tidyverse',.combine = 'rbind')%
     }
 }
 
+# select chrs of interest
+# convert string into range
+Convert_to_range = Vectorize(function(x){
+    if (str_detect(x, ':')) {
+        x = str_split(x, ':')[[1]]
+        return(as.numeric(x[1]):as.numeric(x[2]))
+    } else{
+        return(x)
+    }
+})
+
 chr_list = paste0(ifelse(opt$chr_prefix=='none','',opt$chr_prefix), unlist(Convert_to_range(str_split(opt$chr_range,',')[[1]])))
 
 #filter chr and convert into factor
