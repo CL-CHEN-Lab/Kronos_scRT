@@ -37,8 +37,8 @@ suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
 
 #create directory
 
-if (str_extract(opt$out,'.$')!='/'){
-    opt$out=paste0(opt$out,'/')
+if (str_extract(opt$out, '.$') != '/') {
+    opt$out = paste0(opt$out, '/')
 }
 
 system(paste0('mkdir -p ', opt$out))
@@ -47,39 +47,91 @@ system(paste0('mkdir -p ', opt$out))
 opt$file = str_split(opt$file, ',')[[1]]
 
 opt$tracks = str_split(opt$tracks, ',')[[1]]
+
+
 if ('file' %in% names(opt)) {
     for (file in opt$file) {
-        read_csv(file, col_types = cols()) %>%
-            select(cell_id,
-                   normalized_dimapd,
-                   mean_ploidy,
-                   ploidy_confidence,
-                   is_high_dimapd,
-                   is_noisy,
-                   effective_reads_per_1Mbp) %>%
-            `colnames<-`(c(
-                'Cell',
+        #check if the file exists
+        if (!file.exists(file)) {
+            warning(paste0(file, " does not exist"))
+            
+            # check if it is the right file
+        } else if (all(
+            c(
+                'cell_id',
                 'normalized_dimapd',
                 'mean_ploidy',
                 'ploidy_confidence',
                 'is_high_dimapd',
                 'is_noisy',
-                'coverage_per_1Mbp'
-            )) %>%
-            write_csv(paste0(opt$out, '/Kronos_format_', basename(file)))
+                'effective_reads_per_1Mbp'
+            ) %in% colnames(tryCatch(
+                expr =  read_csv(file,
+                                 col_types = cols(),
+                                 n_max = 0),
+                error = function(x)
+                    tibble()
+            ))
+        )) {
+            read_csv(file, col_types = cols()) %>%
+                select(
+                    cell_id,
+                    normalized_dimapd,
+                    mean_ploidy,
+                    ploidy_confidence,
+                    is_high_dimapd,
+                    is_noisy,
+                    effective_reads_per_1Mbp
+                ) %>%
+                `colnames<-`(
+                    c(
+                        'Cell',
+                        'normalized_dimapd',
+                        'mean_ploidy',
+                        'ploidy_confidence',
+                        'is_high_dimapd',
+                        'is_noisy',
+                        'coverage_per_1Mbp'
+                    )
+                ) %>%
+                write_csv(paste0(opt$out, '/Kronos_format_', basename(file)))
+        } else{
+            warning(paste0(file, " is not a per cell stat file"))
+        }
     }
 }
 if ('tracks' %in% names(opt)) {
     for (tracks in opt$tracks) {
-        read_tsv(tracks, skip = 2, col_types = cols(`#chrom`='c')) %>%
-            select(id, `#chrom`, start, end, copy_number) %>%
-            `colnames<-`(c('Cell', 'chr', 'start', 'end', 'copy_number')) %>%
-	mutate(reads= '10X')%>%
-            write_tsv(paste0(opt$out, '/Kronos_format_', basename(tracks)))
+        #check if the file exists
+        if (!file.exists(tracks)) {
+            warning(paste0(tracks, " does not exist"))
+            
+            # check if it is the right file
+        } else if (all(c('id', '#chrom', 'start', 'end', 'copy_number') %in% colnames(tryCatch(
+            expr =  read_tsv(
+                tracks,
+                skip = 2,
+                col_types = cols(`#chrom` = 'c'),
+                n_max = 0
+            ),
+            error = function(x)
+                tibble()
+        )))) {
+            #if yes proceed
+            read_tsv(tracks,
+                     skip = 2,
+                     col_types = cols(`#chrom` = 'c')) %>%
+                select(id, `#chrom`, start, end, copy_number) %>%
+                `colnames<-`(c('Cell', 'chr', 'start', 'end', 'copy_number')) %>%
+                mutate(reads = '10X') %>%
+                write_tsv(paste0(opt$out, '/Kronos_format_', basename(tracks)))
+        } else{
+            warning(paste0(tracks, " is not a proper track file"))
+        }
     }
 }
 
-if (!('tracks' %in% names(opt) & 'file' %in% names(opt) )){
+if (!('tracks' %in% names(opt) & 'file' %in% names(opt))) {
     stop('No input')
 }
 
