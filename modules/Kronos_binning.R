@@ -126,7 +126,7 @@ option_list = list(
       type = "character",
       action = 'store',
       help = "Chromosomes to consider in the analysis (example 1:5,8,15:18,X) [default= %default]",
-      default = "1:22,X,Y",
+      default = "1:22",
       metavar = "character"
     )
 )
