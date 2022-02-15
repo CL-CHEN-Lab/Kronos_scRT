@@ -91,6 +91,31 @@ theme_set(theme_bw())
 #check inputs
 if (!'file' %in% names(opt)) {
     stop("Per cell stat file must be provided. See script usage (--help)")
+}else{
+    # check file
+    if(!file.exists(opt$file)){
+        
+        stop("The provided Per cell stat file does not exist.")
+     #check format
+    }else if (!all(
+        c(
+            "Cell",
+            "normalized_dimapd",
+            "mean_ploidy",
+            "ploidy_confidence",
+            "is_high_dimapd",
+            "is_noisy",
+            "coverage_per_1Mbp"
+        ) %in% colnames(
+            tryCatch(expr = read_csv(
+                opt$file,
+                n_max = 0,
+                col_types = cols()),
+                error=function(x) tibble()
+            ))
+    )){
+        stop("The wrong file has been provided as Per cell stat file.")
+    }
 }
 
 #create output directory
@@ -110,12 +135,12 @@ if(opt$correct==F){
             mutate(Type = ifelse(
                 as.logical(is_high_dimapd) == T &
                     as.logical(is_noisy) == T,
-                'S-phase',
+                'S-phase cells',
                 ifelse(
                     as.logical(is_high_dimapd) == F &
                         as.logical(is_noisy) == T,
                     'unknown cells',
-                    'G1/G2 cells'
+                    'G1/G2-phase cells'
                 )
             )) 
         }else{
@@ -129,12 +154,12 @@ if(opt$correct==F){
                     is_noisy = ifelse(is_high_dimapd, T, is_noisy),
                     Type = ifelse(
                         as.logical(is_high_dimapd) == T & as.logical(is_noisy) == T,
-                        'S-phase',
+                        'S-phase cells',
                         ifelse(
                             as.logical(is_high_dimapd) == F &
                                 as.logical(is_noisy) == F &
                                 normalized_dimapd < opt$threshold_G1G2phase,
-                            'G1/G2 cells',
+                            'G1/G2-phase cells',
                             'unknown cells'
                             
                         )
@@ -148,8 +173,8 @@ if(opt$correct==F){
         mutate(Type= case_when(
             coverage_per_1Mbp < opt$min_n_reads*median_ploidy_not_noisy ~ 'Low Coverage',
             ploidy_confidence < 2 & ploidy_confidence!=-100 ~ 'Low Ployidy confidence',
-            mean_ploidy < median_ploidy_not_noisy / 1.5 ~ 'Too low ploidy compared to G1/G2',
-            mean_ploidy > median_ploidy_not_noisy * 2 ~ 'Too high ploidy compared to G1/G2',
+            mean_ploidy < median_ploidy_not_noisy / 1.5 ~ 'Too low ploidy compared to G1/G2-phase pool',
+            mean_ploidy > median_ploidy_not_noisy * 2 ~ 'Too high ploidy compared to G1/G2-phase pool',
             T ~ Type
         ))
     
@@ -160,10 +185,10 @@ if(opt$correct==F){
             values = c(
                 'Low Coverage' = "#ff7949",
                 'Low Ployidy confidence' = "#70001e",
-                'Too low ploidy compared to G1/G2' = "#01e7ab",
-                'Too high ploidy compared to G1/G2' ="#a7001b",
-                'G1/G2 cells' = "#005095",
-                'S-phase' = "#78bd3e",
+                'Too low ploidy compared to G1/G2-phase pool' = "#01e7ab",
+                'Too high ploidy compared to G1/G2-phase pool' ="#a7001b",
+                'G1/G2-phase cells' = "#005095",
+                'S-phase cells' = "#78bd3e",
                 'unknown cells' = "#dfbd31"  
             )
         ) +
@@ -183,12 +208,12 @@ if (!'threshold_Sphase' %in% names(opt)){
         mutate(Type = ifelse(
             as.logical(is_high_dimapd) == T &
                 as.logical(is_noisy) == T,
-            'S-phase',
+            'S-phase cells',
             ifelse(
                 as.logical(is_high_dimapd) == F &
                     as.logical(is_noisy) == T,
                 'unknown cells',
-                'G1/G2 cells'
+                'G1/G2-phase cells'
             )
         )) 
     
@@ -206,8 +231,8 @@ if (!'threshold_Sphase' %in% names(opt)){
         geom_point(alpha = 0.3) +
         scale_color_manual(
             values = c(
-                'G1/G2 cells' = "#005095",
-                'S-phase' = "#78bd3e",
+                'G1/G2-phase cells' = "#005095",
+                'S-phase cells' = "#78bd3e",
                 'unknown cells' = "#dfbd31"  
             )
         ) +
@@ -232,12 +257,12 @@ if (!'threshold_Sphase' %in% names(opt)){
             is_noisy = ifelse(is_high_dimapd, T, is_noisy),
             Type = ifelse(
                 as.logical(is_high_dimapd) == T & as.logical(is_noisy) == T,
-                'S-phase',
+                'S-phase cells',
                 ifelse(
                     as.logical(is_high_dimapd) == F &
                         as.logical(is_noisy) == F &
                         normalized_dimapd < opt$threshold_G1G2phase,
-                    'G1/G2 cells',
+                    'G1/G2-phase cells',
                     'unknown cells'
                     
                 )
@@ -259,8 +284,8 @@ if (!'threshold_Sphase' %in% names(opt)){
         geom_point(alpha = 0.3) +
         scale_color_manual(
             values = c(
-                'G1/G2 cells' = "#005095",
-                'S-phase' = "#78bd3e",
+                'G1/G2-phase cells' = "#005095",
+                'S-phase cells' = "#78bd3e",
                 'unknown cells' = "#dfbd31"  
             )
         ) +
@@ -296,7 +321,7 @@ distributions = foreach(
     ) %do% {
         #adjust S-phase based on a and b
         x = data %>%
-            filter(Type=='S-phase')%>%
+            filter(Type=='S-phase cells')%>%
             mutate(
                 corrected_mean_ploidy = ifelse(
                     mean_ploidy >= median_ploidy_not_noisy,
@@ -349,23 +374,23 @@ if (nrow(distributions) > 1){
 data = data %>%
     mutate(
         mean_ploidy_corrected = ifelse(
-            Type=='S-phase' &
+            Type=='S-phase cells' &
                 mean_ploidy < median_ploidy_not_noisy,
             mean_ploidy / distributions$B,
             ifelse(
-                Type=='S-phase' &
+                Type=='S-phase cells' &
                     mean_ploidy > median_ploidy_not_noisy,
                 mean_ploidy /  distributions$A,
                 mean_ploidy
             )),
             Type = ifelse(
-                Type=='S-phase' &
+                Type=='S-phase cells' &
                     mean_ploidy < median_ploidy_not_noisy,
-                'S-phase second part',
+                'Second-part-S-phase cells',
                 ifelse(
-                    Type=='S-phase' &
+                    Type=='S-phase cells' &
                         mean_ploidy > median_ploidy_not_noisy,
-                    'S-phase first part',
+                    'First-part-S-phase cells',
                     Type
                 )
         )
@@ -377,16 +402,16 @@ p = data %>%
     geom_point(alpha = 0.3) +
     scale_color_manual(
         values = c(
-            'G1/G2 cells' = '#005095',
-            'S-phase first part' = '#78bd3e',
-            'S-phase second part'='#83007e',
+            'G1/G2-phase cells' = '#005095',
+            'First-part-S-phase cells' = '#78bd3e',
+            'Second-part-S-phase cells'='#83007e',
             'unknown cells' = '#dfbd31'
         )
     ) +
     theme(legend.position = 'top', legend.title = element_blank()) +
     geom_vline(xintercept = median_ploidy_not_noisy)+
     xlab('Ploidy') + ylab('Variability')+
-    geom_density(data=data %>%filter(Type %in% c( 'S-phase second part','S-phase first part')),
+    geom_density(data=data %>%filter(Type %in% c( 'Second-part-S-phase cells','First-part-S-phase cells')),
                      aes(x=mean_ploidy_corrected,y=(..density..)), color="black")+
     scale_y_continuous(sec.axis = sec_axis(trans = ~.,name ='S-phase density distribution'))+
     theme(legend.position = 'top', legend.title = element_blank()) 
