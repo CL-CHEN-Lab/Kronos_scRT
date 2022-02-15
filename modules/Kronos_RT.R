@@ -188,6 +188,10 @@ theme_set(theme_bw())
 #check inputs
 if('Kronos_conf_file' %in% names(opt)) {
     
+    if(!file.exists(opt$Kronos_conf_file)){
+        stop('Provided setting file does not exist')
+    }
+    
     settings=tryCatch(expr = read_tsv(opt$Kronos_conf_file,col_names = c('file','traks','settings','basename','groups'),col_types = cols())%>%
                           mutate(
                               basename=ifelse(is.na(basename),paste0('exp',row_number()),basename),
@@ -256,6 +260,105 @@ if (opt$Var_against_reference) {
         warning("Reference genome not provided")
         opt$Var_against_reference = F
     }
+}
+
+#does exist/ right format function
+does_exist_right_format = Vectorize(function(File, delim = '\t', columns_to_check,message='does not have the proper format') {
+    #checks if the file exist
+    if (!file.exists(File)) {
+        return(paste(File, 'does not exist'))
+    } else{
+        # if columns_to_check is numeric check the number of colums
+        if(is.numeric(columns_to_check)){
+            if (ncol(tryCatch(
+                expr =  read_delim(
+                    File,
+                    col_types = cols(),
+                    n_max = 0,
+                    delim = delim
+                ),
+                error = function(x)
+                    tibble()
+            ))!=columns_to_check) {
+                return(paste(File, message,'\n'))
+            } else{
+                return('')
+            }
+        
+        # if columns_to_check is not numeric check columns names    
+        }else{
+        #checks if it has the right format
+        if (!all(columns_to_check %in% colnames(tryCatch(
+            expr =  read_delim(
+                File,
+                col_types = cols(),
+                n_max = 0,
+                delim = delim
+            ),
+            error = function(x)
+                tibble()
+        )))) {
+            return(paste(File, message,'\n'))
+        } else{
+            return('')
+        }
+    }
+    }
+    
+}, vectorize.args = 'File')
+
+#check per cell files 
+results=paste(does_exist_right_format(File=opt$file,delim = ',',columns_to_check=c('Cell',
+                                                                     'normalized_dimapd',
+                                                                     'mean_ploidy',
+                                                                     'ploidy_confidence',
+                                                                     'is_high_dimapd',
+                                                                     'is_noisy',
+                                                                     'coverage_per_1Mbp'),
+                                     message = ',provided as a per cell file, does not have the right format'),collapse = '')
+if(results!='') {
+    stop(results)
+}
+
+#check tracks files 
+results=paste(does_exist_right_format(File=opt$tracks,delim = '\t',columns_to_check=c('Cell',
+                                                                                  'chr',
+                                                                                  'start',
+                                                                                  'end',
+                                                                                  'copy_number',
+                                                                                  'reads'),
+                                     message = ',provided as a track file, does not have the right format'),collapse = '')
+if(results!='') {
+    stop(results)
+}
+#check settings files 
+results=paste(does_exist_right_format(File=opt$settings_file,delim = '\t',columns_to_check=c('threshold_Sphase',
+                                                                                     'threshold_G1G2phase',
+                                                                                     'Sphase_first_part',
+                                                                                     'Sphase_second_part',
+                                                                                     'RPM_TH'),
+                                     message = ',provided as a setting file, does not have the right format'),collapse = '')
+if(results!='') {
+    stop(results)
+}
+
+#check chr size file
+results=paste(does_exist_right_format(File=opt$chrSizes,delim = '\t',columns_to_check=2,
+                                     message = ',provided as a chromosome size file, does not have the right format'),collapse = '')
+
+if(results!='') {
+    stop(results)
+}
+
+#check reference file if provided
+if ('referenceRT' %in% names(opt)) {
+    
+    results=paste(does_exist_right_format(File=opt$referenceRT,delim = '\t',columns_to_check=4,
+                                         message = ',provided as a reference RT file, does not have the right format'),collapse = '')
+    
+    if(results!='') {
+        stop(results)
+    }   
 }
 
 # convert binsize to numeric
@@ -436,7 +539,7 @@ data = data %>%
     mutate(Type = ifelse(
         as.logical(is_high_dimapd) == T &
             as.logical(is_noisy) == T,
-        'S-phase',
+        'S-phase cells',
         ifelse(
             ifelse(
                 is.na(threshold_G1G2phase),
@@ -446,7 +549,7 @@ data = data %>%
                     as.logical(is_noisy) == F &
                     normalized_dimapd < threshold_G1G2phase
             ),
-            'G1/G2 cells',
+            'G1/G2-phase cells',
             'unknown cells'
         )
     ))
@@ -459,8 +562,8 @@ p = data %>%
     geom_point(alpha = 0.3) +
     scale_color_manual(
         values = c(
-            'G1/G2 cells' = "#005095",
-            'S-phase' = "#78bd3e",
+            'G1/G2-phase cells' = "#005095",
+            'S-phase cells' = "#78bd3e",
             'unknown cells' = "#dfbd31"  
         )
     ) +
@@ -496,8 +599,8 @@ p = data %>%
     geom_point(alpha = 0.3) +
     scale_color_manual(
         values = c(
-            'G1/G2 cells' = "#005095",
-            'S-phase' = "#78bd3e",
+            'G1/G2-phase cells' = "#005095",
+            'S-phase cells' = "#78bd3e",
             'unknown cells' = "#dfbd31"  
         )
     ) +
@@ -543,7 +646,7 @@ bins = bins %>%
 
 #select Sphase cells
 selected_data = data %>%
-    filter(Type == 'S-phase') %>%
+    filter(Type == 'S-phase cells') %>%
     arrange(mean_ploidy_corrected) %>%
     mutate(index = 1:n()) %>%
     dplyr::select(index,
@@ -554,7 +657,7 @@ selected_data = data %>%
                   group)
 # select G1/G2 cells
 G1_G2_cells = data %>%
-    filter(Type == 'G1/G2 cells')
+    filter(Type == 'G1/G2-phase cells')
 
 # select tracks of G1/G2 cells
 G1_G2_cells_tracks = all_tracks %>%
