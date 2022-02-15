@@ -52,10 +52,10 @@ option_list = list(
         default = F
     ),
     make_option(
-        c( "--insert_size"),
+        c( "--fragment_size"),
         type = "integer",
         action = 'store',
-        help = "Insert size if paired end option is used. [default: %default]",
+        help = "Fragment size if paired end option is used. [default: %default]",
         metavar = "integer",
         default = '200'
     ),
@@ -220,7 +220,7 @@ if ('dir_indexed_bam' %in% names(opt)){
     
     if(parameters$isize!=0){
         opt$paired_ends=T
-        opt$insert_size=parameters$isize
+        opt$fragment_size=parameters$isize
         opt$reads_size=parameters$qwidth
     }else{
         opt$paired_ends=F
@@ -346,7 +346,7 @@ genome.Chromsizes = foreach(
     #look for seeds
     if (opt$paired_ends) {
         #initialize simulated reads
-        size =  opt$insert_size
+        size =  opt$fragment_size
         
     }else{
         
@@ -376,7 +376,7 @@ genome.Chromsizes = foreach(
                                    end = start + opt$reads_size) %>%
             mutate(order =  row_number())
         simulated_reads_2 = simulated_reads_1 %>%
-            mutate(end = start + opt$insert_size,
+            mutate(end = start + opt$fragment_size,
                    start= end - opt$reads_size)
         
     } else{
@@ -530,7 +530,7 @@ if(opt$paired_ends){
     )%>%
         drop_na()
     #parameter used to estiamte mappability th
-    theoretical_reads = opt$bin_size/(opt$insert_size)
+    theoretical_reads = opt$bin_size/(opt$fragment_size)
 
 }else{
     param <- ScanBamParam(what=c('rname','pos','mapq'),
@@ -651,7 +651,7 @@ write_tsv(bins, paste0(opt$output_dir, basename(opt$index),'_',
                        BS, '_bins_',
                        opt$coverage,'X_coverage_',
                        opt$reads_size,'bp_reads_',
-                       ifelse(opt$paired_ends,paste0('PE_',opt$insert_size,'bp_InsertSize')
+                       ifelse(opt$paired_ends,paste0('PE_',opt$fragment_size,'bp_InsertSize')
                               ,'SE_'),
                        ifelse('black_list' %in% names(opt),'blacklisted_',''),
                               paste0('error_rate_',opt$errorRate,'_min_mappability_',opt$lower_mappability_th,
