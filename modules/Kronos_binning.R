@@ -626,6 +626,17 @@ bins=bins %>%
     mutate(type=ifelse(opt$paired_ends,'PE','SE'))
 
 if('black_list' %in% names(opt)){
+    
+    #check if the file exists
+    if(!file.exists(opt$black_list)){
+        stop('Blacklist file does not exit')
+    }else if( nrow(
+        tryCatch(expr = read_tsv(opt$black_list,n_max = 0,col_types = col()),error= function(x) tibble())
+    )==3){
+        stop('Blacklist file does not have the right format')
+    }
+    
+    
   bl=read_tsv(opt$black_list,col_names = c('chr','start','end'),col_types = cols(chr='c'))%>%
     makeGRangesFromDataFrame()
   
