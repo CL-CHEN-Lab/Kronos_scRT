@@ -70,6 +70,74 @@ if (str_extract(opt$out, '.$') != '/') {
   opt$out = paste0(opt$out, '/')
 }
 
+#does exist/ right format function
+does_exist_right_format = Vectorize(function(File, delim = '\t', columns_to_check,message='does not have the proper format') {
+  #checks if the file exist
+  if (!file.exists(File)) {
+    return(paste(File, 'does not exist'))
+  } else{
+    # if columns_to_check is numeric check the number of colums
+    if(is.numeric(columns_to_check)){
+      if (ncol(tryCatch(
+        expr =  read_delim(
+          File,
+          col_types = cols(),
+          n_max = 0,
+          delim = delim
+        ),
+        error = function(x)
+          tibble()
+      ))!=columns_to_check) {
+        return(paste(File, message,'\n'))
+      } else{
+        return('')
+      }
+      
+      # if columns_to_check is not numeric check columns names    
+    }else{
+      #checks if it has the right format
+      if (!all(columns_to_check %in% colnames(tryCatch(
+        expr =  read_delim(
+          File,
+          col_types = cols(),
+          n_max = 0,
+          delim = delim
+        ),
+        error = function(x)
+          tibble()
+      )))) {
+        return(paste(File, message,'\n'))
+      } else{
+        return('')
+      }
+    }
+  }
+  
+}, vectorize.args = 'File')
+
+#check variability files format
+results=does_exist_right_format(File = opt$file,delim = '\t',columns_to_check = c('group','time','chr','start','end','percentage') )
+
+if(results!='') {
+  stop(results)
+}
+
+#check annotation files format
+results=does_exist_right_format(File = opt$Annotation,delim = '\t',columns_to_check = 4 )
+
+if(results!='') {
+  stop(results)
+}
+
+#check second annotation file format
+if ('Annotation2'  %in% names(opt)){
+results=does_exist_right_format(File = opt$Annotation2,delim = '\t',columns_to_check = 4 )
+
+if(results!='') {
+  stop(results)
+}
+}
+
 system(paste0('mkdir -p ', opt$out))
 
 opt$file = str_split(opt$file, ',')[[1]]
