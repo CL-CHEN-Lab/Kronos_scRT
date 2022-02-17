@@ -58,16 +58,16 @@ option_list = list(
         metavar = "numeric"
     ),
     make_option(
-        c("-m", "--min_CNV_accepted"),
+        c("-m", "--mim_mean_CN_accepted"),
         type = "numeric",
-        help = "Min mean CNV accepted as result. [default= %default]",
+        help = "Min mean CN accepted as result. [default= %default]",
         default = 2,
         metavar = "numeric"
     ),
     make_option(
-        c("-M", "--max_CNV_accepted"),
+        c("-M", "--max_mean_CN_accepted"),
         type = "numeric",
-        help = "Max mean CNV accepted as result. [default= %default]",
+        help = "Max mean CN accepted as result. [default= %default]",
         default = 8,
         metavar = "numeric"
     ),
@@ -110,15 +110,52 @@ system(paste0('mkdir -p ', opt$output_dir))
 #check inputs
 if (!'bins' %in% names(opt)) {
     stop("Bins with gc percentage not provided. See script usage (--help)")
+    
+} else{
+    if (file.exists(opt$bins)) {
+        if (!all(
+            c(
+                'chr',
+                'start',
+                'end',
+                'mappability',
+                'mappability_th',
+                'gc_frequency',
+                'type'
+            ) %in% colnames(tryCatch(
+                expr =  read_tsv(opt$bins,
+                                 col_types = cols(),
+                                 n_max = 0),
+                error = function(x)
+                    tibble()
+            ))
+        )) {
+            stop(paste(
+                opt$bins,
+                ',provided as a bin file, does not have the right format'
+            ))
+        }
+    } else{
+        stop(paste(opt$bins, 'does not exist'))
+    }
+    
 }
 
 if (!"directory" %in% names(opt)) {
     stop("Directory to bam files not provided. See script usage (--help)")
+} else{
+    if (dir.exists(opt$directory)) {
+        if (length(list.files(opt$directory, path = '.bam')) == 0) {
+            stop(paste0(opt$directory, " does not contain bam files."))
+        }
+    } else{
+        stop(paste0(opt$directory, " does not exist."))
+    }
 }
 
 # load bins and gc percentage
-bins = read_tsv(opt$bins, col_types = cols(chr='c'))%>%
-    arrange(chr,start)
+bins = read_tsv(opt$bins, col_types = cols(chr = 'c')) %>%
+    arrange(chr, start)
 
 if (str_extract(opt$directory, '.$') != '/') {
     opt$directory = paste0(opt$directory, '/')
@@ -135,7 +172,7 @@ genome.Chromsizes <-  bins %>%
     summarise(size = max(end))
 
 # convert string into range
-Convert_to_range = Vectorize(function(x){
+Convert_to_range = Vectorize(function(x) {
     if (str_detect(x, ':')) {
         x = str_split(x, ':')[[1]]
         return(as.numeric(x[1]):as.numeric(x[2]))
@@ -145,10 +182,11 @@ Convert_to_range = Vectorize(function(x){
 })
 
 #select chrs
-chromosome = paste0(ifelse(opt$chr_prefix=='none','',opt$chr_prefix), unlist(Convert_to_range(str_split(opt$chr_range,',')[[1]])))
-bins = bins[bins$chr %in% chromosome, ]
+chromosome = paste0(ifelse(opt$chr_prefix == 'none', '', opt$chr_prefix),
+                    unlist(Convert_to_range(str_split(opt$chr_range, ',')[[1]])))
+bins = bins[bins$chr %in% chromosome,]
 
-#calcualte genome size 
+#calcualte genome size
 genome_size = sum(genome.Chromsizes$size)
 
 # SE or PE ?
@@ -171,7 +209,7 @@ files = foreach (
     file = files,
     .combine = 'rbind',
     .packages = c('Rsamtools', 'tidyverse', 'foreach')
-)%dopar% {
+) %dopar% {
     if (type == 'PE') {
         # Single reads
         param1 <- ScanBamParam(
@@ -319,7 +357,7 @@ data = bins
 data$reads = foreach(file = files$file,
                      .combine = '+',
                      .packages = 'tidyverse') %dopar% {
-                         read_tsv(paste0(opt$output_dir, file),col_types = cols(chr='c')) %>%
+                         read_tsv(paste0(opt$output_dir, file), col_types = cols(chr = 'c')) %>%
                              pull(reads)
                      }
 
@@ -345,7 +383,7 @@ mapd = foreach (
     .packages = c('tidyverse', 'foreach', 'DNAcopy', 'MASS', 'gplots'),
     .errorhandling =  "remove"
 ) %dopar% {
-    data = read_tsv(paste0(opt$output_dir, file),col_types = cols(chr='c'))
+    data = read_tsv(paste0(opt$output_dir, file), col_types = cols(chr = 'c'))
     data = left_join(data, gc_correction_value, by = c('chr', 'start', 'end')) %>%
         mutate(
             reads_mappability = reads / mappability,
@@ -362,7 +400,7 @@ mapd = foreach (
             gc_corrected_reads = sum(gc_corrected_reads, na.rm = T)
         )
     
-    CovReadsMega = files[files$file==file,] %>%
+    CovReadsMega = files[files$file == file, ] %>%
         summarise(coverage = 1000000 * count_reads / genome_size) %>%
         pull(coverage)
     
@@ -377,11 +415,13 @@ mapd = foreach (
             normalized_mapd = (gc_corrected_reads - read_1n) / mean_n
         ) %>%
         summarise(
-            normalized_mapd = median(abs(normalized_mapd - median(normalized_mapd))),
+            normalized_mapd = median(abs(
+                normalized_mapd - median(normalized_mapd)
+            )),
             coverage = 1000000 * sum(gc_corrected_reads) / genome_size,
             normalized_dimapd = normalized_mapd * sqrt(coverage)
-        )%>%
-        mutate( CovReadsMega =  CovReadsMega )
+        ) %>%
+        mutate(CovReadsMega =  CovReadsMega)
     #spread data for segmentation
     data = data %>%
         filter(mappability_th) %>%
@@ -414,7 +454,7 @@ mapd = foreach (
     #free memory
     rm('data')
     
-    bin_size = bins[1,] %>%
+    bin_size = bins[1, ] %>%
         mutate(bs = end - start) %>%
         pull(bs)
     
@@ -445,57 +485,66 @@ mapd = foreach (
     )) == 2) + 1]
     
     
-    if('ploidy' %in% names(opt)){
+    if ('ploidy' %in% names(opt)) {
         possible_factors = possible_factors %>%
             filter(possible_factors %in% min)
         
         
-        if(sum((possible_factors$mean_cn >= opt$ploidy/1.5 &
-               possible_factors$mean_cn <= opt$ploidy*2)) == 0){
-        
-        selected = possible_factors$X[which(abs(possible_factors$mean_cn -
-                                                                             opt$ploidy) == min(abs(possible_factors$mean_cn - opt$ploidy)))]
-        
-        mean_cn = possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
-                                                                                  opt$ploidy) == min(abs(possible_factors$mean_cn - opt$ploidy)))]
-        PloConf = -200
-        }else{
+        if (sum((
+            possible_factors$mean_cn >= opt$ploidy / 1.5 &
+            possible_factors$mean_cn <= opt$ploidy * 2
+        )
+        ) == 0) {
+            selected = possible_factors$X[which(abs(possible_factors$mean_cn -
+                                                        opt$ploidy) == min(abs(
+                                                            possible_factors$mean_cn - opt$ploidy
+                                                        )))]
             
+            mean_cn = possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
+                                                             opt$ploidy) == min(abs(
+                                                                 possible_factors$mean_cn - opt$ploidy
+                                                             )))]
+            PloConf = -200
+        } else{
             possible_factors = possible_factors %>%
-                filter(possible_factors %in% min,
-                       mean_cn <= opt$ploidy*2,
-                       mean_cn >= opt$ploidy/1.5)
+                filter(
+                    possible_factors %in% min,
+                    mean_cn <= opt$ploidy * 2,
+                    mean_cn >= opt$ploidy / 1.5
+                )
             
             selected = min(possible_factors$possible_factors)
             mean_cn = possible_factors$mean_cn[possible_factors$possible_factors ==
                                                    selected]
             selected = possible_factors$X[possible_factors$possible_factors ==
                                               selected]
-            PloConf = -100 
+            PloConf = -100
         }
         
-    }else{
-    possible_factors = possible_factors %>%
-        filter(possible_factors %in% min,
-               mean_cn <= opt$max_CNV_accepted,
-               mean_cn >= opt$min_CNV_accepted)
-    
-    if (Var < 5) {
-        selected = possible_factors$X[which(abs(possible_factors$mean_cn -
-                                                                             2) == min(abs(possible_factors$mean_cn - 2)))]
-        mean_cn = possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
-                                                                                  2) == min(abs(possible_factors$mean_cn - 2)))]
-        PloConf = -2
     } else{
-        selected = min(possible_factors$possible_factors)
-        PloConf = nth(possible_factors$possible_factors[base::order(possible_factors$possible_factors, decreasing = T)], n = -2) -
-            selected
-        mean_cn = possible_factors$mean_cn[possible_factors$possible_factors ==
-                                               selected]
-        selected = possible_factors$X[possible_factors$possible_factors ==
-                                          selected]
+        possible_factors = possible_factors %>%
+            filter(
+                possible_factors %in% min,
+                mean_cn <= opt$max_mean_CN_accepted,
+                mean_cn >= opt$mim_mean_CN_accepted
+            )
         
-    }
+        if (Var < 5) {
+            selected = possible_factors$X[which(abs(possible_factors$mean_cn -
+                                                        2) == min(abs(possible_factors$mean_cn - 2)))]
+            mean_cn = possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
+                                                             2) == min(abs(possible_factors$mean_cn - 2)))]
+            PloConf = -2
+        } else{
+            selected = min(possible_factors$possible_factors)
+            PloConf = nth(possible_factors$possible_factors[base::order(possible_factors$possible_factors, decreasing = T)], n = -2) -
+                selected
+            mean_cn = possible_factors$mean_cn[possible_factors$possible_factors ==
+                                                   selected]
+            selected = possible_factors$X[possible_factors$possible_factors ==
+                                              selected]
+            
+        }
     }
     CNV_correction = tibble(
         ID = unique(segment.smoothed.CNA.object$ID),
@@ -574,7 +623,12 @@ while (T) {
 #write file
 mapd %>%
     mutate(
-        is_noisy = ifelse(is_high_dimapd | (ploidy_confidence < 2 & ploidy_confidence != -100), T, F),
+        is_noisy = ifelse(
+            is_high_dimapd |
+                (ploidy_confidence < 2 & ploidy_confidence != -100),
+            T,
+            F
+        ),
         coverage_per_1Mbp = CovReadsMega,
         Cell = str_remove(Cell, '.tmp$')
     ) %>%
@@ -590,30 +644,35 @@ mapd %>%
     write_csv(paste0(opt$output_dir, opt$ExpName, '_per_Cell_summary_metrics.csv'),
               col_names = T)
 
-files=files$file
-system(paste0(
-    'cat ',
-    opt$output_dir,
-    files[1],
-    '_cnv_calls.bed > ',
-    opt$output_dir, opt$ExpName, '_cnv_calls.bed'
-))
-system(paste0(
-    'rm ',
-    opt$output_dir, files[1], '_cnv_calls.bed'
-))
-files=foreach (file=files[-1])%do%{
-    system(paste0(
-        "sed '1d' ",opt$output_dir, 
-        file, "_cnv_calls.bed >> ",
-        opt$output_dir, opt$ExpName, '_cnv_calls.bed'
-    ))
-    system(paste0(
-        'rm ',
-        opt$output_dir, file, '_cnv_calls.bed'
-    ))
+files = files$file
+system(
+    paste0(
+        'cat ',
+        opt$output_dir,
+        files[1],
+        '_cnv_calls.bed > ',
+        opt$output_dir,
+        opt$ExpName,
+        '_cnv_calls.bed'
+    )
+)
+system(paste0('rm ',
+              opt$output_dir, files[1], '_cnv_calls.bed'))
+files = foreach (file = files[-1]) %do% {
+    system(
+        paste0(
+            "sed '1d' ",
+            opt$output_dir,
+            file,
+            "_cnv_calls.bed >> ",
+            opt$output_dir,
+            opt$ExpName,
+            '_cnv_calls.bed'
+        )
+    )
+    system(paste0('rm ',
+                  opt$output_dir, file, '_cnv_calls.bed'))
     file
 }
 
 print('done')
-
