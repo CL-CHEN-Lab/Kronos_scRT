@@ -42,6 +42,72 @@ if (!'file' %in% names(opt)) {
 if (!'whoSwho' %in% names(opt)) {
     stop("who's who file must be provided. See script usage (--help)")
 }
+#does exist/ right format function
+does_exist_right_format = Vectorize(function(File, delim = '\t', columns_to_check,message='does not have the proper format') {
+    #checks if the file exist
+    if (!file.exists(File)) {
+        return(paste(File, 'does not exist'))
+    } else{
+        # if columns_to_check is numeric check the number of colums
+        if(is.numeric(columns_to_check)){
+            if (ncol(tryCatch(
+                expr =  read_delim(
+                    File,
+                    col_types = cols(),
+                    n_max = 0,
+                    delim = delim
+                ),
+                error = function(x)
+                    tibble()
+            ))!=columns_to_check) {
+                return(paste(File, message,'\n'))
+            } else{
+                return('')
+            }
+            
+            # if columns_to_check is not numeric check columns names    
+        }else{
+            #checks if it has the right format
+            if (!all(columns_to_check %in% colnames(tryCatch(
+                expr =  read_delim(
+                    File,
+                    col_types = cols(),
+                    n_max = 0,
+                    delim = delim
+                ),
+                error = function(x)
+                    tibble()
+            )))) {
+                return(paste(File, message,'\n'))
+            } else{
+                return('')
+            }
+        }
+    }
+    
+}, vectorize.args = 'File')
+
+#check per cell files 
+results=paste(does_exist_right_format(File=opt$file,delim = ',',columns_to_check=c('Cell',
+                                                                                   'normalized_dimapd',
+                                                                                   'mean_ploidy',
+                                                                                   'ploidy_confidence',
+                                                                                   'is_high_dimapd',
+                                                                                   'is_noisy',
+                                                                                   'coverage_per_1Mbp'),
+                                      message = ',provided as a per cell file, does not have the right format'),collapse = '')
+if(results!='') {
+    stop(results)
+}
+
+results=paste(does_exist_right_format(File=opt$file,delim = ',',columns_to_check=c('Cell',
+                                                                                   'Phase'),
+                                      message = ',provided as a staging file, does not have the right format'),collapse = '')
+if(results!='') {
+    stop(results)
+}
+
+
 #create output directory
 if (str_extract(opt$out,'.$')!='/'){
     opt$out=paste0(opt$out,'/')

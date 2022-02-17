@@ -173,7 +173,7 @@ Bin = data %>%
 #find overlaps
 hits = findOverlaps(Bin, Annotation_file,minoverlap = opt$min_overlap)
 
-#indo about overlapping regins
+#info about overlapping regins
 overlaps <-
   pintersect(Annotation_file[subjectHits(hits)], Bin[queryHits(hits)])
 
