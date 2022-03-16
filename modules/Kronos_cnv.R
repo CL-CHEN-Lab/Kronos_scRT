@@ -110,7 +110,7 @@ system(paste0('mkdir -p ', opt$output_dir))
 #check inputs
 if (!'bins' %in% names(opt)) {
     stop("Bins with gc percentage not provided. See script usage (--help)")
-    
+
 } else{
     if (file.exists(opt$bins)) {
         if (!all(
@@ -138,14 +138,14 @@ if (!'bins' %in% names(opt)) {
     } else{
         stop(paste(opt$bins, 'does not exist'))
     }
-    
+
 }
 
 if (!"directory" %in% names(opt)) {
     stop("Directory to bam files not provided. See script usage (--help)")
 } else{
     if (dir.exists(opt$directory)) {
-        if (length(list.files(opt$directory, path = '.bam')) == 0) {
+        if (length(list.files(opt$directory, path = '.bam$')) == 0) {
             stop(paste0(opt$directory, " does not contain bam files."))
         }
     } else{
@@ -221,7 +221,7 @@ files = foreach (
             ),
             mapqFilter = 30
         )
-        
+
         #First in a pair proper paired reads
         param2 <-
             ScanBamParam(
@@ -234,7 +234,7 @@ files = foreach (
                 ),
                 mapqFilter = 30
             )
-        
+
         #Second in a pair proper paired reads
         param3 <-
             ScanBamParam(
@@ -264,7 +264,7 @@ files = foreach (
         # select identifiers reads
         qname_fp = FP %>% ungroup() %>% dplyr::select(qname, rname, bin) %>% `colnames<-`(c('qname', 'rname', 'mate_bin'))
         qname_sp = SP %>% ungroup() %>% dplyr::select(qname, rname, bin) %>% `colnames<-`(c('qname', 'rname', 'mate_bin'))
-        
+
         # if a read in a pair has it's paired in the same bin it counts as 1/2 a read eles one read.
         FP = FP %>%
             left_join(qname_sp, by = c("qname", 'rname')) %>%
@@ -273,7 +273,7 @@ files = foreach (
             dplyr::select('rname', 'pos', 'read', 'bin') %>%
             `colnames<-`(c('chr', 'pos', 'read', 'bin')) %>%
             ungroup()
-        
+
         SP = SP %>%
             left_join(qname_fp, by = c("qname", 'rname')) %>%
             mutate(read = ifelse(bin != mate_bin |
@@ -281,7 +281,7 @@ files = foreach (
             dplyr::select('rname', 'pos', 'read', 'bin') %>%
             `colnames<-`(c('chr', 'pos', 'read', 'bin')) %>%
             ungroup()
-        
+
         #load non paired reads
         SR = as.data.frame(scanBam(paste0(opt$directory, file), param = param1)) %>%
             drop_na() %>%
@@ -290,7 +290,7 @@ files = foreach (
             dplyr::select('rname', 'pos', 'read') %>%
             `colnames<-`(c('chr', 'pos', 'read'))
         count_reads = count_reads + length(SR$chr)
-        
+
         # include non paired reads if existing
         # sum all the reads in a bin
         if (length(SR$chr) != 0) {
@@ -303,7 +303,7 @@ files = foreach (
                 group_by(chr, bin) %>%
                 summarise(reads = sum(read)) %>%
                 ungroup()
-            
+
         } else{
             sam = rbind(FP ,
                         SP) %>%
@@ -318,7 +318,7 @@ files = foreach (
                                isDuplicate = F),
             mapqFilter = 30
         )
-        
+
         # calculate reads in each bin
         sam = as.data.frame(scanBam(paste0(opt$directory, file), param =
                                         param)) %>%
@@ -332,7 +332,7 @@ files = foreach (
             summarise(reads = sum(read)) %>%
             ungroup()
         count_reads = sum(sam$reads)
-        
+
     } else{
         stop('Bins file does not contain a correct sequencing type (SE/PE)')
     }
@@ -348,7 +348,7 @@ files = foreach (
         tibble(file = paste0(file, '.tmp'),
                count_reads = count_reads)
     }
-    
+
 }
 
 # correct for mappability and normalize for GC content based on all the cells (norm reads= reads * median reads  / median reads per interval of GC (rounded at 2 digits))
@@ -389,7 +389,7 @@ mapd = foreach (
             reads_mappability = reads / mappability,
             gc_corrected_reads = reads_mappability * gc_corretion_values
         )
-    
+
     data_500Kb = data %>%
         group_by(chr) %>%
         mutate(range = ceiling(end / 500000)) %>%
@@ -399,11 +399,11 @@ mapd = foreach (
             end = max(end),
             gc_corrected_reads = sum(gc_corrected_reads, na.rm = T)
         )
-    
+
     CovReadsMega = files[files$file == file, ] %>%
         summarise(coverage = 1000000 * count_reads / genome_size) %>%
         pull(coverage)
-    
+
     #calculate normalized_MAPD and mapd
     mapd = data_500Kb %>%
         group_by(chr) %>%
@@ -427,41 +427,41 @@ mapd = foreach (
         filter(mappability_th) %>%
         dplyr::select(chr, start, end, gc_corrected_reads, Cell) %>%
         ungroup()
-    
+
     # create object
     CNA.object <-
         CNA(as.matrix(data$gc_corrected_reads),
             data$chr,
             data$start,
             sampleid = file)
-    
+
     # smooth data
     smoothed.CNA.object <-
         smooth.CNA(CNA.object)
-    
+
     # free memory
     rm('CNA.object')
-    
+
     # segment
     segment.smoothed.CNA.object <-
         segment(smoothed.CNA.object)
-    
+
     #free memory
     rm('smoothed.CNA.object')
-    
+
     segment.smoothed.CNA.object = as_tibble(segment.smoothed.CNA.object$output)
-    
+
     #free memory
     rm('data')
-    
+
     bin_size = bins[1, ] %>%
         mutate(bs = end - start) %>%
         pull(bs)
-    
+
     # identify CN based on minimum of the target function
-    
+
     weitghts = (segment.smoothed.CNA.object$loc.end - segment.smoothed.CNA.object$loc.start) / bin_size
-    
+
     possible_factors = foreach(i = seq(0.1, 1000 , 0.1),
                                .combine = 'rbind') %do% {
                                    TargetF = sqrt(sum((
@@ -476,20 +476,20 @@ mapd = foreach (
                                        mean_cn = mean_cn,
                                        Variability = Variability
                                    )
-                                   
+
                                }
-    
+
     Var = unique(possible_factors$Variability)
     min = possible_factors$possible_factors[which(diff(sign(
         diff(possible_factors$possible_factors)
     )) == 2) + 1]
-    
-    
+
+
     if ('ploidy' %in% names(opt)) {
         possible_factors = possible_factors %>%
             filter(possible_factors %in% min)
-        
-        
+
+
         if (sum((
             possible_factors$mean_cn >= opt$ploidy / 1.5 &
             possible_factors$mean_cn <= opt$ploidy * 2
@@ -499,7 +499,7 @@ mapd = foreach (
                                                         opt$ploidy) == min(abs(
                                                             possible_factors$mean_cn - opt$ploidy
                                                         )))]
-            
+
             mean_cn = possible_factors$mean_cn[which(abs(possible_factors$mean_cn -
                                                              opt$ploidy) == min(abs(
                                                                  possible_factors$mean_cn - opt$ploidy
@@ -512,7 +512,7 @@ mapd = foreach (
                     mean_cn <= opt$ploidy * 2,
                     mean_cn >= opt$ploidy / 1.5
                 )
-            
+
             selected = min(possible_factors$possible_factors)
             mean_cn = possible_factors$mean_cn[possible_factors$possible_factors ==
                                                    selected]
@@ -520,7 +520,7 @@ mapd = foreach (
                                               selected]
             PloConf = -100
         }
-        
+
     } else{
         possible_factors = possible_factors %>%
             filter(
@@ -528,7 +528,7 @@ mapd = foreach (
                 mean_cn <= opt$max_mean_CN_accepted,
                 mean_cn >= opt$mim_mean_CN_accepted
             )
-        
+
         if (Var < 5) {
             selected = possible_factors$X[which(abs(possible_factors$mean_cn -
                                                         2) == min(abs(possible_factors$mean_cn - 2)))]
@@ -543,7 +543,7 @@ mapd = foreach (
                                                    selected]
             selected = possible_factors$X[possible_factors$possible_factors ==
                                               selected]
-            
+
         }
     }
     CNV_correction = tibble(
@@ -553,30 +553,30 @@ mapd = foreach (
         ploidy_confidence = PloConf,
         mean_ploidy = mean_cn
     )
-    
+
     # called CNV
     CNV = segment.smoothed.CNA.object %>%
         inner_join(CNV_correction, by = 'ID') %>%
         mutate(CNV = round(seg.mean / X, 0)) %>%
         dplyr::select(Cell, chrom, loc.start, loc.end, CNV, seg.mean) %>%
         `colnames<-`(c('Cell', 'chr', 'start', 'end', 'copy_number', 'reads'))
-    
-    
+
+
     CNV_correction = CNV_correction %>%
         dplyr::select(-X)
-    
-    
+
+
     CNV %>%
         write_tsv(paste0(opt$output_dir, file, '_cnv_calls.bed'),
                   col_names = T)
-    
+
     system(paste0('rm ', opt$output_dir, file))
-    
+
     # calculate mean CNV
     mapd = mapd %>% cbind(CNV_correction) %>% dplyr::select(-ID)
-    
+
     mapd
-    
+
 }
 stopCluster(cl)
 
@@ -599,7 +599,7 @@ mem = 0
 while (T) {
     fit <-
         fitdistr(mapd$normalized_dimapd[!mapd$is_high_dimapd], 'normal')
-    
+
     mapd = mapd %>%
         mutate(is_high_dimapd = ifelse(
             pnorm(
@@ -616,7 +616,7 @@ while (T) {
     } else{
         mem = sum(mapd$is_high_dimapd)
     }
-    
+
 }
 
 
