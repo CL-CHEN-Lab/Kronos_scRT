@@ -638,99 +638,102 @@ bins = foreach(chr = 1:length(Chr_Size$chr),
 
 stopCluster(cl)
 
+#convert bins into granges
 bins = bins %>%
-    makeGRangesFromDataFrame(
+    GenomicRanges::makeGRangesListFromDataFrame(
         seqnames.field  = 'chr',
         start.field = 'start' ,
         end.field = 'end'
     )
 
+#rebin data
+Rebin<- function(PerCell,scCN,Bins,Sphase=NULL) {
+    
+    if(!is.logical(Sphase)){
+        stop('Sphase must be set as True or False')
+    }
+    
+    if(Sphase){
+        selected_data = PerCell %>%
+            dplyr::filter(Type == 'S-phase cells') %>%
+            dplyr::arrange(mean_ploidy_corrected) %>%
+            dplyr::mutate(index = 1:dplyr::n()) %>%
+            dplyr::select(index,
+                          Cell,
+                          mean_ploidy,
+                          mean_ploidy_corrected,
+                          basename,
+                          group)
 
-#select Sphase cells
-selected_data = data %>%
-    filter(Type == 'S-phase cells') %>%
-    arrange(mean_ploidy_corrected) %>%
-    mutate(index = 1:n()) %>%
-    dplyr::select(index,
-                  Cell,
-                  mean_ploidy,
-                  mean_ploidy_corrected,
-                  basename,
-                  group)
-# select G1/G2 cells
-G1_G2_cells = data %>%
-    filter(Type == 'G1/G2-phase cells')
+    }else{
+        selected_data=PerCell%>%
+            dplyr::filter(Type == 'G1/G2-phase cells') %>%
+            mutate(index = as.numeric(factor(Cell)))%>%
+            dplyr::select(index,
+                          Cell,
+                          mean_ploidy,
+                          mean_ploidy_corrected,
+                          basename,
+                          group)
 
-# select tracks of G1/G2 cells
-G1_G2_cells_tracks = all_tracks %>%
-    inner_join(G1_G2_cells, by = c('Cell', 'basename', 'group')) %>%
-    makeGRangesFromDataFrame(
-        seqnames.field  = 'chr',
-        start.field = 'start' ,
-        end.field = 'end',
-        keep.extra.columns = T
-    )
-
-#select Sphase traks
-Sphase_tracks = all_tracks %>%
-    inner_join(selected_data, by = c('Cell', 'basename', 'group')) %>%
-    mutate(
-        copy_number_corrected = ifelse(
-            mean_ploidy == mean_ploidy_corrected,
-            copy_number,
-            copy_number * mean_ploidy_corrected / mean_ploidy
+    }
+    
+    scCN = scCN%>%
+        dplyr::inner_join(selected_data, by = c('Cell', 'basename', 'group')) %>%
+        dplyr::mutate(
+            copy_number_corrected = ifelse(
+                mean_ploidy == mean_ploidy_corrected,
+                copy_number,
+                copy_number * mean_ploidy_corrected / mean_ploidy
+            )
         )
+    #convert into Granges
+    scCN = scCN %>%
+        GenomicRanges::makeGRangesFromDataFrame(
+            seqnames.field  = 'chr',
+            start.field = 'start' ,
+            end.field = 'end',
+            keep.extra.columns = T
+        )
+    
+    #calculate median CN across a bin
+    hits = IRanges::findOverlaps(Bins, scCN)
+    
+    #recover info
+    scCN = cbind(
+        dplyr::as_tibble(Bins[S4Vectors::queryHits(hits)]) %>% dplyr::select(seqnames, start, end) %>%
+            `colnames<-`(c('chr', 'start', 'end')),
+        dplyr::as_tibble(scCN[S4Vectors::subjectHits(hits)]) %>% dplyr::select(-seqnames, -start, -end)
     ) %>%
-    makeGRangesFromDataFrame(
-        seqnames.field  = 'chr',
-        start.field = 'start' ,
-        end.field = 'end',
-        keep.extra.columns = T
-    )
+        dplyr::group_by(Cell, index, basename, group, chr, start, end) %>%
+        dplyr::summarise(CN = matrixStats::weightedMedian(
+            x = copy_number_corrected,
+            w = width,
+            na.rm = T
+        )) %>%
+        dplyr::ungroup()
+    
+    return(scCN)
+}
+
+signal_smoothed = Rebin(
+    PerCell = data,
+    scCN = all_tracks,
+    Bins = bins,
+    Sphase = T
+)
+
+G1G2_smoothed = Rebin(
+    PerCell = data,
+    scCN = all_tracks,
+    Bins = bins,
+    Sphase = F
+)
 
 #free some memory
 rm('all_tracks')
 
-#calculate median CNV across a bin for S cells
-
-hits = findOverlaps(bins, Sphase_tracks)
-
-overlaps <-
-    pintersect(Sphase_tracks[subjectHits(hits)], bins[queryHits(hits)])
-
-signal_smoothed = cbind(
-    as_tibble(bins[queryHits(hits)]) %>% dplyr::select(seqnames, start, end) %>%
-        `colnames<-`(c('chr', 'start', 'end')),
-    as_tibble(overlaps) %>% dplyr::select(-seqnames, -start, -end)
-) %>%
-    group_by(Cell,index, basename, group, chr, start, end) %>%
-    summarise(CN = weightedMedian(x = copy_number_corrected, w =
-                                      width, na.rm = T)) %>%
-    ungroup()
-
-
-#free memory
-rm('Sphase_tracks')
-rm('hits')
-rm('overlaps')
-
-#calculate median CNV across a bin across all the G1/G2 cells
-hits = findOverlaps(bins, G1_G2_cells_tracks)
-
-overlaps <-
-    pintersect(G1_G2_cells_tracks[subjectHits(hits)], bins[queryHits(hits)])
-
-G1G2_smoothed = cbind(
-    as_tibble(bins[queryHits(hits)]) %>% dplyr::select(seqnames, start, end) %>%
-        `colnames<-`(c('chr', 'start', 'end')),
-    as_tibble(overlaps) %>% dplyr::select(-seqnames, -start, -end)
-) %>%
-    group_by(Cell,basename, group, chr, start, end) %>%
-    summarise(CN = weightedMedian(x = copy_number, w =
-                                      width, na.rm = T)) %>%
-    ungroup()%>%
-    mutate(index=as.numeric(factor(Cell)))
-
+#calculate background
 backgroud_smoothed=G1G2_smoothed%>%
     group_by(basename, group, chr, start, end)%>%
     summarise(background=median(CN))
@@ -834,7 +837,7 @@ if(opt$extract_G1_G2_cells){
                       group,
                       newIndex)%>%
         write_delim(
-            path = paste0(
+            file = paste0(
                 opt$out,
                 '/',
                 opt$output_file_base_name,
@@ -849,9 +852,6 @@ if(opt$extract_G1_G2_cells){
 }
 #free some space
 rm('G1G2_smoothed')
-rm('G1_G2_cells_tracks')
-rm('hits')
-rm('overlaps')
 
 if ('referenceRT' %in% names(opt)) {
     # rebin reference RT
@@ -866,13 +866,10 @@ if ('referenceRT' %in% names(opt)) {
     
     hits = findOverlaps(bins, Reference_RT)
     
-    overlaps <-
-        pintersect(Reference_RT[subjectHits(hits)], bins[queryHits(hits)])
-    
     Reference_RT = cbind(
         as_tibble(bins[queryHits(hits)]) %>% dplyr::select(seqnames, start, end) %>%
             `colnames<-`(c('chr', 'start', 'end')),
-        as_tibble(overlaps) %>% dplyr::select(-seqnames, -start, -end)
+        as_tibble(Reference_RT[subjectHits(hits)]) %>% dplyr::select(-seqnames, -start, -end)
     ) %>%
         group_by(chr, start, end) %>%
         summarise(RT = weightedMedian(x = RT, w =
@@ -900,9 +897,6 @@ if ('referenceRT' %in% names(opt)) {
     )
     
     rm('hits')
-    rm('overlaps')
-    
-    
 }
 
 #merge signal and bg and calculate their ratio
@@ -1106,7 +1100,7 @@ signal_smoothed = signal_smoothed %>%
 
 write_delim(
     x = signal_smoothed,
-    path = paste0(
+    file = paste0(
         opt$out,
         '/',
         opt$output_file_base_name,
@@ -1121,8 +1115,10 @@ write_delim(
 #select used data and save the new per cell files
 used_cells=  rbind( new_index_list%>%
                         dplyr::select(Cell,basename,group )%>%ungroup(),
-                    G1_G2_cells%>%
-                        dplyr::select(Cell,basename,group )%>%ungroup())
+                    data%>%
+                        filter(Type == 'G1/G2-phase cells')%>%
+                        dplyr::select(Cell,basename,group )%>%
+                        ungroup())
 
 data=data%>%inner_join(used_cells,Joining, by = c("Cell", "basename", "group"))
 system(paste0('mkdir -p ', opt$out, '/Cells_used_in_the_analysis_info'))
@@ -1137,7 +1133,6 @@ bs=foreach(i=unique(data$basename))%do%{
 }
 
 rm('bs')
-rm('G1_G2_cells')
 rm('new_index_list')
 
 #calculate replication timing normalizing each bin by the number of cells in each bin and then calculating the average of the average
@@ -1234,7 +1229,7 @@ scRT=scRT%>%
 
 write_delim(
     x = scRT,
-    path = paste0(
+    file = paste0(
         opt$out,
         '/',
         opt$output_file_base_name,
