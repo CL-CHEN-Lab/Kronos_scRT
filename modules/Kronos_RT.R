@@ -636,6 +636,8 @@ bins = foreach(chr = 1:length(Chr_Size$chr),
                    bins
                }
 
+stopCluster(cl)
+
 bins = bins %>%
     makeGRangesFromDataFrame(
         seqnames.field  = 'chr',
@@ -726,31 +728,35 @@ G1G2_smoothed = cbind(
     group_by(Cell,basename, group, chr, start, end) %>%
     summarise(CN = weightedMedian(x = copy_number, w =
                                       width, na.rm = T)) %>%
-    ungroup()
+    ungroup()%>%
+    mutate(index=as.numeric(factor(Cell)))
 
 backgroud_smoothed=G1G2_smoothed%>%
     group_by(basename, group, chr, start, end)%>%
     summarise(background=median(CN))
 
-if(opt$extract_G1_G2_cells){
-    # create single G1/G2 single cell file
-    G1G2_smoothed = G1G2_smoothed %>%
+# binarizes data into Replicated or not replicated bins
+Replication_state = function(Samples, background, chr_list,cores=3){
+    
+    cl <- makeCluster(cores)
+    registerDoSNOW(cl)
+    #merge signal and bg and calculate their ratio
+    Samples = Samples %>%
         ungroup() %>%
         mutate(chr = factor(x =  chr, levels = chr_list)) %>%
-        inner_join(backgroud_smoothed,
+        inner_join(background,
                    by = c("chr", "start", "end", "basename", 'group')) %>%
         mutate(CN_bg = log2(CN / background)) %>%
         drop_na() %>%
-        filter(is.finite(CN_bg))%>%
-        group_by(group)%>%
-        mutate(index=as.numeric(factor(Cell)))
+        filter(is.finite(CN_bg))
     
+    # identify threshold that minimazes the difference of the real data with a binary state (1 or 2)
     selecte_th = foreach(
-        line = unique(G1G2_smoothed$basename),
+        line = unique(Samples$basename),
         .combine = 'rbind',
         .packages = c('foreach', 'tidyverse')
     ) %dopar% {
-        sub_sig = G1G2_smoothed %>%
+        sub_sig = Samples %>%
             filter(basename == line)
         
         #identify range within looking for a CNV treshold to define replicated and not replicated values
@@ -761,8 +767,8 @@ if(opt$extract_G1_G2_cells){
                           .packages = 'tidyverse') %do% {
                               summary = sub_sig %>%
                                   mutate(Rep = ifelse(CN_bg >= i, T, F),
-                                         Error = (Rep - CN_bg)^2) %>%
-                                  group_by(Cell,index, basename, group)  %>%
+                                         Error = (Rep - CN_bg) ^ 2) %>%
+                                  group_by(Cell, index, basename, group)  %>%
                                   summarise(summary = sum(Error))
                               
                               data.frame(
@@ -782,24 +788,37 @@ if(opt$extract_G1_G2_cells){
         ungroup()
     
     # mark replicated bins
-    G1G2_smoothed = G1G2_smoothed %>%
+    Samples = Samples %>%
         inner_join(selecte_th, by = c("index", "basename")) %>%
         mutate(Rep = ifelse(CN_bg >= th, T, F))
     
     #identify new distribution in the S phase based the ammount of replicated bins
-    new_index_list = G1G2_smoothed %>%
-        group_by(Cell,index, basename, group) %>%
+    new_index_list = Samples %>%
+        group_by(Cell, index, basename, group) %>%
         summarise(PercentageReplication = mean(Rep)) %>%
         ungroup() %>%
         arrange(PercentageReplication) %>%
         group_by(group) %>%
         mutate(newIndex = 1:n()) %>%
-        dplyr::select(oldIndex=index, newIndex,Cell, basename, group,PercentageReplication)
+        dplyr::select(oldIndex = index, newIndex, Cell, basename, group,PercentageReplication)
+    
+    Samples = Samples %>%
+        inner_join(new_index_list,
+                   by = c('Cell', 'index' = 'oldIndex', 'basename', 'group'))
+    
+    stopCluster(cl)
     
     
-    G1G2_smoothed = G1G2_smoothed %>%
-        inner_join(new_index_list, by = c('Cell','index'='oldIndex', 'basename','group'))
-    
+    return(Samples)
+}
+
+if(opt$extract_G1_G2_cells){
+    # create single G1/G2 single cell file
+    G1G2_smoothed = Replication_state(Samples = G1G2_smoothed,
+                                      background = backgroud_smoothed,
+                                      chr_list = chr_list,cores = opt$cores)
+        
+  #write results
     G1G2_smoothed%>%
         dplyr::select(chr,
                       start,
@@ -887,86 +906,12 @@ if ('referenceRT' %in% names(opt)) {
 }
 
 #merge signal and bg and calculate their ratio
-signal_smoothed = signal_smoothed %>%
-    ungroup() %>%
-    mutate(chr = factor(x =  chr, levels = chr_list)) %>%
-    inner_join(backgroud_smoothed,
-               by = c("chr", "start", "end", "basename", 'group')) %>%
-    mutate(CN_bg = log2(CN / background)) %>%
-    drop_na() %>%
-    filter(is.finite(CN_bg))
+signal_smoothed = Replication_state(Samples =signal_smoothed ,
+                                    background = backgroud_smoothed,
+                                    chr_list = chr_list,cores = opt$cores)
 
 # remove control track
 rm('backgroud_smoothed')
-
-# identify threshold that minimazes the difference of the real data with a binary state (1 or 2)
-selecte_th = foreach(
-    line = unique(signal_smoothed$basename),
-    .combine = 'rbind',
-    .packages = c('foreach', 'tidyverse')
-) %dopar% {
-    sub_sig = signal_smoothed %>%
-        filter(basename == line)
-    
-    #identify range within looking for a CNV treshold to define replicated and not replicated values
-    range = seq(0, 1, 0.01)
-    
-    th_temp = foreach(i = range,
-                      .combine = 'rbind',
-                      .packages = 'tidyverse') %do% {
-                          summary = sub_sig %>%
-                              mutate(Rep = ifelse(CN_bg >= i, T, F),
-                                     Error = (Rep - CN_bg)^2) %>%
-                              group_by(Cell,index, basename, group)  %>%
-                              summarise(summary = sum(Error))
-                          
-                          data.frame(
-                              th = i,
-                              basename = summary$basename,
-                              index = summary$index,
-                              sum_error = summary$summary
-                          )
-                      }
-    th_temp
-}
-
-selecte_th = selecte_th %>%
-    group_by(index, basename) %>%
-    filter(sum_error == min(sum_error)) %>%
-    summarise(th = min(th)) %>%
-    ungroup()
-
-# mark replicated bins
-signal_smoothed = signal_smoothed %>%
-    inner_join(selecte_th, by = c("index", "basename")) %>%
-    mutate(Rep = ifelse(CN_bg >= th, T, F))
-
-#identify new distribution in the S phase based the ammount of replicated bins
-new_index_list = signal_smoothed %>%
-    group_by(Cell,index, basename, group) %>%
-    summarise(perc_replication = mean(Rep)) %>%
-    ungroup() %>%
-    arrange(perc_replication) %>%
-    group_by(group) %>%
-    mutate(newIndex = 1:n()) %>%
-    dplyr::select(oldIndex=index, newIndex,Cell, basename, group)
-
-write_tsv(new_index_list,paste0(
-    opt$out,
-    '/',
-    opt$output_file_base_name,
-    '_new_old_index_correspondance_before_filtering.tsv'
-))
-
-signal_smoothed = signal_smoothed %>%
-    inner_join(new_index_list, by = c('Cell','index'='oldIndex', 'basename','group')) 
-
-stopCluster(cl)
-
-# bin cells in order to have not unballance RT
-signal_smoothed = signal_smoothed %>%
-    group_by(Cell,index, group) %>% 
-    mutate(PercentageReplication = mean(Rep))
 
 #plot profile binning
 plot = signal_smoothed %>%
@@ -1142,13 +1087,6 @@ new_index_list = rep_percentage %>%
     arrange(group,newIndex) %>%
     dplyr::select(oldIndex=index, newIndex,Cell,basename,group)
 
-write_tsv(new_index_list,paste0(
-    opt$out,
-    '/',
-    opt$output_file_base_name,
-    '_new_old_index_correspondance_after_filtering.txt'
-))
-
 signal_smoothed = signal_smoothed %>%
     ungroup() %>%
     inner_join(new_index_list, by = c('Cell','index'='oldIndex', 'basename','group')) %>% 
@@ -1165,7 +1103,6 @@ signal_smoothed = signal_smoothed %>%
                   basename,
                   group,
                   newIndex)
-
 
 write_delim(
     x = signal_smoothed,
@@ -1186,7 +1123,6 @@ used_cells=  rbind( new_index_list%>%
                         dplyr::select(Cell,basename,group )%>%ungroup(),
                     G1_G2_cells%>%
                         dplyr::select(Cell,basename,group )%>%ungroup())
-
 
 data=data%>%inner_join(used_cells,Joining, by = c("Cell", "basename", "group"))
 system(paste0('mkdir -p ', opt$out, '/Cells_used_in_the_analysis_info'))
