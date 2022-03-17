@@ -145,7 +145,7 @@ if (!"directory" %in% names(opt)) {
     stop("Directory to bam files not provided. See script usage (--help)")
 } else{
     if (dir.exists(opt$directory)) {
-        if (length(list.files(opt$directory, path = '.bam$')) == 0) {
+        if (length(list.files(opt$directory, pattern = '.bam$')) == 0) {
             stop(paste0(opt$directory, " does not contain bam files."))
         }
     } else{
