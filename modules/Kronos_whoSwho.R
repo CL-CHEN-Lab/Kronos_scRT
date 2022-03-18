@@ -100,7 +100,7 @@ if(results!='') {
     stop(results)
 }
 
-results=paste(does_exist_right_format(File=opt$file,delim = ',',columns_to_check=c('Cell',
+results=paste(does_exist_right_format(File=opt$whoSwho,delim = '\t',columns_to_check=c('Cell',
                                                                                    'Phase'),
                                       message = ',provided as a staging file, does not have the right format'),collapse = '')
 if(results!='') {
