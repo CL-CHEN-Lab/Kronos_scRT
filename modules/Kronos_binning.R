@@ -152,7 +152,7 @@ if (str_extract(opt$output_dir,'.$')!='/'){
 
 system(paste0('mkdir -p ', opt$output_dir))
 
-# check inputs 
+# check inputs
 if(!"RefGenome" %in% names(opt)){
     stop("Fasta file not provided. See script usage (--help)")
 }
@@ -204,20 +204,20 @@ if ('dir_indexed_bam' %in% names(opt)){
     }
     #sample 30 files (if available) to exstimate parameters
     list=list.files(opt$dir_indexed_bam,pattern = 'bam$')
-    
+
     if(length(list) > 30 ){
-        list=sample(list,30) 
+        list=sample(list,30)
     }
-   
+
     parameters=foreach(i=list,.combine = 'rbind',.packages = 'Rsamtools')%dopar%{
         sapply(scanBam(paste0(opt$dir_indexed_bam,i),param=ScanBamParam(what=c('isize','qwidth')))[[1]],
                 function(x) median(abs(x),na.rm = T))
     }
-    
+
     parameters=as_tibble(parameters)%>%
         summarise(qwidth=round(median(qwidth)),
                   isize=round(median(isize)))
-    
+
     if(parameters$isize!=0){
         opt$paired_ends=T
         opt$fragment_size=parameters$isize
@@ -226,7 +226,7 @@ if ('dir_indexed_bam' %in% names(opt)){
         opt$paired_ends=F
         opt$reads_size=parameters$qwidth
     }
-  
+
 }
 
 # select chrs of interest
@@ -263,20 +263,20 @@ recover_and_mutate = function(simulated_reads, Chr_reference,errorRate=opt$error
 
     # applies mutation
     mutate_sequence=Vectorize(function(Base){
-        
+
         bases=c(65,67,84,71)
         bases=bases[bases != Base]
-        
+
         return(sample(bases,1))
-        
+
     },vectorize.args = 'Base')
-    
+
     #mutation
     REF_mutated[mutate]= mutate_sequence(REF_mutated[mutate])
-    
-    #convert back to string 
+
+    #convert back to string
     REF_mutated=intToUtf8(REF_mutated)
-    
+
     #recover reads sequences
     simulated_reads = tibble(
         reads = str_sub(
@@ -288,7 +288,7 @@ recover_and_mutate = function(simulated_reads, Chr_reference,errorRate=opt$error
     )%>%
         mutate(reads=str_remove(reads,'N{1,1000}$'),
                reads=str_remove(reads,'^N{1,1000}'))
-    
+
     return(simulated_reads)
 }
 #reshape reads for the fastq file
@@ -340,34 +340,34 @@ genome.Chromsizes = foreach(
     #genome size
     genome.Chromsizes = tibble(chr = Chr,
                                size = width(reference[Chr]))
-    
+
     position = find_known_sequences(reference[Chr])
-    
+
     #look for seeds
     if (opt$paired_ends) {
         #initialize simulated reads
         size =  opt$fragment_size
-        
+
     }else{
-        
-        size = opt$reads_size 
-        
+
+        size = opt$reads_size
+
         }
-    
-    
-    
+
+
+
     tmp=foreach(
         variability=round(seq(-size,size,by = 2*size/(opt$coverage+1)))[(1:opt$coverage)+1],
     .packages = c('Biostrings', 'foreach', 'tidyverse')
 ) %do% {
-    
+
     #look for seeds
     if (opt$paired_ends) {
-        
+
         #initialize simulated reads
         position = position %>%
             filter(end - start > size)
-        
+
         simulated_reads_1 = foreach(i = 1:length(position$start),
                                     .combine = 'c') %do% {
                                         seq(position$start[i]+variability, position$end[i], by = size)
@@ -378,9 +378,9 @@ genome.Chromsizes = foreach(
         simulated_reads_2 = simulated_reads_1 %>%
             mutate(end = start + opt$fragment_size,
                    start= end - opt$reads_size)
-        
+
     } else{
-        
+
         position = position %>%
             filter(end - start > size)
         #initialize simulated reads
@@ -399,7 +399,7 @@ genome.Chromsizes = foreach(
         simulated_reads_2 = recover_and_mutate(simulated_reads = simulated_reads_2,
                                                Chr_reference = reference[Chr])
 
-        
+
         simulated_reads_2 = simulated_reads_2 %>%
             mutate(reads = rev_com(reads))
     } else{
@@ -407,7 +407,7 @@ genome.Chromsizes = foreach(
         simulated_reads = recover_and_mutate(simulated_reads = simulated_reads,
                                              Chr_reference = reference[Chr])
     }
-    
+
     if (opt$paired_ends) {
         #save fastq files
         reshape_and_save(
@@ -432,7 +432,7 @@ genome.Chromsizes = foreach(
             Chr=Chr,
             x = variability
         )
-        
+
     } else{
         #save fastq file
         reshape_and_save(
@@ -478,11 +478,11 @@ if(opt$paired_ends){
         ... = paste0('--phred33 --ignore-quals -p ', opt$cores),
         overwrite=TRUE
     )
-    
+
     # remove from hd simulated_reads.fq
     system(paste0('rm ',opt$output_dir, basename(opt$index),'_simulated_reads_1.fq'))
     system(paste0('rm ',opt$output_dir, basename(opt$index),'_simulated_reads_2.fq'))
-    
+
 }else{
     #merge files
     system(paste0('cat ',
@@ -491,7 +491,7 @@ if(opt$paired_ends){
                   basename(opt$index),
                   '_simulated_reads.fq'
     ))
-    
+
     system(paste0('rm ',opt$output_dir, basename(opt$index),'_*_simulated_reads.fq'))
     #align with bowtie2
     suppressMessages(bowtie2(
@@ -501,7 +501,7 @@ if(opt$paired_ends){
         ... = paste0('--phred33 --ignore-quals -p ', opt$cores),
         overwrite=TRUE
     ))
-    
+
     # remove from hd simulated_reads.fq
     system(paste0('rm ',opt$output_dir, basename(opt$index),'_simulated_reads.fq'))
 }
@@ -535,16 +535,16 @@ if(opt$paired_ends){
 }else{
     param <- ScanBamParam(what=c('rname','pos','mapq'),
                           flag=scanBamFlag(isUnmappedQuery = F))
-    
+
     bins =as.data.frame(scanBam(dir.bam,param=param))%>%
         filter(mapq >= 30)%>%
         mutate(read=1)%>%
         select('rname', 'pos', 'read')%>%
         `colnames<-`(c('chr', 'pos','read'))
-    
+
     #parameter used to estiamte mappability th
     theoretical_reads = opt$bin_size/opt$reads_size
-    
+
 }
 
 bins = foreach (Chr = genome.Chromsizes$chr,
@@ -626,34 +626,34 @@ bins=bins %>%
     mutate(type=ifelse(opt$paired_ends,'PE','SE'))
 
 if('black_list' %in% names(opt)){
-    
+
     #check if the file exists
     if(!file.exists(opt$black_list)){
         stop('Blacklist file does not exit')
-    }else if( nrow(
+    }else if( ncol(
         tryCatch(expr = read_tsv(opt$black_list,n_max = 0,col_types = col()),error= function(x) tibble())
     )==3){
         stop('Blacklist file does not have the right format')
     }
-    
-    
+
+
   bl=read_tsv(opt$black_list,col_names = c('chr','start','end'),col_types = cols(chr='c'))%>%
     makeGRangesFromDataFrame()
-  
+
   tbins=bins%>%makeGRangesFromDataFrame()
-  
+
   hits=findOverlaps(query = tbins, subject = bl)
   overlaps=pintersect(bl[subjectHits(hits)],tbins[queryHits(hits)])
   overlaps=overlaps[width(overlaps) > opt$reads_size]
   bins=overlaps%>%as_tibble()%>%rename(seqnames='chr')%>%
     dplyr::select(chr,start,end,hit)%>%
     right_join(bins, by = c("chr", "start", "end"))
-  
+
   bins=bins%>%
     mutate(mappability_th=ifelse(!is.na(hit),F,mappability_th))%>%
     dplyr::select(-hit)%>%
     arrange(chr,start)
-  
+
   }
 
 

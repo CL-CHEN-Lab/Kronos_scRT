@@ -98,7 +98,6 @@ suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 suppressPackageStartupMessages(library(doSNOW, quietly = TRUE))
 suppressPackageStartupMessages(library(Rsamtools, quietly = TRUE))
 suppressPackageStartupMessages(library(DNAcopy, quietly = TRUE))
-suppressPackageStartupMessages(library(gplots, quietly = TRUE))
 suppressPackageStartupMessages(library(MASS, quietly = TRUE))
 
 if (str_extract(opt$output_dir, '.$') != '/') {
