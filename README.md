@@ -11,7 +11,7 @@ A New R package containing a graphical user interface for Kronos is now availabl
 To test our software we generated sc-gDNA sequencing data from MCF7 (ER-positive breast cancer) cell line. In order to increase the number of cells in S-phase, cells were sorted before using the 10x genomics platform for single cell copy number variation. In this specific case, the reduction of the G1/G2 phase impaired the automatic identification of the S-phase. However, the user can set a threshold in order to manually select G1/G2 and S phase cells.
 
 <a href="https://github.com/CL-CHEN-Lab/Kronos_scRT/blob/master/Kronos_scRT_Tutorial.MD" title="Kronos scRT full tutorial">
-###Full Tutorial
+Full Tutorial
 </a>
 
 ### Cell cycle staging
