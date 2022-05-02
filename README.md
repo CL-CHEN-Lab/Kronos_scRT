@@ -3,11 +3,16 @@
 DNA replication is a fundamental process in all living organisms. If all of the origins of replication were activated at the same time in a single mammalian cell it would take about 30 minutes for complete genome replication to occur. However, in nature DNA replication actually takes several hours due to the need to coordinate with other processes such as chromatin 3D organization and transcription. The cell-type specific program that regulates the spatiotemporal progression of DNA replication is referred to as replication timing (RT). In recent years, advances in high-throughput single-cell (sc) sequencing techniques have made it possible to analyze the RT at the single-cell level enabling detection of cell-to-cell variability. This work aims to create a uniform computational framework to investigate scRT using large single-cell whole genome sequencing datasets based on single cell copy number variation (scCNV) detection. This pipeline can be used to analyze datasets from various experiments including classical scWGA (single-cell Whole Genome Amplification), 10x Genomics scCNV solution and scHiC (single cell High-throughput Chromosome conformation capture) from the unsorted cells or cells sorted to enrich for the S phase population. The framework described here allows to increase the number of cells used to analyze scRT by 10 fold (>1000 cells) compared to the current existing analysis(1,2). Potentially, this pipeline can also be combined with the analysis of single-cell RNA-seq, CpG methylation and chromatin accessibility to study the relation between expression, chromatin architecture and RT at the single-cell level.
 
 ### NEW
-Kronos scRT is now on bioRxiv: https://doi.org/10.1101/2021.09.01.458599
+Kronos scRT is now on Nature Communication: https://www.nature.com/articles/s41467-022-30043-x
+
+A New R package containing a graphical user interface for Kronos is now available <a href="https://github.com/CL-CHEN-Lab/User_interface_for_Kronos_scRT" title="User interface for Kronos scRT"> here </a>
 
 ### Case study
 To test our software we generated sc-gDNA sequencing data from MCF7 (ER-positive breast cancer) cell line. In order to increase the number of cells in S-phase, cells were sorted before using the 10x genomics platform for single cell copy number variation. In this specific case, the reduction of the G1/G2 phase impaired the automatic identification of the S-phase. However, the user can set a threshold in order to manually select G1/G2 and S phase cells.
 
+<a href="https://github.com/CL-CHEN-Lab/Kronos_scRT/blob/master/Kronos_scRT_Tutorial.MD" title="Kronos scRT full tutorial">
+###Full Tutoria
+</a>
 ### Cell cycle staging
 Kronos and Cell Ranger (10x Genomics) can calculate cell ploidy and variability inside a cell (fig 1A). These parameters can be used to identify the cell cycle stage of each cell. Both programs rely on the same function to calculate cell ploidy. This formula, introduces two biases. Firstly, it is not possible to distinguish between G1 and G2 cells that co-occupy the same area (Fig. 1 A red population). Secondly, the S phase is split in two: with the first part progresses normally, while the second part is approaching the G1/G2 population from the left side of the plot (Fig. 1 A green population). Kronos diagnostic calculates two parameters to correct S-phase populations. Preferentially, the program tries to reunite the S phase in a monomodal distribution in which the ploidy variability is maximized, when this is not possible, parameters are chosen in order to create a bimodal distribution with a minimized ploidy variability (Fig. 2 B). The User can as well manually set these parameters.
 
@@ -373,4 +378,4 @@ Please contact the authors for any further questions:
 
 If you use Kronos scRT in your study, please cite the following reference:
 
-Gnan S., Josephides J.M., Wu X., Spanguolo M., Saulebekova D., Bohec M., Baudrin L., Baulande S. and Chen C.L. (2021) Kronos scRT: a uniform framework for single-cell replication timing analysis. ***bioRxiv.*** https://doi.org/10.1101/2021.09.01.458599.
+Gnan S., Josephides J.M., Wu X., Spanguolo M., Saulebekova D., Bohec M., Baudrin L., Baulande S. and Chen C.L. (2021) Kronos scRT: a uniform framework for single-cell replication timing analysis. ***Nature Communications*** https://www.nature.com/articles/s41467-022-30043-x
