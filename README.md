@@ -65,6 +65,7 @@ Run the script
     annotate        Annotates sc variability files for Kronos compare TW
     compare TW      Compares variability from multiple experiments and/or over multiple regions
     population RT   Calculates population RT starting from single cell BAM files and Kronos diagnostic outputs
+    scPlots         scRT plots
     DRed            Performs Dimension Reduction using TSNE and UMAP
 
 --InstRpacks
@@ -76,226 +77,234 @@ Run the script
     ./Kronos fastqtoBAM [options]
     
     Options:
-    -l CHARACTER, --fastq_list=CHARACTER                A table formatted in the following way: sam_file_basename\tFastq_1\tFastq_2(optional for PE sequencing). Compressed files are not allowed. Alternative to --O/--T/-b
-	-O CHARACTER, --one=CHARACTER
-		Fastq files, for multiple files they have to be separated by a comma. Compressed files are not allowed.  Alternative to -l
-	-T CHARACTER, --two=CHARACTER
-		Fastq files (for paired ends), for multiple files they have to be separated by a comma. Compressed files are not allowed.  Alternative to -l
-    -b CHARACTER, --sam_file_basename=CHARACTER         Sam file name, for multiple files they have to be separated by a comma.  Alternative to -l
-    -i CHARACTER, --index=CHARACTER                     Bowtie 2 index
-    -c INTEGER, --cores=INTEGER                         Number of cores to use. [default= 3]
-    -o CHARACTER, --output_dir=CHARACTER                Output folder. [default= output/]
-    --path_to_trim_galore=CHARACTER                     Path to trim_galore
-    --path_to_cutadapt=CHARACTER                        Path to cutadapt
-    --path_to_java=CHARACTER                            Path to java
-    --path_to_picard=CHARACTER                          Path to picard
-    -h, --help                                          Show this help message and exit
+    -l CHARACTER, --fastq_list=CHARACTER                    A table formatted in the following way: sam_file_basename <TAB> Fastq_1 <TAB> Fastq_2(optional for PE sequencing). Compressed files are not allowed. Alternative to -O/-T/-b
+    -O CHARACTER, --one=CHARACTER                           Fastq files, for multiple files they have to be separated by a comma. Compressed files are not allowed.  Alternative to -l
+    -T CHARACTER, --two=CHARACTER                           Fastq files (for paired ends), for multiple files they have to be separated by a comma. Compressed files are not allowed.  Alternative to -l
+    -b CHARACTER, --sam_file_basename=CHARACTER             Sam file name, for multiple files they have to be separated by a comma.  Alternative to -l
+    -i CHARACTER, --index=CHARACTER                         Bowtie 2 index
+    -c INTEGER, --cores=INTEGER                             Number of cores to use. [default= 1]
+    -o CHARACTER, --output_dir=CHARACTER                    Output folder. [default= output]
+    --path_to_trim_galore=CHARACTER                         Path to trim_galore
+    --trim_galore_extra_option=CHARACTER                    Extra options for trim_galore
+    --path_to_cutadapt=CHARACTER                            Path to cutadapt
+    --path_to_java=CHARACTER                                Path to java
+    --path_to_picard=CHARACTER                              Path to picard
+    --keep_intermediate_files                               Keep trimmed fastq and sorted bam before depduplication
+    -h, --help                                              Show this help message and exit
 
 -- binning module
 
     ./Kronos binning [options]
 
     Options:
-    -R CHARACTER, --RefGenome=CHARACTER                 Fasta file of genome of interest
-    -c INTEGER, --cores=INTEGER                         Number of cores to use. [default= 3]
-    -s INTEGER, --reads_size=INTEGER                    Length of the simulated reads. [default= 40 bp]
-    -o CHARACTER, --output_dir=CHARACTER                Output folder. [default= output/]
-    -i CHARACTER, --index=CHARACTER                     Bowtie 2 index
-    --paired_ends                                       Generates paired ends reads [default: FALSE]
-    --insert_size=INTEGER                               Insert size if paired end option is used. [default: 200]
-    --bin_size=INTEGER                                  Bins size. [default= 20000 bp]
-    -d CHARACTER, --dir_indexed_bam=CHARACTER           If provided parameters will be automatically estimated from the data.
-    -u DOUBLE, --upper_mappability_th=DOUBLE            Maximum mappability for a bin to be considered in the analysis  [default= 1.5]
-    -l DOUBLE, --lower_mappability_th=DOUBLE            Minimum mappability for a bin to be considered in the analysis  [default= 0.8]
-    -B CHARACTER, --black_list=CHARACTER                Regions to ignore
-    -x CHARACTER, --coverage=CHARACTER                  Coverage for simulated genome. [default= 1x]
-    -e CHARACTER, --errorRate=CHARACTER                 Simulated sequencing error rate (%) [default= 0.1%]
-    -h, --help                                          Show this help message and exit
+    -R CHARACTER, --RefGenome=CHARACTER                     Fasta file of genome of interest
+    -c INTEGER, --cores=INTEGER                             Number of cores to use. [default= 3]
+    -s INTEGER, --reads_size=INTEGER                        Length of the simulated reads. [default= 40 bp]
+    -o CHARACTER, --output_dir=CHARACTER                    Output folder. [default= output]
+    -i CHARACTER, --index=CHARACTER                         Bowtie 2 index
+    --paired_ends                                           Generates paired ends reads [default: FALSE]
+    --fragment_size=INTEGER                                 Fragment size if paired end option is used. [default: 200]
+    --bin_size=CHARACTER                                    Bins size. [default= 20Kb ]
+    -d CHARACTER, --dir_indexed_bam=CHARACTER               If provided, parameters will be automatically estimated from the data.
+    -u DOUBLE, --upper_mappability_th=DOUBLE                Maximum mappability for a bin to be considered in the analysis  [default= 1.5]
+    -l DOUBLE, --lower_mappability_th=DOUBLE                Minimum mappability for a bin to be considered in the analysis  [default= 0.8]
+    -B CHARACTER, --black_list=CHARACTER                    Regions to ignore
+    -x CHARACTER, --coverage=CHARACTER                      Coverage for simulated genome. [default= 1x]
+    -e CHARACTER, --errorRate=CHARACTER                     Simulated sequencing error rate (%) [default= 0.1%]
+    --chr_prefix=CHARACTER                                  Chromosome prefix, if there is no prefix use none [default= chr]
+    --chr_range=CHARACTER                                   Chromosomes to consider in the analysis (example 1:5,8,15:18,X) [default= 1:22]
+    -h, --help                                              Show this help message and exit
     
 -- CNV module
 
     ./Kronos CNV [options]
 
     Options:
-    -D CHARACTER, --directory=CHARACTER                 Single cell Bamfiles directory
-    -B CHARACTER, --bins=CHARACTER                      File with bins produced by Kronos binning
-    -X, --keep_X                                        Keep X chromosomes [default= FALSE]
-    -Y, --keep_Y                                        Keep Y chromosome [default= FALSE]
-    -n DOUBLE, --min_n_reads=DOUBLE                     Min n of reads to keep a cell in the analysis [default= 2e+05]
-    -c INTEGER, --cores=INTEGER                         Number of cores to use. [default= 3]
-    -o CHARACTER, --output_dir=CHARACTER                Output folder. [default= output/]
-    -e CHARACTER, --ExpName=CHARACTER                   Experiment name. [default= Exp]
-    -p NUMERIC, --ploidy=NUMERIC                        User estimated ploidy (optional)
-    -m NUMERIC, --min_CNV_accepted=NUMERIC              Min mean CNV accepted as result. [default= 0]
-    -M NUMERIC, --max_CNV_accepted=NUMERIC              Max mean CNV accepted as result. [default= 8]
-    -h, --help                                          Show this help message and exit
-
+    -D CHARACTER, --directory=CHARACTER                     Single cell Bamfiles directory
+    -B CHARACTER, --bins=CHARACTER                          File with bins produced by Kronos binning
+    -n DOUBLE, --min_n_reads=DOUBLE                         Min n of reads to keep a cell in the analysis [default= 200000]
+    -c INTEGER, --cores=INTEGER                             Number of cores to use. [default= 3]
+    -o CHARACTER, --output_dir=CHARACTER                    Output folder. [default= output]
+    -e CHARACTER, --ExpName=CHARACTER                       Experiment name. [default= Exp]
+    -p NUMERIC, --ploidy=NUMERIC                            User estimated ploidy
+    -m NUMERIC, --mim_mean_CN_accepted=NUMERIC              Min mean CN accepted as result. [default= 2]
+    -M NUMERIC, --max_mean_CN_accepted=NUMERIC              Max mean CN accepted as result. [default= 8]
+    --chr_prefix=CHARACTER                                  Chromosome prefix, if there is no prefix use none [default= chr]
+    --chr_range=CHARACTER                                   Chromosomes to consider in the analysis (example 1:5,8,15:18,X) [default= 1:22]
+    -h, --help                                              Show this help message and exit 
+    
 -- 10xtoKronos module
 
     ./Kronos 10xtoKronos [options]
 
     Options:
-    -F CHARACTER, --file=CHARACTER                      Per cell stat file , if multiple files are provided they have to be separated by a comma
-    -T CHARACTER, --tracks=CHARACTER                    Tracks file,  if multiple files are provided they have to be separated by a comma
-    -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
-    -h, --help                                          Show this help message and exit
+    -F CHARACTER, --file=CHARACTER                          Per cell stat file , if multiple files are provided they have to be separated by a comma
+    -T CHARACTER, --tracks=CHARACTER                        Tracks file,  if multiple files are provided they have to be separated by a comma
+    -o CHARACTER, --out=CHARACTER                           Output directory [default= output]
+    -h, --help                                              Show this help message and exit
 
 -- WhoIsWho module
 
     ./Kronos WhoIsWho [options]
 
     Options:
-    -F CHARACTER, --file=CHARACTER                      Per cell stat file path
-    -W CHARACTER, --whoSwho=CHARACTER                   Who's who file path
-    -o CHARACTER, --out=CHARACTER                       Output directory [default= ./output]
-    -h, --help                                          Show this help message and exit
+    -F CHARACTER, --file=CHARACTER                          Per cell stat file path
+    -W CHARACTER, --whoSwho=CHARACTER                       Who's who file path ( tsv file with header: Cell <TAB> Phase)
+    -o CHARACTER, --out=CHARACTER                           Output directory [default= output]
+    -h, --help                                              Show this help message and exit
 
 -- diagnostic module
 
     ./Kronos diagnostic [options]
 
     Options:
-    -F CHARACTER, --file=CHARACTER                      Dataset file name
-    -o CHARACTER, --out=CHARACTER                       Output directory [default= ./output]
-    -b CHARACTER, --base_name=CHARACTER                 Base name for files names [default= exp]
-    -S DOUBLE, --threshold_Sphase=DOUBLE                Threshold to identify S-phase cells
-    -G DOUBLE, --threshold_G1G2phase=DOUBLE             Threshold to identify G1-phase cells. -S has to be selected and has to be bigger than -G
-    -f DOUBLE, --Sphase_first_part=DOUBLE               Correction parameter for the first part of the S-phase [0.95,1]
-    -s DOUBLE, --Sphase_second_part=DOUBLE              Correction parameter for the second part of the S-phase [0.5,0.55]
-    -c INTEGER, --cores=INTEGER                         Numbers of parallel jobs to run [default= 3] 
-    -m DOUBLE, --min_n_reads=DOUBLE                     Min n of reads per million per haploid genome to keep a cell in the analysis [default= 160]
-    -h, --help                                          Show this help message and exit
+    -F CHARACTER, --file=CHARACTER                          Dataset file name
+    -o CHARACTER, --out=CHARACTER                           Output directory [default= output]
+    -b CHARACTER, --base_name=CHARACTER                     Base name for files names [default= exp]
+    -C, --correct                                           If True diagnostic corrects the S-phase progression and returns a setting file [default= FALSE]
+    -S DOUBLE, --threshold_Sphase=DOUBLE                    Threshold to identify S-phase cells
+    -G DOUBLE, --threshold_G1G2phase=DOUBLE                 Threshold to identify G1-phase cells. -S has to be selected and has to be bigger than -G
+    -f DOUBLE, --Sphase_first_part=DOUBLE                   Correction parameter for the first part of the S-phase [0.95,1]
+    -s DOUBLE, --Sphase_second_part=DOUBLE                  Correction parameter for the second part of the S-phase [0.5,0.55]
+    -c INTEGER, --cores=INTEGER                             Numbers of parallel jobs to run [default= 3] 
+    -m DOUBLE, --min_n_reads=DOUBLE                         Min n of reads per million per haploid genome to keep a cell in the analysis [default= 160]
+    -h, --help                                              Show this help message and exit
 
 -- RT module
 
     ./Kronos RT [options]
 
     Options:
-    -K CHARACTER, --Kronos_conf_file=CHARACTER          Kronos setting file. If provided -F,-T,-S,-b and -g are ignored. Tab file containing: Per cell stat file /t tracks file /t settings file /t basename (optional) /t group (optional)
-    -F CHARACTER, --file=CHARACTER                      Per cell stat file , if multiple files are provided they have to be separated by a comma
-    -T CHARACTER, --tracks=CHARACTER                    Tracks file,  if multiple files are provided they have to be separated by a comma
-    -R CHARACTER, --referenceRT=CHARACTER               Reference RT min=Late, max=Early, only one reference is allowed
-    --ref_name=CHARACTER                                Name for the reference track [default= Reference]
-    -C CHARACTER, --chrSizes=CHARACTER                  Chromosome size file
-    -r CHARACTER, --region=CHARACTER                    Region to plot  chr:start-end (multiple regions can be separated by a comma) or a bed file can be provided
-
-    -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
-    -b CHARACTER, --base_name=CHARACTER                 Base name for files names [default= exp]
-    -f CHARACTER, --output_file_base_name=CHARACTER     Base name for the output file [default= out]
-    -g CHARACTER, --groups=CHARACTER                    Grouping names of multiple basenames [default= base_name]
-    -S CHARACTER, --settings_file=CHARACTER             File generated by Kronos diagnostic
-    -B INTEGER, --binsSize=INTEGER                      RT resolution [default= 500000] 
-    -k, --keepXY                                        Keep XY chromosomes in the analysis
-    -c INTEGER, --cores=INTEGER                         Numbers of parallel jobs to run [default= 3] 
-    -p, --plot                                          If selected prints some random regions, if -r is selected those regions are use to print RT [default= FALSE] 
-    --Var_against_reference                             Variability metrics are calculated using reference RT in addiction to the calculated one [default= FALSE] 
-    --min_correlation=DOUBLE                            Minimum correlation value between one cell and its best correlating cell for this cell to not be discarded [default= 0.25] 
-    -h, --help                                          Show this help message and exit
+    -K CHARACTER, --Kronos_conf_file=CHARACTER              Kronos setting file. If provided -F,-T,-S,-b and -g are ignored. Tab file containing: Per cell stat file <TAB> tracks file <TAB> settings file <TAB> basename (optional) <TAB> group (optional) 
+    -F CHARACTER, --file=CHARACTER                          Per cell stat file , if multiple files are provided they have to be separated by a comma
+    -T CHARACTER, --tracks=CHARACTER                        Tracks file,  if multiple files are provided they have to be separated by a comma
+    -R CHARACTER, --referenceRT=CHARACTER                   Reference RT min=Late, max=Early, only one reference is allowed
+    --ref_name=CHARACTER                                    Name for the reference track [default= Reference]
+    -C CHARACTER, --chrSizes=CHARACTER                      Chromosome size file
+    -r CHARACTER, --region=CHARACTER                        Region to plot  chr:start-end (multiple regions can be separated by a comma) or provided as a bed file
+    -o CHARACTER, --out=CHARACTER                           Output directory [default= output]
+    -b CHARACTER, --base_name=CHARACTER                     Base name for files names [default= exp]
+    -f CHARACTER, --output_file_base_name=CHARACTER         Base name for the output file [default= out]
+    -g CHARACTER, --groups=CHARACTER                        Grouping names of multiple basenames [default= base_name]
+    -S CHARACTER, --settings_file=CHARACTER                 File generated by Kronos diagnostic
+    -B CHARACTER, --binsSize=CHARACTER                      RT resolution (supports units) [default= 500Kb] 
+    -c INTEGER, --cores=INTEGER                             Numbers of parallel jobs to run [default= 3]
+    -N INTEGER, --N_of_RT_groups=INTEGER                    Number of RT groups: either 2,3 or 5 [default= 2]
+    -p, --plot                                              If selected prints some random regions, if -r is selected those regions are use to print RT [default= FALSE] 
+    --Var_against_reference                                 Variability metrics are calculated using reference RT in addiction to the calculated one [default= FALSE] 
+    --disable_symmetry                                      If symmetry is disabled, all cells will be used to calculate the scRT [default= FALSE]
+    --min_correlation=DOUBLE                                Minimum correlation value between one cell and its best correlating cell for this cell to not be discarded [default= 0.25]
+    --extract_G1_G2_cells                                   Extract G1/G2 single cells copy number file [default= FALSE]
+    --chr_prefix=CHARACTER                                  Chromosome prefix, if there is no prefix use none [default= chr]
+    --chr_range=CHARACTER                                   Chromosomes to consider in the analysis (example 1:5,8,15:18,X) [default= 1:22]
+    -h, --help                                              Show this help message and exit
 
 -- Corr module
 
     ./Kronos Corr [options]
 
     Options:
-    -F CHARACTER, --File=CHARACTER                      Replication timing files separated by a comma. Format: chr <TAB> start <TAB> end <TAB> group
-    -s CHARACTER, --sort=CHARACTER                      Group names orders
-    -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
-    -f CHARACTER, --output_file_base_name=CHARACTER     Base name for the output file [default= out]
-    -h, --help                                          Show this help message and exit
+    -F CHARACTER, --File=CHARACTER                          Replication timing files separated by a comma. Format: chr <TAB> start <TAB> end <TAB> group
+    -s CHARACTER, --sort=CHARACTER                          Group names orders
+    -o CHARACTER, --out=CHARACTER                           Output directory [default= output]
+    -f CHARACTER, --output_file_base_name=CHARACTER         Base name for the output file [default= out]
+    -h, --help                                              Show this help message and exit
         
 -- compare  RT module
 
     ./Kronos compare RT [options]
 
     Options:
-    -R CHARACTER, --RTs=CHARACTER                       RT files with same binning
-    -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
-    -D DOUBLE, --deltaRT_threshold=DOUBLE               DeltaRT threshold to define changes [default= 0.3]
-    -C, --CrossingRT                                    RT has to cross the 0.5 line to be considered as changing [default= TRUE]
-    -n INTEGER, --n_clusters=INTEGER                    Number of wanted clusters [default= Auto]
-    -f CHARACTER, --group_filter=CHARACTER              Filter out unwanted samples for RT files
-    -h, --help                                          Show this help message and exit
+    -R CHARACTER, --RTs=CHARACTER                           RT files with same binning
+    -o CHARACTER, --out=CHARACTER                           Output directory [default= output]
+    -D DOUBLE, --deltaRT_threshold=DOUBLE                   DeltaRT threshold to define changes [default= 0.3]
+    -C, --CrossingRT                                        RT has to cross the 0.5 line to be considered as changing [default= TRUE]
+    -n INTEGER, --n_clusters=INTEGER                        Number of wanted clusters [default= Auto]
+    -f CHARACTER, --group_filter=CHARACTER                  Filter out unwanted samples for RT files
+    -h, --help                                              Show this help message and exit
 
 -- annotate module
    
     ./Kronos annotate [options]
 
     Options:
-    -F CHARACTER, --file=CHARACTER                      Variability file produced by Kronos RT, if multiple files are provided they have to be separated by a comma
-    -R CHARACTER, --Annotation=CHARACTER                Genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header.
-    -r CHARACTER, --Annotation2=CHARACTER               Second genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header.
-    -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
-    -f CHARACTER, --output_file_base_name=CHARACTER     Base name for the output file [default= out]
-    -m NUMERIC, --min_overlap=NUMERIC                   Min overlap to apply the annotation in bp [default= 100]
-    -h, --help                                          Show this help message and exit
+    -F CHARACTER, --file=CHARACTER                          Variability file produced by Kronos RT, if multiple files are provided they have to be separated by a comma
+    -R CHARACTER, --Annotation=CHARACTER                    Genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header.
+    -r CHARACTER, --Annotation2=CHARACTER                   Second genome annotation. chr<TAB>start<TAB>end<TAB>annotation. No header.
+    -o CHARACTER, --out=CHARACTER                           Output directory [default= output]
+    -f CHARACTER, --output_file_base_name=CHARACTER         Base name for the output file [default= out]
+    -m NUMERIC, --min_overlap=NUMERIC                       Min overlap to apply the annotation in bp [default= 100]
+    -h, --help                                              Show this help message and exit
 
 -- compare  TW  module
 
     ./Kronos compare TW [options]
 
     Options:
-    -F CHARACTER, --file=CHARACTER                      Variability file with groups produced by Kronos annotate, if multiple files are provided they have to be separated by a comma
-    -o CHARACTER, --out=CHARACTER                       Output directory [default= output]
-    -f CHARACTER, --output_file_base_name=CHARACTER     Base name for the output file [default= out]
-    -p, --pval                                          Bootstrap pValue for the difference in TW between groups (it works only with one annotation) [default= FALSE]
-    -a CHARACTER, --padj_method=CHARACTER               holm, hochberg, hommel, bonferroni, BY (Benjamini & Yekutieli ),fdr (false discovery rate),none [default= none]
-    -A NUMERIC, --Annotation_to_use_for_pval=NUMERIC    Annotatation to use to calculate pvalues (1=Cat1,2=Cat2,3=Cat1_Cat2) [default= 1]
-    -B, --between_groups                                If selected pvalues are calculated between samples instead of within samples.
-    -G CHARACTER, --pairs_to_test=CHARACTER             Pairs of groups for which to calculate the pvalue. Groups in a pair have to be separeted by a comma while pairs are separated by a semicolun eg. A,B;A,C
-    -H CHARACTER, --pval_alternative_hypotesis=CHARACTER greater, lower, two.sided. This option is active only if the option G is porided [default= two.sided]
-    -i NUMERIC, --number_of_iterations=NUMERIC          Number of iterations to calculate boostrap [default= 10000]
-    -c NUMERIC, --cores=NUMERIC                         Number of for bootstrapping [default= 3]
-    -h, --help                                          Show this help message and exit
+    -F CHARACTER, --file=CHARACTER                          Variability file with groups produced by Kronos annotate, if multiple files are provided they have to be separated by a comma
+    -o CHARACTER, --out=CHARACTER                           Output directory [default= output]
+    -f CHARACTER, --output_file_base_name=CHARACTER         Base name for the output file [default= out]
+    -p, --pval                                              Bootstrap pValue for the difference in TW between groups (it works only with one annotation) [default= FALSE]
+    -a CHARACTER, --padj_method=CHARACTER                   holm, hochberg, hommel, bonferroni, BY (Benjamini & Yekutieli ),fdr (false discovery rate),none [default= none]
+    -A NUMERIC, --Annotation_to_use_for_pval=NUMERIC        Annotation to use to calculate pvalues (1=Cat1,2=Cat2,3=Cat1_Cat2) [default= 1]
+    -B, --between_groups                                    If selected pvalues are calculated between samples instead of within samples.
+    -G CHARACTER, --pairs_to_test=CHARACTER                 Pairs of groups for which to calculate the pvalue. Groups in a pair have to be separated by a comma while pairs are separated by a semicolon e.g. A,B;A,C
+    -H CHARACTER, --pval_alternative_hypotesis=CHARACTER    greater, lower, two.sided. This option is active only if the option G is provided [default= two.sided]
+    -i NUMERIC, --number_of_iterations=NUMERIC              Number of iterations to calculate bootstrap [default= 10000]
+    -c NUMERIC, --cores=NUMERIC                             Number of cores for bootstrapping [default= 3]
+    -h, --help                                              Show this help message and exit
 
 -- Kronos population RT module
 
     ./Kronos population RT [options]
     
     Options:
-    -F CHARACTER, --file=CHARACTER                 Per cell stat file, to merge multiple runs separate directories with a comma
-    -S CHARACTER, --settings_file=CHARACTER        File generated by Kronos diagnostic, to merge multiple runs separate directories with a comma
-    -D CHARACTER, --directory=CHARACTER            Single cell Bamfiles directory, to merge multiple runs separate directories with a comma
-    -o CHARACTER, --out=CHARACTER                  Output directory [default= output]
-    -b CHARACTER, --base_name=CHARACTER            Base name for files names [default= exp]
-    -X, --keep_X                                   Keep X chromosomes. [default= FALSE]
-    -Y, --keep_Y                                   Keep Y chromosome. [default= FALSE]
-    -c INTEGER, --cores=INTEGER                    Numbers of parallel jobs to run [default= 3] 
-    -R INTEGER, --bin_size=INTEGER                 Bins size in bp,multiple bin size can be provided separated by a comma. [default= 50Kb]
-    -C CHARACTER, --chrSizes=CHARACTER             Chromosome size file
-    -B CHARACTER, --black_list=CHARACTER           Regions to ignore
-    -h, --help                                     Show this help message and exit
+    -F CHARACTER, --file=CHARACTER                          Per cell stat file, to merge multiple runs separate directories with a comma
+    -S CHARACTER, --settings_file=CHARACTER                 File generated by Kronos diagnostic, to merge multiple runs separate directories with a comma
+    -D CHARACTER, --directory=CHARACTER                     Single cell Bamfiles directory, to merge multiple runs separate directories with a comma
+    -o CHARACTER, --out=CHARACTER                           Output directory [default= output]
+    -b CHARACTER, --base_name=CHARACTER                     Base name for files names [default= exp]
+    -c INTEGER, --cores=INTEGER                             Numbers of parallel jobs to run [default= 3] 
+    -R INTEGER, --bin_size=INTEGER                          Bins size in bp,multiple bin size can be provided separated by a comma. [default= 50Kb]
+    -C CHARACTER, --chrSizes=CHARACTER                      Chromosome size file
+    -B CHARACTER, --black_list=CHARACTER                    Regions to ignore
+    --chr_prefix=CHARACTER                                  Chromosome prefix, if there is no prefix use none [default= chr]
+    --chr_range=CHARACTER                                   Chromosomes to consider in the analysis (example 1:5,8,15:18,X) [default= 1:22]
+    -h, --help                                              Show this help message and exitShow this help message and exit
 
 -- Kronos scPlots module
 
     ./Kronos scPlots [options]
 
     Options:
-    -L CHARACTER, --List=CHARACTER                  A Tab separated file containing in each column scRT_Tracks and scCNV files paths. Alternative to -R,-T and -C options.
-    -R CHARACTER, --scRT_Tracks=CHARACTER           *calculated_replication_timing* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.  Alternative to -L option.
-    -C CHARACTER, --scCNV=CHARACTER                 *single_cells_CNV* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.  Alternative to -L option.
-    -s CHARACTER, --order=CHARACTER                 Basenames separated by a comma in the desired order for plotting.
-    --CNV_values=CHARACTER                          What type of date to plot for the single cell tracks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells) or 'all'= one file per option) [default= B]
-    -r CHARACTER, --region=CHARACTER                Region to plot  chr:start-end (multiple regions can be separated by a comma) or provided as a bed file
-    -o CHARACTER, --out=CHARACTER                   Output directory [default= output]
-    -f CHARACTER, --output_file_base_name=CHARACTER Base name for the output file [default= out]
-    -h, --help                                      Show this help message and exit
+    -L CHARACTER, --List=CHARACTER                          A Tab separated file containing in each column scRT_Tracks and scCNV files paths. Alternative to -R and -C options.
+    -R CHARACTER, --scRT_Tracks=CHARACTER                   *calculated_replication_timing* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.  Alternative to -L option.
+    -C CHARACTER, --scCNV=CHARACTER                         *single_cells_CNV* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.  Alternative to -L option.
+    -E CHARACTER, --extra_RT_track=CHARACTER                A reference RT track.
+    --extra_RT_name=CHARACTER                               Name for the reference track [default= Reference]
+    -s CHARACTER, --order=CHARACTER                         Groups separated by a comma in the desired order for plotting.
+    --CNV_values=CHARACTER                                  What type of data to plot for the single cell tracks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells) or 'all'= one file per option) [default= B]
+    -r CHARACTER, --region=CHARACTER                        Region to plot  chr:start-end (multiple regions can be separated by a comma) or provided as a bed file
+    -o CHARACTER, --out=CHARACTER                           Output directory [default= output]
+    -f CHARACTER, --output_file_base_name=CHARACTER         Base name for the output file [default= out]
+    -h, --help                                              Show this help message and exit
     
 -- Kronos DRed module
 
     ./Kronos DRed [options]
     Options:
-    -C CHARACTER, --scCNV=CHARACTER                 *single_cells_CNV* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.
-    --CNV_values=CHARACTER                          What type of date to plot for the sigle cell traks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells)) [default= B]
-    --per_Chr                                       Calculate TSNE/UMAP on each chromosome
-    -o CHARACTER, --out=CHARACTER                   Output directory [default= output]
-    -f CHARACTER, --output_file_base_name=CHARACTER Base name for the output file [default= out]
-    -c INTEGER, --cores=INTEGER                     Numbers of cores to use [default= 3]
-    -X, --keep_X                                    Keep X chromosomes. [default= FALSE]
-    -Y, --keep_Y                                    Keep Y chromosome. [default= FALSE]
-    -s INTEGER, --seed=INTEGER                      Set seed for reproducibility [default= Current Date]
-    -U, --UMAP                                      Skip t-SNE, only plot UMAP
-    -T, --TSNE                                      Skip UMAP, only plot t-SNE
-    -h, --help                                      Show this help message and exit
+    -C CHARACTER, --scCNV=CHARACTER                         *single_cells_CNV* file(s) created by Kronos RT. If multiple files are provided they have to be separated by a comma.
+    --CNV_values=CHARACTER                                  What type of data to plot for the single cell traks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells)) [default= B]
+    --per_Chr                                               Calculate TSNE/UMAP on each chromosome
+    -o CHARACTER, --out=CHARACTER                           Output directory [default= output]
+    -f CHARACTER, --output_file_base_name=CHARACTER         Base name for the output file [default= out]
+    -c INTEGER, --cores=INTEGER                             Number of cores to use [default= 3]
+    -s INTEGER, --seed=INTEGER                              Set seed for reproducibility (optional).
+    -U, --UMAP                                              Skip t-SNE, only plot UMAP.
+    -T, --TSNE                                              Skip UMAP, only plot t-SNE.
+    --chr_prefix=CHARACTER                                  Chromosome prefix, if there is no prefix use none [default= chr]
+    --chr_range=CHARACTER                                   Chromosomes to consider in the analysis (example 1:5,8,15:18,X) [default= 1:22]
+    -h, --help                                              Show this help message and exit
 
 ### Requirements
     Programs:
