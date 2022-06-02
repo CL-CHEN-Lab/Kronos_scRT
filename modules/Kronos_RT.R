@@ -1,9 +1,10 @@
-#!/usr/local/bin/Rscript
 #parse input
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
-options(stringsAsFactors = FALSE)
-options(warn = 1, scipen = 999)
+options(stringsAsFactors = FALSE,
+        dplyr.summarise.inform=FALSE,
+        warn = 1,
+        scipen = 999)
 
 option_list = list(
     make_option(
@@ -51,7 +52,7 @@ option_list = list(
         c("-r", "--region"),
         type = "character",
         default = NULL,
-        help = "Region to plot  chr:start-end (multiple regins can be separated by a comma) or provided as a bed file",
+        help = "Region to plot  chr:start-end (multiple regions can be separated by a comma) or provided as a bed file",
         metavar = "character"
     ),
     make_option(
@@ -113,7 +114,7 @@ option_list = list(
         type = "logical",
         default = F,
         action = "store_true",
-        help = "If selected prints some randome regins, if -r is selected those regins are use to print RT [default= %default] ",
+        help = "If selected prints some random regions, if -r is selected those regions are use to print RT [default= %default] ",
         metavar = "logical"
     ),
     make_option(
@@ -121,7 +122,7 @@ option_list = list(
         type = "logical",
         default = F,
         action = "store_true",
-        help = "Variability metrics are calculated usign reference RT in addiction to the calculated one [default= %default] ",
+        help = "Variability metrics are calculated using reference RT in addiction to the calculated one [default= %default] ",
         metavar = "logical"
     ),
     make_option(
@@ -144,7 +145,7 @@ option_list = list(
         type = "logical",
         default = F,
         action = "store_true",
-        help = "Extract G1/G2 single cells copy numebr file [default= %default]",
+        help = "Extract G1/G2 single cells copy number file [default= %default]",
         metavar = "logical"
     ),
     make_option(
@@ -187,11 +188,11 @@ theme_set(theme_bw())
 
 #check inputs
 if('Kronos_conf_file' %in% names(opt)) {
-    
+
     if(!file.exists(opt$Kronos_conf_file)){
         stop('Provided setting file does not exist')
     }
-    
+
     settings=tryCatch(expr = read_tsv(opt$Kronos_conf_file,col_names = c('file','traks','settings','basename','groups'),col_types = cols())%>%
                           mutate(
                               basename=ifelse(is.na(basename),paste0('exp',row_number()),basename),
@@ -207,49 +208,49 @@ if('Kronos_conf_file' %in% names(opt)) {
                                   ))
                           warning('missing basenames and groups were replaced with default parameters')
                           return(tmp)})
-    
+
     #reformat files
     opt$file = settings$file
-    
+
     opt$settings_file = settings$settings
-    
+
     opt$tracks = settings$traks
-    
+
     opt$base_name = settings$basename
-    
+
     opt$groups = settings$groups
-    
+
 } else{
-    
+
     if (!'file' %in% names(opt)) {
         stop("Per cell stat file or Kronos setting file must be provided. See script usage (--help)")
     }
-    
+
     if (!'tracks' %in% names(opt)) {
         stop("File containing cells CNV or Kronos setting file must be provided. See script usage (--help)")
     }
-    
+
     if (!'settings_file' %in% names(opt)) {
         stop("File containing settings sizes must be provided. See script usage (--help)")
     }
-    
+
     if (!'groups' %in% names(opt)) {
         opt$groups = opt$base_name
     }
-    
+
     #reformat files
     opt$file = str_split(opt$file, ',')[[1]]
-    
+
     opt$settings_file = str_split(opt$settings_file, ',')[[1]]
-    
+
     opt$tracks = str_split(opt$tracks, ',')[[1]]
-    
+
     opt$base_name = str_split(opt$base_name, ',')[[1]]
-    
+
     opt$groups = str_split(opt$groups, ',')[[1]]
-    
-    
-}    
+
+
+}
 
 if (!'chrSizes' %in% names(opt)) {
     stop("File containing Chromosomes sizes must be provided. See script usage (--help)")
@@ -268,7 +269,7 @@ does_exist_right_format = Vectorize(function(File, delim = '\t', columns_to_chec
     if (!file.exists(File)) {
         return(paste(File, 'does not exist'))
     } else{
-        # if columns_to_check is numeric check the number of colums
+        # if columns_to_check is numeric check the number of columns
         if(is.numeric(columns_to_check)){
             if (ncol(tryCatch(
                 expr =  read_delim(
@@ -284,8 +285,8 @@ does_exist_right_format = Vectorize(function(File, delim = '\t', columns_to_chec
             } else{
                 return('')
             }
-        
-        # if columns_to_check is not numeric check columns names    
+
+        # if columns_to_check is not numeric check columns names
         }else{
         #checks if it has the right format
         if (!all(columns_to_check %in% colnames(tryCatch(
@@ -304,10 +305,10 @@ does_exist_right_format = Vectorize(function(File, delim = '\t', columns_to_chec
         }
     }
     }
-    
+
 }, vectorize.args = 'File')
 
-#check per cell files 
+#check per cell files
 results=paste(does_exist_right_format(File=opt$file,delim = ',',columns_to_check=c('Cell',
                                                                      'normalized_dimapd',
                                                                      'mean_ploidy',
@@ -320,7 +321,7 @@ if(results!='') {
     stop(results)
 }
 
-#check tracks files 
+#check tracks files
 results=paste(does_exist_right_format(File=opt$tracks,delim = '\t',columns_to_check=c('Cell',
                                                                                   'chr',
                                                                                   'start',
@@ -331,7 +332,8 @@ results=paste(does_exist_right_format(File=opt$tracks,delim = '\t',columns_to_ch
 if(results!='') {
     stop(results)
 }
-#check settings files 
+
+#check settings files
 results=paste(does_exist_right_format(File=opt$settings_file,delim = '\t',columns_to_check=c('threshold_Sphase',
                                                                                      'threshold_G1G2phase',
                                                                                      'Sphase_first_part',
@@ -352,13 +354,13 @@ if(results!='') {
 
 #check reference file if provided
 if ('referenceRT' %in% names(opt)) {
-    
+
     results=paste(does_exist_right_format(File=opt$referenceRT,delim = '\t',columns_to_check=4,
                                          message = ',provided as a reference RT file, does not have the right format'),collapse = '')
-    
+
     if(results!='') {
         stop(results)
-    }   
+    }
 }
 
 # convert binsize to numeric
@@ -388,12 +390,9 @@ if (grepl(x = extract_unit, pattern =  '[0-9][0-9]')) {
 }
 
 #create directory
-if (str_extract(opt$out, '.$') != '/') {
-    opt$out = paste0(opt$out, '/')
+if(!dir.exists(opt$out)){
+  dir.create(opt$out,recursive = T)
 }
-
-system(paste0('mkdir -p ', opt$out))
-
 
 # check inputs
 if (length(opt$tracks) != length(opt$file)) {
@@ -468,7 +467,7 @@ data <-
         )
     }
 
-#filter data with too little reads per megabase 
+#filter data with too little reads per megabase
 data = data %>% filter(coverage_per_1Mbp >= RPM_TH)
 
 #load tracks
@@ -564,7 +563,7 @@ p = data %>%
         values = c(
             'G1/G2-phase cells' = "#005095",
             'S-phase cells' = "#78bd3e",
-            'unknown cells' = "#dfbd31"  
+            'unknown cells' = "#dfbd31"
         )
     ) +
     theme(legend.position = 'top', legend.title = element_blank()) +
@@ -574,7 +573,7 @@ p = data %>%
 
 suppressMessages(ggsave(
     p,
-    filename = paste0(opt$out, '/', opt$output_file_base_name, '_plot.pdf')
+    filename = paste0(file.path(opt$out, opt$output_file_base_name), '_plot.pdf')
 ))
 
 # correct mean ploidy late S phase
@@ -601,7 +600,7 @@ p = data %>%
         values = c(
             'G1/G2-phase cells' = "#005095",
             'S-phase cells' = "#78bd3e",
-            'unknown cells' = "#dfbd31"  
+            'unknown cells' = "#dfbd31"
         )
     ) +
     theme(legend.position = 'top', legend.title = element_blank()) +
@@ -611,10 +610,9 @@ p = data %>%
 
 suppressMessages(ggsave(
     p,
-    filename = paste0(
+    filename = paste0(file.path(
         opt$out,
-        '/',
-        opt$output_file_base_name,
+        opt$output_file_base_name),
         '_plot_sphase_corrected.pdf'
     )
 ))
@@ -648,11 +646,11 @@ bins = bins %>%
 
 #rebin data
 Rebin<- function(PerCell,scCN,Bins,Sphase=NULL) {
-    
+
     if(!is.logical(Sphase)){
         stop('Sphase must be set as True or False')
     }
-    
+
     if(Sphase){
         selected_data = PerCell %>%
             dplyr::filter(Type == 'S-phase cells') %>%
@@ -677,7 +675,7 @@ Rebin<- function(PerCell,scCN,Bins,Sphase=NULL) {
                           group)
 
     }
-    
+
     scCN = scCN%>%
         dplyr::inner_join(selected_data, by = c('Cell', 'basename', 'group')) %>%
         dplyr::mutate(
@@ -695,10 +693,10 @@ Rebin<- function(PerCell,scCN,Bins,Sphase=NULL) {
             end.field = 'end',
             keep.extra.columns = T
         )
-    
+
     #calculate median CN across a bin
     hits = IRanges::findOverlaps(Bins, scCN)
-    
+
     #recover info
     scCN = cbind(
         dplyr::as_tibble(Bins[S4Vectors::queryHits(hits)]) %>% dplyr::select(seqnames, start, end) %>%
@@ -712,7 +710,7 @@ Rebin<- function(PerCell,scCN,Bins,Sphase=NULL) {
             na.rm = T
         )) %>%
         dplyr::ungroup()
-    
+
     return(scCN)
 }
 
@@ -738,9 +736,9 @@ backgroud_smoothed=G1G2_smoothed%>%
     group_by(basename, group, chr, start, end)%>%
     summarise(background=median(CN))
 
-# binarizes data into Replicated or not replicated bins
+# binarize data into Replicated or not replicated bins
 Replication_state = function(Samples, background, chr_list,cores=3){
-    
+
     cl <- makeCluster(cores)
     registerDoSNOW(cl)
     #merge signal and bg and calculate their ratio
@@ -752,8 +750,8 @@ Replication_state = function(Samples, background, chr_list,cores=3){
         mutate(CN_bg = log2(CN / background)) %>%
         drop_na() %>%
         filter(is.finite(CN_bg))
-    
-    # identify threshold that minimazes the difference of the real data with a binary state (1 or 2)
+
+    # identify threshold that minimizes the difference of the real data with a binary state (1 or 2)
     selecte_th = foreach(
         line = unique(Samples$basename),
         .combine = 'rbind',
@@ -761,10 +759,10 @@ Replication_state = function(Samples, background, chr_list,cores=3){
     ) %dopar% {
         sub_sig = Samples %>%
             filter(basename == line)
-        
-        #identify range within looking for a CNV treshold to define replicated and not replicated values
+
+        #identify range within looking for a CNV threshold to define replicated and not replicated values
         range = seq(0, 1, 0.01)
-        
+
         th_temp = foreach(i = range,
                           .combine = 'rbind',
                           .packages = 'tidyverse') %do% {
@@ -773,7 +771,7 @@ Replication_state = function(Samples, background, chr_list,cores=3){
                                          Error = (Rep - CN_bg) ^ 2) %>%
                                   group_by(Cell, index, basename, group)  %>%
                                   summarise(summary = sum(Error))
-                              
+
                               data.frame(
                                   th = i,
                                   basename = summary$basename,
@@ -783,19 +781,19 @@ Replication_state = function(Samples, background, chr_list,cores=3){
                           }
         th_temp
     }
-    
+
     selecte_th = selecte_th %>%
         group_by(index, basename) %>%
         filter(sum_error == min(sum_error)) %>%
         summarise(th = min(th)) %>%
         ungroup()
-    
+
     # mark replicated bins
     Samples = Samples %>%
         inner_join(selecte_th, by = c("index", "basename")) %>%
         mutate(Rep = ifelse(CN_bg >= th, T, F))
-    
-    #identify new distribution in the S phase based the ammount of replicated bins
+
+    #identify new distribution in the S phase based on the amount of replicated bins
     new_index_list = Samples %>%
         group_by(Cell, index, basename, group) %>%
         summarise(PercentageReplication = mean(Rep)) %>%
@@ -804,14 +802,14 @@ Replication_state = function(Samples, background, chr_list,cores=3){
         group_by(group) %>%
         mutate(newIndex = 1:n()) %>%
         dplyr::select(oldIndex = index, newIndex, Cell, basename, group,PercentageReplication)
-    
+
     Samples = Samples %>%
         inner_join(new_index_list,
                    by = c('Cell', 'index' = 'oldIndex', 'basename', 'group'))
-    
+
     stopCluster(cl)
-    
-    
+
+
     return(Samples)
 }
 
@@ -820,7 +818,7 @@ if(opt$extract_G1_G2_cells){
     G1G2_smoothed = Replication_state(Samples = G1G2_smoothed,
                                       background = backgroud_smoothed,
                                       chr_list = chr_list,cores = opt$cores)
-        
+
   #write results
     G1G2_smoothed%>%
         dplyr::select(chr,
@@ -837,10 +835,9 @@ if(opt$extract_G1_G2_cells){
                       group,
                       newIndex)%>%
         write_delim(
-            file = paste0(
+            file = paste0(file.path(
                 opt$out,
-                '/',
-                opt$output_file_base_name,
+                opt$output_file_base_name),
                 '_G1_G2_single_cells_CNV_',
                 opt$binsSize,
                 '.tsv'
@@ -848,7 +845,7 @@ if(opt$extract_G1_G2_cells){
             delim = '\t',
             col_names = T
         )
-    
+
 }
 #free some space
 rm('G1G2_smoothed')
@@ -863,9 +860,9 @@ if ('referenceRT' %in% names(opt)) {
             end.field = 'end',
             keep.extra.columns = T
         )
-    
+
     hits = findOverlaps(bins, Reference_RT)
-    
+
     Reference_RT = cbind(
         as_tibble(bins[queryHits(hits)]) %>% dplyr::select(seqnames, start, end) %>%
             `colnames<-`(c('chr', 'start', 'end')),
@@ -878,16 +875,15 @@ if ('referenceRT' %in% names(opt)) {
         mutate(chr = factor(x =  chr, levels = chr_list),
                RT = (RT - min(RT)) / (max(RT) - min(RT))) %>%
         ungroup()
-    
-    
+
+
     #write output
     write_delim(
         x = Reference_RT%>%
             mutate(group=opt$ref_name),
-        file = paste0(
+        file = paste0(file.path(
             opt$out,
-            '/',
-            opt$output_file_base_name,
+            opt$output_file_base_name),
             '_reference_replication_timing_',
             opt$binsSize,
             '.tsv'
@@ -895,7 +891,7 @@ if ('referenceRT' %in% names(opt)) {
         delim = '\t',
         col_names = T
     )
-    
+
     rm('hits')
 }
 
@@ -919,15 +915,14 @@ plot = signal_smoothed %>%
 
 suppressMessages(ggsave(
     plot,
-    filename = paste0(
+    filename = paste0(file.path(
         opt$out,
-        '/',
-        opt$output_file_base_name,
+        opt$output_file_base_name),
         '_percentage_of_replicating_cells.pdf'
     )
 ))
 
-#matrix for the correlation
+#matrix for correlation
 signal_smoothed = signal_smoothed %>%
     ungroup() %>%
     arrange(group, newIndex) %>%
@@ -942,7 +937,7 @@ mat = signal_smoothed %>%
     filter(complete.cases(.)) %>%
     as.matrix()
 
-#correlation similarity distance
+#correlation similarity distances
 results = 1-as.matrix(dist.binary(t(mat),method = 2,diag = T,upper = T))
 basenames = str_remove(colnames(mat), ' _ [0-9]{1,10}$')
 Index = colnames(mat)
@@ -954,25 +949,23 @@ for (i in 1:length(unique(basename_n))) {
 
 #write matrix and plot heatmap before filtering
 saveRDS(object = results,
-        file = paste0(
+        file = paste0(file.path(
             opt$out,
-            '/',
-            opt$output_file_base_name,
+            opt$output_file_base_name),
             '_correlation_per_cell_before_filtering.rds'
         )
 )
 
-#prepare color patterns
+#prepare colour patterns
 selcol <- colorRampPalette(brewer.pal(12, "Set3"))
 color = colorRampPalette(colors = c("#00204DFF","#233E6CFF","#575C6DFF","#7C7B78FF","#A69D75FF","#D3C164FF","#FFEA46FF"))
 
 color_basebanes = selcol(length(unique(basename_n)))
 
 jpeg(
-    paste0(
+    paste0(file.path(
         opt$out,
-        '/',
-        opt$output_file_base_name,
+        opt$output_file_base_name),
         '_correlation_plot_per_cell_before_filter.jpg'
     )
 )
@@ -995,7 +988,7 @@ heatmap.2(
 
 invisible(dev.off())
 
-#filter cells that do not correlate
+#filter out cells that do not correlate
 
 to_keep = foreach(i = 1:length(unique(basename_n))) %do% {
     sub_mat = results[basename_n == i, basename_n == i]
@@ -1009,10 +1002,9 @@ basename_n = basename_n[to_keep]
 Index = Index[to_keep]
 
 saveRDS(object = results,
-        file = paste0(
+        file = paste0(file.path(
             opt$out,
-            '/',
-            opt$output_file_base_name,
+            opt$output_file_base_name),
             '_correlation_per_cell_after_filtering.rds'
         )
 )
@@ -1020,10 +1012,9 @@ saveRDS(object = results,
 color_basebanes = selcol(length(unique(basename_n)))
 
 jpeg(
-    paste0(
+    paste0(file.path(
         opt$out,
-        '/',
-        opt$output_file_base_name,
+        opt$output_file_base_name),
         '_correlation_plot_per_cell_after_filter.jpg'
     )
 )
@@ -1046,10 +1037,10 @@ heatmap.2(
 
 invisible(dev.off())
 
-#filter out samples that don't correlate ans save
+#filter out samples that don't correlate and save
 signal_smoothed = signal_smoothed %>%
     filter(index %in% Index) %>%
-    separate(index, c('group', 'index'), sep = ' _ ') %>% 
+    separate(index, c('group', 'index'), sep = ' _ ') %>%
     mutate(group = factor(group, level = unique(opt$groups)))
 
 rep_percentage = signal_smoothed %>%
@@ -1065,9 +1056,9 @@ plot = rep_percentage %>%
 
 suppressMessages(ggsave(
     plot = plot,
-    filename = paste0(
+    filename = paste0(file.path(
         opt$out,
-        opt$output_file_base_name,
+        opt$output_file_base_name),
         '_percentage_of_replicating_cells_after_filtering.pdf'
     )
 ))
@@ -1083,7 +1074,7 @@ new_index_list = rep_percentage %>%
 
 signal_smoothed = signal_smoothed %>%
     ungroup() %>%
-    inner_join(new_index_list, by = c('Cell','index'='oldIndex', 'basename','group')) %>% 
+    inner_join(new_index_list, by = c('Cell','index'='oldIndex', 'basename','group')) %>%
     dplyr::select(chr,
                   start,
                   end,
@@ -1100,10 +1091,9 @@ signal_smoothed = signal_smoothed %>%
 
 write_delim(
     x = signal_smoothed,
-    file = paste0(
+    file = paste0(file.path(
         opt$out,
-        '/',
-        opt$output_file_base_name,
+        opt$output_file_base_name),
         '_single_cells_CNV_',
         opt$binsSize,
         '.tsv'
@@ -1121,15 +1111,15 @@ used_cells=  rbind( new_index_list%>%
                         ungroup())
 
 data=data%>%inner_join(used_cells,Joining, by = c("Cell", "basename", "group"))
-system(paste0('mkdir -p ', opt$out, '/Cells_used_in_the_analysis_info'))
+dir.create(file.path( opt$out, 'Cells_used_in_the_analysis_info'),recursive = T)
 
 bs=foreach(i=unique(data$basename))%do%{
     data%>%
         filter(basename==i)%>%
         dplyr::select(Cell,normalized_dimapd,mean_ploidy,ploidy_confidence,is_high_dimapd,is_noisy,coverage_per_1Mbp)%>%
-        write_csv(paste0(opt$out, '/Cells_used_in_the_analysis_info/',i,'_per_Cell_summary_metrics.csv'))
+        write_csv(paste0(file.path( opt$out, 'Cells_used_in_the_analysis_info',i),'_per_Cell_summary_metrics.csv'))
     i
-    
+
 }
 
 rm('bs')
@@ -1138,7 +1128,7 @@ rm('new_index_list')
 #calculate replication timing normalizing each bin by the number of cells in each bin and then calculating the average of the average
 # select symmetrically distributed cells.
 if (!opt$disable_symmetry){
-    
+
     rep_percentage = rep_percentage%>%
         group_by(group)%>%
         mutate(min_perc=1-max(Rep_percentage),
@@ -1160,14 +1150,14 @@ plot = rep_percentage %>%
 
 suppressMessages(ggsave(
     plot = plot,
-    filename = paste0(
+    filename = paste0(file.path( 
         opt$out,
-        opt$output_file_base_name,
+        opt$output_file_base_name),
         '_percentage_of_replicating_cells_used_for_RT_calculation.pdf'
     )
 ))
 
-# bin the cells based on their percentage of replication in order have continuous bins with at least one cell.
+# bin cells based on their percentage of replication in order to have continuous bins with at least one cell.
 
 RT_binning = foreach(Group = unique(rep_percentage$group), .combine = 'rbind') %:%
     foreach(bins = 1:10, .combine = 'rbind') %do% {
@@ -1178,9 +1168,9 @@ RT_binning = foreach(Group = unique(rep_percentage$group), .combine = 'rbind') %
             arrange(rep_group) %>%
             pull(rep_group) %>%
             unique()
-        
+
         cont_rep_group = min(rep_group):max(rep_group)
-        
+
         if (length(cont_rep_group) == length(rep_group)) {
             if (all(rep_group == cont_rep_group)) {
                 tibble(group = Group,
@@ -1190,7 +1180,7 @@ RT_binning = foreach(Group = unique(rep_percentage$group), .combine = 'rbind') %
             }
         } else{
             tibble()
-            
+
         }
     }
 
@@ -1199,7 +1189,7 @@ RT_binning=RT_binning%>%
     summarise(Binning_step=min(Binning_step))
 
 if (!opt$disable_symmetry){
-    
+
     scRT =signal_smoothed%>%
         group_by(group)%>%
         mutate(min_perc=1-max(PercentageReplication),
@@ -1229,10 +1219,9 @@ scRT=scRT%>%
 
 write_delim(
     x = scRT,
-    file = paste0(
+    file = paste0(file.path( 
         opt$out,
-        '/',
-        opt$output_file_base_name,
+        opt$output_file_base_name),
         '_calculated_replication_timing_',
         opt$binsSize,
         '.tsv'
@@ -1243,7 +1232,8 @@ write_delim(
 
 #plots
 if (opt$plot) {
-    system(paste0('mkdir -p ', opt$out, '/regions'))
+  dir.create(file.path( opt$out, 'regions'),recursive = T)
+
     if (!'region' %in% names(opt)) {
         for (i in 1:length(Chr_Size$chr)) {
             region = round(runif(1, min = 1000000, max = 0.8 * Chr_Size$size[i]),
@@ -1251,7 +1241,7 @@ if (opt$plot) {
             Chr = Chr_Size$chr[i]
             Start = region
             End = region + round(0.2 * Chr_Size$size[i])
-            
+
             # prepare name file
             name_reg = min(str_length(str_extract(Start, '0{1,10}$')),
                            str_length(str_extract(End, '0{1,10}$')))
@@ -1266,8 +1256,8 @@ if (opt$plot) {
                                                10 ^ 6, 'Mb')
                 )
             )
-            
-            
+
+
             track_toplot = signal_smoothed %>%
                 filter(
                     chr %in% Chr,
@@ -1280,10 +1270,10 @@ if (opt$plot) {
                     end = ifelse(end > End , End, end)
                 )%>%
                 filter(start!=end)
-            
+
             if (length(track_toplot$chr) != 0) {
                 max_index = track_toplot %>% pull(newIndex) %>% max()
-                
+
                 scRT_toplot = scRT %>%
                     ungroup() %>%
                     filter(
@@ -1298,7 +1288,7 @@ if (opt$plot) {
                         end = ifelse(end > End , End, end)
                     )%>%
                     filter(start!=end)
-                
+
                 plot =  ggplot() +
                     geom_rect(
                         data = track_toplot,
@@ -1335,7 +1325,7 @@ if (opt$plot) {
                         legend.position = 'top',
                         axis.text.x = element_text(angle = 45, hjust = 1)
                     )
-                
+
                 if ('referenceRT' %in% names(opt)) {
                     RT_toplot = Reference_RT %>%
                         filter(
@@ -1397,13 +1387,13 @@ if (opt$plot) {
                             ))
                         )
                 }
-                
+
                 suppressMessages(ggsave(
                     plot,
-                    filename = paste0(
+                    filename = paste0(file.path( 
                         opt$out,
-                        '/regions/',
-                        opt$output_file_base_name,
+                        'regions',
+                        opt$output_file_base_name),
                         '_plot_RT_',
                         name_reg,
                         '.pdf'
@@ -1474,7 +1464,7 @@ if (opt$plot) {
                         grepl(x = start_unit, pattern =  '[0-9][0-9]') ~ 1
                     ),
                     end_unit = ifelse(str_count(end)>2,str_extract(end, pattern = '.{2}$'),'bp'),
-                    
+
                     end = as.numeric(str_remove(
                         end, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]"
                     )) * case_when(
@@ -1486,13 +1476,13 @@ if (opt$plot) {
                 ) %>%
                 dplyr::select(-start_unit, -end_unit)
         }
-        
-        
+
+
         for (i in 1:length(opt$region$chr)) {
             Chr = opt$region$chr[i]
             Start = opt$region$start[i]
             End = opt$region$end[i]
-            
+
             track_toplot = signal_smoothed %>%
                 filter(
                     chr %in% Chr,
@@ -1504,10 +1494,10 @@ if (opt$plot) {
                     start = ifelse(start < Start, Start, start),
                     end = ifelse(end > End , End, end)
                 )
-            
+
             if (length(track_toplot$chr) != 0) {
                 max_index = track_toplot %>% pull(newIndex) %>% max()
-                
+
                 scRT_toplot = scRT %>%
                     ungroup() %>%
                     filter(
@@ -1521,7 +1511,7 @@ if (opt$plot) {
                         start = ifelse(start < Start, Start, start),
                         end = ifelse(end > End , End, end)
                     )
-                
+
                 plot =  ggplot() +
                     geom_rect(
                         data = track_toplot,
@@ -1558,8 +1548,8 @@ if (opt$plot) {
                         legend.position = 'top',
                         axis.text.x = element_text(angle = 45, hjust = 1)
                     )
-                
-                
+
+
                 if ('referenceRT' %in% names(opt)) {
                     RT_toplot = Reference_RT %>%
                         filter(
@@ -1574,7 +1564,7 @@ if (opt$plot) {
                             end = ifelse(end > End , End, end)
                         )%>%
                         filter(start!=end)
-                    
+
                     if (length(RT_toplot$chr) != 0) {
                         plot = plot +
                             geom_rect(
@@ -1626,10 +1616,10 @@ if (opt$plot) {
                 plot = plot + facet_wrap(~ group)
                 suppressMessages(ggsave(
                     plot,
-                    filename = paste0(
+                    filename = paste0(file.path( 
                         opt$out,
-                        '/regions/',
-                        opt$output_file_base_name,
+                        'regions',
+                        opt$output_file_base_name),
                         '_plot_RT_',
                         opt$region$name_reg,
                         '.pdf'
@@ -1645,26 +1635,24 @@ if ('referenceRT' %in% names(opt)) {
     RTs = rbind(
         scRT %>%
             ungroup() ,
-        
+
         Reference_RT %>%
             mutate(
                 RT = RT / max(RT, na.rm = T),
                 group = opt$ref_name
             )
     )
-    
-    
+
+
 } else{
-    RTs =  scRT 
-    
+    RTs =  scRT
+
 }
 
 pdf(
-    paste0(
+    paste0(file.path( 
         opt$out,
-        '/',
-        opt$output_file_base_name
-        ,
+        opt$output_file_base_name),
         '_RT_distribution_plot.pdf'
     )
 )
@@ -1680,12 +1668,12 @@ invisible(dev.off())
 ##### Correlation Calculated RT and reference
 
 if (length(unique(RTs$group)) != 1) {
-    
+
     RTs = RTs%>%
         spread(key = group, value = RT) %>%
         filter(complete.cases(.))%>%
         dplyr::select(-chr,-start,-end)
-    
+
     plot = ggcorrplot(
         RTs %>%
             cor(method = 'spearman'),
@@ -1695,17 +1683,16 @@ if (length(unique(RTs$group)) != 1) {
         colors =  c('#BCAF6FFF', '#7C7B78FF', '#00204DFF'),
         ggtheme = ggplot2::theme(aspect.ratio = 1)
     )
-    
+
     suppressMessages( ggsave(
         plot = plot,
-        filename =paste0(
+        filename =paste0(file.path( 
             opt$out,
-            '/',
-            opt$output_file_base_name,
+            opt$output_file_base_name),
             '_correlation_plot_RTs.pdf'
         )
     ))
-    
+
     suppressMessages( ggsave(
         plot = ggpairs(RTs,
                        diag = list(continuous =function(data, mapping, ...){
@@ -1724,7 +1711,7 @@ if (length(unique(RTs$group)) != 1) {
                            )%>%
                                mutate(y=0.5+Corr/2*sin(x),
                                       x=0.5+Corr/2*cos(x))
-                           
+
                            p <- ggplot(data, aes(x = x, y = y, fill = Corr))+
                                geom_polygon() + theme(
                                    axis.title = element_blank(),
@@ -1741,32 +1728,32 @@ if (length(unique(RTs$group)) != 1) {
                                    midpoint = 0,
                                    limits = c(-1, 1)
                                ) + coord_cartesian(xlim = c(0,1), ylim = c(0,1))
-                           
+
                            return(p)
                        }),
                        lower = list(continuous =function(data, mapping, ...){
-                           p <- ggplot(data = data, mapping = mapping) + 
+                           p <- ggplot(data = data, mapping = mapping) +
                                geom_hex(bins=50,aes(fill=..ndensity..))+
                                scale_fill_gradientn('Density',colours =c("#FFEA46FF","#D3C164FF","#A69D75FF","#7C7B78FF","#575C6DFF","#233E6CFF","#00204DFF"))+
                                coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
                                scale_x_continuous(breaks = c(0,0.5,1))+
                                scale_y_continuous(breaks = c(0,0.5,1))+
                                geom_abline(slope = 1,color='black',alpha=0.5)
-                           
+
                            return(p)
                        }),legend = c(2,1))+ theme(legend.position = "right",
                                                   axis.text.x = element_text(angle = 45,hjust = 1)),
         filename =paste0(
+          file.path( 
             opt$out,
-            '/',
-            opt$output_file_base_name,
+            opt$output_file_base_name),
             '_paired_density_plot_RTs.pdf'
         )
     ))
-    
+
 }
 
-#joing RTs with relative signals
+#join RTs with relative signals
 signal_smoothed = signal_smoothed %>%
     dplyr::select(group, chr, start, end, Rep,PercentageReplication) %>%
     inner_join(scRT, by = c("group", "chr", "start", "end"))  %>%
@@ -1789,10 +1776,9 @@ x %>%
     ungroup()%>%
     dplyr::select(-RT)%>%
     write_tsv(
-        paste0(
+        paste0(file.path( 
             opt$out,
-            '/',
-            opt$output_file_base_name,
+            opt$output_file_base_name),
             '_scRT_variability.tsv'
         )
     )
@@ -1893,7 +1879,7 @@ T25_75 = function(df, name, EL) {
                 algorithm = 'plinear',
                 control = nls.control(maxiter = 100,tol = 1e-04, warnOnly = T)
             ),
-            error = function(e) print('Try to reduce the number of RT groups') 
+            error = function(e) print('Try to reduce the number of RT groups')
         )
     )
     min = min(df$time)
@@ -1919,7 +1905,7 @@ T25_75 = function(df, name, EL) {
         ) %>%
         dplyr::select(group, time, percentage, t75, t25)  %>%
         mutate(Cat_RT = EL)
-    
+
     return(t)
 }
 
@@ -1949,9 +1935,8 @@ t = fitted_data %>% filter(t75 | t25) %>%
     spread(t, time) %>%
     mutate(Twidth = abs(t75 - t25))
 
-t %>% write_tsv(paste0(opt$out,
-                       '/',
-                       opt$output_file_base_name,
+t %>% write_tsv(paste0(file.path( opt$out,
+                       opt$output_file_base_name),
                        '_Twidth.tsv'))
 
 
@@ -1968,9 +1953,8 @@ ncat=length(unique(x$Cat_RT))
 nbasen=length(unique(x$group))
 suppressMessages(ggsave(
     plot,
-    filename = paste0(opt$out,
-                      '/',
-                      opt$output_file_base_name,
+    filename = paste0(file.path( opt$out,
+                      opt$output_file_base_name),
                       '_Twidths_extended.pdf'),width = 2.5*ncat,height = 4*nbasen
 ))
 
@@ -1981,14 +1965,13 @@ p = ggplot(t) +
 
 suppressMessages(ggsave(
     p,
-    filename = paste0(opt$out,
-                      '/',
-                      opt$output_file_base_name,
+    filename = paste0(file.path( opt$out,
+                      opt$output_file_base_name),
                       '_Twidths.pdf')
 ))
 
 if (opt$Var_against_reference) {
-    #joing reference with relative signals
+    #join reference with relative signals
     signal_smoothed = signal_smoothed %>%
         dplyr::select(group, chr, start, end, Rep,PercentageReplication) %>%
         inner_join(Reference_RT, by = c("chr", "start", "end"))  %>%
@@ -1996,25 +1979,24 @@ if (opt$Var_against_reference) {
             RT = 10 * (1-RT) ,
             time = round(RT - 10*PercentageReplication,1)
         )
-    
-    
+
+
     x = signal_smoothed%>%
         group_by(group,time,RT,chr,start,end)%>%
         summarise(percentage=mean(Rep))
-    
-    
+
+
     x %>%
         ungroup()%>%
         dplyr::select(-RT)%>%
         write_tsv(
-            paste0(
+            paste0(file.path( 
                 opt$out,
-                '/',
-                opt$output_file_base_name,
+                opt$output_file_base_name),
                 '_scRT_variability_on_reference.tsv'
             )
         )
-    
+
     x = rbind(x  %>%
                   mutate(
                       Cat_RT = split_into_categoreis(RT,number = opt$N_of_RT_groups),
@@ -2031,12 +2013,12 @@ if (opt$Var_against_reference) {
                           levels = cat_levels( opt$N_of_RT_groups)
                       )
                   ))
-    
+
     x=x%>%
         group_by(group,time,Cat_RT)%>%
-        summarise(percentage=mean(percentage)) 
-    
-    #calculate thresholds 25% 75% replication keeping in account early and late domains  ##WHY IS THIS REPEATED ??
+        summarise(percentage=mean(percentage))
+
+    #calculate thresholds 25% 75% replication keeping in account early and late domains
     fitted_data = foreach(
         group = unique(x$group),
         .combine = 'rbind',
@@ -2054,20 +2036,19 @@ if (opt$Var_against_reference) {
         }
         temp
     }
-    
+
     t = fitted_data %>% filter(t75 | t25) %>%
         gather('t', 'value', t25, t75) %>%
         filter(value) %>%
         dplyr::select(-percentage, -value) %>%
         spread(t, time) %>%
         mutate(Twidth = abs(t75 - t25))
-    
-    t %>% write_tsv(paste0(opt$out,
-                           '/',
-                           opt$output_file_base_name,
+
+    t %>% write_tsv(paste0(file.path( opt$out,
+                           opt$output_file_base_name),
                            '_Twidth_ref_RT.tsv'))
-    
-    
+
+
     plot=ggplot(x) +
         geom_point(aes(time,percentage,color=group))+
         geom_line(data=fitted_data,aes(time,percentage),color='blue')+
@@ -2076,29 +2057,27 @@ if (opt$Var_against_reference) {
         geom_vline(data=t,aes(xintercept=t75),color='red')+
         geom_text(data=t,aes(label=paste('TW\n',Twidth)),x=Inf,y=0.5, hjust=1.25)+
         facet_grid(group~Cat_RT)
-    
+
     ncat=length(unique(x$Cat_RT))
     nbasen=length(unique(x$group))
     suppressMessages(ggsave(
         plot,
-        filename = paste0(opt$out,
-                          '/',
-                          opt$output_file_base_name,
+        filename = paste0(file.path( opt$out,
+                          opt$output_file_base_name),
                           '_Twidths_extended_ref_RT.pdf'),width = 2.2*ncat,height = 4*nbasen
     ))
-    
+
     p = ggplot(t) +
         geom_col(aes(Cat_RT, Twidth, fill = group), position = 'dodge') +
         ylab('Twidth') + xlab('')
-    
+
     suppressMessages(ggsave(
         p,
-        filename = paste0(opt$out,
-                          '/',
-                          opt$output_file_base_name,
+        filename = paste0(file.path( opt$out,
+                          opt$output_file_base_name),
                           '_Twidths_ref_RT.pdf')
     ))
-    
+
 }
 
 stopCluster(cl)

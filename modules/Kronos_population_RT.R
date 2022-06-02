@@ -1,9 +1,10 @@
-#!/usr/local/bin/Rscript
 #parse input
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
-options(stringsAsFactors = FALSE)
-options(warn = 1, scipen = 999)
+options(stringsAsFactors = FALSE,
+        dplyr.summarise.inform=FALSE,
+        warn = 1,
+        scipen = 999)
 
 option_list = list(
     make_option(
@@ -118,12 +119,10 @@ if (!'chrSizes' %in% names(opt)) {
 }
 
 #create directory
-if (str_extract(opt$out, '.$') != '/') {
-    opt$out = paste0(opt$out, '/')
+#create output directory
+if (!dir.exists(opt$out)) {
+    dir.create(opt$out,recursive = T)
 }
-
-system(paste0('mkdir -p ', opt$out))
-
 
 #load files
 opt$file = str_split(opt$file, ',')[[1]]
@@ -131,15 +130,6 @@ opt$file = str_split(opt$file, ',')[[1]]
 opt$settings_file = str_split(opt$settings_file, ',')[[1]]
 
 opt$directory = str_split(opt$directory, ',')[[1]]
-
-opt$directory = foreach(i = 1:length(opt$directory), .packages = 'tidyverse') %do%
-    {
-        if (str_extract(opt$directory[i], '.$') != '/') {
-            paste0(opt$directory[i], '/')
-        } else{
-            opt$directory[i]
-        }
-    }
 
 opt$bin_size = str_split(opt$bin_size, ',')[[1]]
 extract_unit=str_extract(opt$bin_size,pattern = '.{2}$')
@@ -175,7 +165,7 @@ files = foreach(
 ) %do% {
     read_csv(opt$file[f], col_types = cols())%>%
         mutate(group=f,
-               Cell=paste0(opt$directory[[f]],Cell))
+               Cell=file.path(opt$directory[[f]],Cell))
 }
 
 settings = foreach(
@@ -354,11 +344,11 @@ x=foreach(bs=opt$bin_size)%dopar%{
         filter(bin_size == bs) %>%
         dplyr::select(-bin_size) %>%
         write_delim(
-            path = paste0(opt$out,
+            path = file.path(opt$out,paste0(
                           opt$base_name,
                           '_population_RT_',
                           extract_unit,
-                          '.tsv'),
+                          '.tsv')),
             delim = '\t',
             col_names = T
         )

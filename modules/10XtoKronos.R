@@ -1,10 +1,9 @@
-#!/usr/local/bin/Rscript
-
-
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
-options(stringsAsFactors = FALSE)
-options(warn = 1)
+options(stringsAsFactors = FALSE,
+        dplyr.summarise.inform=FALSE,
+        warn = 1,
+        scipen = 999)
 
 option_list = list(
     make_option(
@@ -37,11 +36,9 @@ suppressPackageStartupMessages(library(tidyverse, quietly = TRUE))
 
 #create directory
 
-if (str_extract(opt$out, '.$') != '/') {
-    opt$out = paste0(opt$out, '/')
+if(!dir.exists(opt$out)){
+    dir.create(opt$out,recursive = T)
 }
-
-system(paste0('mkdir -p ', opt$out))
 
 #load files
 opt$file = str_split(opt$file, ',')[[1]]
@@ -94,7 +91,7 @@ if ('file' %in% names(opt)) {
                         'coverage_per_1Mbp'
                     )
                 ) %>%
-                write_csv(paste0(opt$out, '/Kronos_format_', basename(file)))
+                write_csv(paste0(file.path(opt$out, 'Kronos_format_'), basename(file)))
         } else{
             warning(paste0(file, " is not a per cell stat file"))
         }
@@ -124,7 +121,7 @@ if ('tracks' %in% names(opt)) {
                 select(id, `#chrom`, start, end, copy_number) %>%
                 `colnames<-`(c('Cell', 'chr', 'start', 'end', 'copy_number')) %>%
                 mutate(reads = '10X') %>%
-                write_tsv(paste0(opt$out, '/Kronos_format_', basename(tracks)))
+                write_tsv(paste0(file.path(opt$out, 'Kronos_format_'), basename(tracks)))
         } else{
             warning(paste0(tracks, " is not a proper track file"))
         }

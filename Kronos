@@ -126,15 +126,15 @@ commands:\n
 \t CNV\t\t\t Calculates copy number variation
 \t 10xtoKronos\t\t Converts 10X genomics files in a format that Kronos can use
 \t WhoIsWho \t\t Manually assign cell cycle stage
-\t diagnostic \t\t Plotting tools to identify appropriate tresholds for Kronos RT
+\t diagnostic \t\t Plotting tools to identify appropriate thresholds for Kronos RT
 \t RT \t\t\t Calculates scReplication profiles and scRT
 \t Corr \t\t\t Calculates pairwise spearman correlation between multipe pseudo-bulk replication timing/ rescaled bulk RT files
 \t compare RT \t\t Compares RT results from multiple experiments
 \t annotate \t\t Annotates sc variability files for Kronos compare TW
-\t compare TW \t\t Allowes to investigate variability using a categorical annotation of the genome (for example binding sites or genes of interest)
-\t population RT \t\t Calcualtes population RT starting from single cell BAM files and Kronos diagnostic outputs
+\t compare TW \t\t Compares variability from multiple experiments and/or over multiple regions
+\t population RT \t\t Calculates population RT starting from single cell BAM files and Kronos diagnostic outputs
 \t scPlots \t\t scRT plots
-\t DRed \t\t\t Applies DRed to identify possible scRT or scCN clusters
+\t DRed \t\t\t Performs Dimension Reduction using TSNE and UMAP
 "
 
 fi

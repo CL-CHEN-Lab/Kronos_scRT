@@ -1,11 +1,10 @@
-#!/usr/local/bin/Rscript
-
-# this script is meant to select the treshold to select cycling cells
-
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
-options(stringsAsFactors = FALSE)
-options(warn=1) 
+options(stringsAsFactors = FALSE,
+        dplyr.summarise.inform=FALSE,
+        warn = 1,
+        scipen = 999)
+
 option_list = list(
     make_option(
         c("-F", "--file"),
@@ -18,13 +17,13 @@ option_list = list(
         c("-W", "--whoSwho"),
         type = "character",
         default = NULL,
-        help = "Who's who file path ( tsv file with header: Cell \t Phase)",
+        help = "Who's who file path ( tsv file with header: Cell <TAB> Phase)",
         metavar = "character"
     ),
     make_option(
         c("-o", "--out"),
         type = "character",
-        default = "./output",
+        default = "output",
         help = "Output directory [default= %default]",
         metavar = "character"
     )
@@ -48,7 +47,7 @@ does_exist_right_format = Vectorize(function(File, delim = '\t', columns_to_chec
     if (!file.exists(File)) {
         return(paste(File, 'does not exist'))
     } else{
-        # if columns_to_check is numeric check the number of colums
+        # if columns_to_check is numeric check the number of columns
         if(is.numeric(columns_to_check)){
             if (ncol(tryCatch(
                 expr =  read_delim(
@@ -64,8 +63,8 @@ does_exist_right_format = Vectorize(function(File, delim = '\t', columns_to_chec
             } else{
                 return('')
             }
-            
-            # if columns_to_check is not numeric check columns names    
+
+            # if columns_to_check is not numeric check columns names
         }else{
             #checks if it has the right format
             if (!all(columns_to_check %in% colnames(tryCatch(
@@ -84,10 +83,10 @@ does_exist_right_format = Vectorize(function(File, delim = '\t', columns_to_chec
             }
         }
     }
-    
+
 }, vectorize.args = 'File')
 
-#check per cell files 
+#check per cell files
 results=paste(does_exist_right_format(File=opt$file,delim = ',',columns_to_check=c('Cell',
                                                                                    'normalized_dimapd',
                                                                                    'mean_ploidy',
@@ -109,11 +108,9 @@ if(results!='') {
 
 
 #create output directory
-if (str_extract(opt$out,'.$')!='/'){
-    opt$out=paste0(opt$out,'/')
+if(!dir.exists(opt$out)){
+    dir.create(opt$out,recursive = T)
 }
-
-system(paste0('mkdir -p ', opt$out))
 
 #load data
 data<-inner_join(read_csv(opt$file,
@@ -127,6 +124,6 @@ data%>%
     mutate(is_high_dimapd=ifelse(Phase=='S',T,F),
            is_noisy=ifelse(Phase=='S',T,F))%>%
     dplyr::select(-Phase)%>%
-    write_csv(paste0(opt$out,'phased_',basename(opt$file)))
+    write_csv(paste0(file.path(opt$out,'phased_'),basename(opt$file)))
 
 print('done')

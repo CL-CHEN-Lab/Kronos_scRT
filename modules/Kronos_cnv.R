@@ -1,8 +1,10 @@
-#!/usr/local/bin/Rscript
 #parse input
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
-options(stringsAsFactors = FALSE)
+options(stringsAsFactors = FALSE,
+        dplyr.summarise.inform=FALSE,
+        warn = 1,
+        scipen = 999)
 
 option_list = list(
     make_option(
@@ -38,7 +40,7 @@ option_list = list(
     make_option(
         c("-o", "--output_dir"),
         type = "character",
-        default = 'output/',
+        default = 'output',
         action = 'store',
         help = "Output folder. [default= %default]",
         metavar = "character"
@@ -54,7 +56,7 @@ option_list = list(
     make_option(
         c("-p", "--ploidy"),
         type = "numeric",
-        help = "user extimated ploidy",
+        help = "User estimated ploidy",
         metavar = "numeric"
     ),
     make_option(
@@ -100,11 +102,10 @@ suppressPackageStartupMessages(library(Rsamtools, quietly = TRUE))
 suppressPackageStartupMessages(library(DNAcopy, quietly = TRUE))
 suppressPackageStartupMessages(library(MASS, quietly = TRUE))
 
-if (str_extract(opt$output_dir, '.$') != '/') {
-    opt$output_dir = paste0(opt$output_dir, '/')
+#create output folder
+if(!dir.exists(opt$output_dir)){
+    dir.create(opt$output_dir,recursive = T)
 }
-
-system(paste0('mkdir -p ', opt$output_dir))
 
 #check inputs
 if (!'bins' %in% names(opt)) {
@@ -156,13 +157,10 @@ if (!"directory" %in% names(opt)) {
 bins = read_tsv(opt$bins, col_types = cols(chr = 'c')) %>%
     arrange(chr, start)
 
-if (str_extract(opt$directory, '.$') != '/') {
-    opt$directory = paste0(opt$directory, '/')
-}
 
 
 #find bam files
-files = list.files(paste0(opt$directory))
+files = list.files(opt$directory)
 files = files[str_detect(files, '.bam$')]
 
 #chr info
@@ -185,7 +183,7 @@ chromosome = paste0(ifelse(opt$chr_prefix == 'none', '', opt$chr_prefix),
                     unlist(Convert_to_range(str_split(opt$chr_range, ',')[[1]])))
 bins = bins[bins$chr %in% chromosome,]
 
-#calcualte genome size
+#calculate genome size
 genome_size = sum(genome.Chromsizes$size)
 
 # SE or PE ?
@@ -247,14 +245,14 @@ files = foreach (
                 mapqFilter = 30
             )
         # load first in a pair
-        FP = as.data.frame(scanBam(paste0(opt$directory, file), param = param2)) %>%
+        FP = as.data.frame(scanBam(file.path(opt$directory, file), param = param2)) %>%
             drop_na() %>%
             filter(rname %in% chromosome) %>%
             group_by(rname) %>%
             mutate(bin = ceiling(pos / bins_median_size))
         count_reads = length(FP$qname)
         # load second in a pair
-        SP = as.data.frame(scanBam(paste0(opt$directory, file), param = param3)) %>%
+        SP = as.data.frame(scanBam(file.path(opt$directory, file), param = param3)) %>%
             drop_na() %>%
             filter(rname %in% chromosome) %>%
             group_by(rname) %>%
@@ -264,7 +262,7 @@ files = foreach (
         qname_fp = FP %>% ungroup() %>% dplyr::select(qname, rname, bin) %>% `colnames<-`(c('qname', 'rname', 'mate_bin'))
         qname_sp = SP %>% ungroup() %>% dplyr::select(qname, rname, bin) %>% `colnames<-`(c('qname', 'rname', 'mate_bin'))
 
-        # if a read in a pair has it's paired in the same bin it counts as 1/2 a read eles one read.
+        # if a read in a pair has it's paired in the same bin it counts as 1/2 a read otherwise one read.
         FP = FP %>%
             left_join(qname_sp, by = c("qname", 'rname')) %>%
             mutate(read = ifelse(bin != mate_bin |
@@ -282,7 +280,7 @@ files = foreach (
             ungroup()
 
         #load non paired reads
-        SR = as.data.frame(scanBam(paste0(opt$directory, file), param = param1)) %>%
+        SR = as.data.frame(scanBam(file.path(opt$directory, file), param = param1)) %>%
             drop_na() %>%
             filter(rname %in% chromosome) %>%
             mutate(read = 1) %>%
@@ -319,7 +317,7 @@ files = foreach (
         )
 
         # calculate reads in each bin
-        sam = as.data.frame(scanBam(paste0(opt$directory, file), param =
+        sam = as.data.frame(scanBam(file.path(opt$directory, file), param =
                                         param)) %>%
             filter(rname %in% chromosome) %>%
             mutate(read = 1) %>%
@@ -343,7 +341,7 @@ files = foreach (
             mutate(reads = ifelse(is.na(reads), 0, reads),
                    Cell = file) %>%
             dplyr::select(-bin) %>%
-            write_tsv(paste0(opt$output_dir, file, '.tmp'))
+            write_tsv(paste0(file.path(opt$output_dir, file), '.tmp'))
         tibble(file = paste0(file, '.tmp'),
                count_reads = count_reads)
     }
@@ -356,7 +354,7 @@ data = bins
 data$reads = foreach(file = files$file,
                      .combine = '+',
                      .packages = 'tidyverse') %dopar% {
-                         read_tsv(paste0(opt$output_dir, file), col_types = cols(chr = 'c')) %>%
+                         read_tsv(file.path(opt$output_dir, file), col_types = cols(chr = 'c')) %>%
                              pull(reads)
                      }
 
@@ -382,7 +380,7 @@ mapd = foreach (
     .packages = c('tidyverse', 'foreach', 'DNAcopy', 'MASS', 'gplots'),
     .errorhandling =  "remove"
 ) %dopar% {
-    data = read_tsv(paste0(opt$output_dir, file), col_types = cols(chr = 'c'))
+    data = read_tsv(file.path(opt$output_dir, file), col_types = cols(chr = 'c'))
     data = left_join(data, gc_correction_value, by = c('chr', 'start', 'end')) %>%
         mutate(
             reads_mappability = reads / mappability,
@@ -566,10 +564,10 @@ mapd = foreach (
 
 
     CNV %>%
-        write_tsv(paste0(opt$output_dir, file, '_cnv_calls.bed'),
+        write_tsv(paste0(file.path(opt$output_dir, file), '_cnv_calls.bed'),
                   col_names = T)
-
-    system(paste0('rm ', opt$output_dir, file))
+    
+    file.remove(file.path( opt$output_dir, file))
 
     # calculate mean CNV
     mapd = mapd %>% cbind(CNV_correction) %>% dplyr::select(-ID)
@@ -577,7 +575,7 @@ mapd = foreach (
     mapd
 
 }
-stopCluster(cl)
+
 
 #calculate DiMApd
 mapd = mapd %>%
@@ -593,7 +591,7 @@ mapd = mapd %>%
     ) %>%
     dplyr::select(-d)
 
-#fit dimapd to gaussian dist
+#fit dimapd to Gaussian dist
 mem = 0
 while (T) {
     fit <-
@@ -640,38 +638,28 @@ mapd %>%
         is_noisy,
         coverage_per_1Mbp
     ) %>%
-    write_csv(paste0(opt$output_dir, opt$ExpName, '_per_Cell_summary_metrics.csv'),
-              col_names = T)
+    write_csv(paste0(
+        file.path(opt$output_dir, opt$ExpName),
+        '_per_Cell_summary_metrics.csv'
+    ),
+    col_names = T)
 
-files = files$file
-system(
-    paste0(
-        'cat ',
-        opt$output_dir,
-        files[1],
-        '_cnv_calls.bed > ',
-        opt$output_dir,
-        opt$ExpName,
-        '_cnv_calls.bed'
-    )
-)
-system(paste0('rm ',
-              opt$output_dir, files[1], '_cnv_calls.bed'))
-files = foreach (file = files[-1]) %do% {
-    system(
-        paste0(
-            "sed '1d' ",
-            opt$output_dir,
-            file,
-            "_cnv_calls.bed >> ",
-            opt$output_dir,
-            opt$ExpName,
-            '_cnv_calls.bed'
-        )
-    )
-    system(paste0('rm ',
-                  opt$output_dir, file, '_cnv_calls.bed'))
-    file
-}
+files$file=paste0(files$file,'_cnv_calls.bed')
+    
+CNV = foreach(file = files$file,
+                       .combine = 'rbind',
+                       .inorder = T) %dopar% {
+                          loaded= readr::read_tsv(file.path(opt$output_dir, file)) %>%
+                               dplyr::arrange(chr, start, end)
+                           
+                           tmp=file.remove(file.path(opt$output_dir, file))
+                           
+                           loaded
+                       }
+stopCluster(cl)
+
+CNV %>% write_tsv(paste0(file.path(opt$output_dir,
+                                   opt$ExpName),
+                         '_cnv_calls.bed'), col_names = T)
 
 print('done')

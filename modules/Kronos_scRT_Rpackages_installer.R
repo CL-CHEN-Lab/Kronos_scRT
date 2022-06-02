@@ -1,5 +1,3 @@
-#!/usr/local/bin/Rscript
-
 #install all the required R packages
 
 install.packages(pkgs =c('Cairo','doSNOW','foreach','gplots','LaplacesDemon','MASS','matrixStats','optparse',

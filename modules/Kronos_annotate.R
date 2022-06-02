@@ -1,9 +1,10 @@
-#!/usr/local/bin/Rscript
 #parse input
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
-options(stringsAsFactors = FALSE)
-options(warn = 1,scipen = 999)
+options(stringsAsFactors = FALSE,
+        dplyr.summarise.inform=FALSE,
+        warn = 1,
+        scipen = 999)
 
 option_list = list(
   make_option(
@@ -66,9 +67,6 @@ if (!'file' %in% names(opt)) {
 if (!'Annotation' %in% names(opt)) {
   stop("Annotation file must be provided. See script usage (--help)")
 }
-if (str_extract(opt$out, '.$') != '/') {
-  opt$out = paste0(opt$out, '/')
-}
 
 #does exist/ right format function
 does_exist_right_format = Vectorize(function(File, delim = '\t', columns_to_check,message='does not have the proper format') {
@@ -76,7 +74,7 @@ does_exist_right_format = Vectorize(function(File, delim = '\t', columns_to_chec
   if (!file.exists(File)) {
     return(paste(File, 'does not exist'))
   } else{
-    # if columns_to_check is numeric check the number of colums
+    # if columns_to_check is numeric check the number of columns
     if(is.numeric(columns_to_check)){
       if (ncol(tryCatch(
         expr =  read_delim(
@@ -92,8 +90,8 @@ does_exist_right_format = Vectorize(function(File, delim = '\t', columns_to_chec
       } else{
         return('')
       }
-      
-      # if columns_to_check is not numeric check columns names    
+
+      # if columns_to_check is not numeric check columns names
     }else{
       #checks if it has the right format
       if (!all(columns_to_check %in% colnames(tryCatch(
@@ -112,7 +110,7 @@ does_exist_right_format = Vectorize(function(File, delim = '\t', columns_to_chec
       }
     }
   }
-  
+
 }, vectorize.args = 'File')
 
 #check variability files format
@@ -138,7 +136,9 @@ if(results!='') {
 }
 }
 
-system(paste0('mkdir -p ', opt$out))
+if(!dir.exists(opt$out)){
+  dir.create(opt$out,recursive = T)
+}
 
 opt$file = str_split(opt$file, ',')[[1]]
 
@@ -173,7 +173,7 @@ Bin = data %>%
 #find overlaps
 hits = findOverlaps(Bin, Annotation_file,minoverlap = opt$min_overlap)
 
-#info about overlapping regins
+#info about overlapping regions
 overlaps <-
   pintersect(Annotation_file[subjectHits(hits)], Bin[queryHits(hits)])
 
@@ -182,7 +182,7 @@ add = as_tibble(Bin[queryHits(hits)])
 not_add = as_tibble(Bin[-queryHits(hits)])
 
 #Based on the overlap define the predominant notation of each bin.
-#A category to be chosen has to be predominant (at least 60% of the tatal overlaps in the bin)
+#A category to be chosen has to be predominant (at least 60% of the total overlaps in the bin)
 Annotation = bind_rows(
   add %>%
     mutate(size = width(overlaps),
@@ -207,7 +207,7 @@ data = data %>%
   inner_join(Annotation, by = c("chr" = "seqnames", "start", "end"))
 
 if ('Annotation2' %in% names(opt)) {
-  
+
   Annotation_file = read_tsv(opt$Annotation2,
                              col_names = c('chr', 'start', 'end', 'annotation'), col_types = cols(chr='c')) %>%
     makeGRangesFromDataFrame(
@@ -216,15 +216,15 @@ if ('Annotation2' %in% names(opt)) {
       end.field = 'end',
       start.field = 'start'
     )
-  
+
   hits = findOverlaps(Bin, Annotation_file,minoverlap = opt$min_overlap)
-  
+
   overlaps <-
     pintersect(Annotation_file[subjectHits(hits)], Bin[queryHits(hits)])
-  
+
   add = as_tibble(Bin[queryHits(hits)])
   not_add = as_tibble(Bin[-queryHits(hits)])
-  
+
   Annotation2 = bind_rows(
     add %>%
       mutate(
@@ -246,10 +246,10 @@ if ('Annotation2' %in% names(opt)) {
   Annotation2 = Annotation2 %>%
     ungroup() %>%
     mutate(seqnames = as.character(seqnames))
-  
+
   data = data %>%
     inner_join(Annotation2, by = c("chr" = "seqnames", "start", "end"))
-  
+
   data = data %>%
     rbind(data %>%
             mutate(Cat1 = '_ALL_'),
@@ -261,9 +261,8 @@ if ('Annotation2' %in% names(opt)) {
 }
 
 
-data%>%write_tsv(paste0(opt$out,
-                 '/',
-                 opt$output_file_base_name,
+data%>%write_tsv(paste0(file.path(opt$out,
+                 opt$output_file_base_name),
                  '_scRT_scRT_variability_with_annotation.tsv'))
 
 print('done')

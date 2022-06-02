@@ -1,9 +1,10 @@
-#!/usr/local/bin/Rscript
 #parse input
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
-options(stringsAsFactors = FALSE)
-options(warn = 1, scipen = 999)
+options(stringsAsFactors = FALSE,
+        dplyr.summarise.inform=FALSE,
+        warn = 1,
+        scipen = 999)
 
 option_list = list(
     make_option(
@@ -60,18 +61,16 @@ if ('sort' %in% names(opt)) {
 }
 
 #create directory
-if (str_extract(opt$out, '.$') != '/') {
-    opt$out = paste0(opt$out, '/')
+if (!dir.exists(opt$out)) {
+    dir.create(opt$out,recursive = T)
 }
-
-system(paste0('mkdir -p ', opt$out))
 
 scRT = foreach(
     i = 1:length(opt$File),
     .packages = 'tidyverse',
     .combine = 'rbind'
 ) %do% {
-    tmp = read_tsv(opt$File[i], col_types = cols(chr='c'))
+    tmp = read_tsv(opt$File[i], col_types = cols(chr = 'c'))
     if ('sort' %in% names(opt)) {
         tmp %>%
             mutate(group = factor(group, levels = opt$sort))
@@ -82,16 +81,9 @@ scRT = foreach(
 }
 
 
-#create directory
-if (str_extract(opt$out, '.$') != '/') {
-    opt$out = paste0(opt$out, '/')
-}
-
-
-
 scRT = scRT %>% spread(group, RT) %>%
     drop_na() %>%
-    dplyr::select(-chr, -start, -end) 
+    dplyr::select(-chr, -start, -end)
 
 plot = ggcorrplot(
     scRT %>%
@@ -103,72 +95,91 @@ plot = ggcorrplot(
     ggtheme = ggplot2::theme(aspect.ratio = 1)
 )
 
+suppressMessages(ggsave(plot = plot,
+                        filename = file.path(
+                            opt$out,
+                            paste0(opt$output_file_base_name,
+                                   '_spearman_correlation.pdf')
+                        )))
+
 suppressMessages(ggsave(
-    plot = plot,
-    filename = paste0(
+    plot = ggpairs(
+        scRT,
+        diag = list(
+            continuous = function(data, mapping, ...) {
+                p <- ggplot(data, mapping) +
+                    geom_density(aes(y = ..density.. / max(..density..)),
+                                 fill = 'grey') +
+                    scale_x_continuous(breaks = c(0, 0.5, 1)) +
+                    scale_y_continuous(breaks = c(0, 0.5, 1))
+                return(p)
+            }
+        ),
+        upper = list(
+            continuous = function(data, mapping, ...) {
+                Spearman = cor(data[as_label(mapping$x)], data[as_label(mapping$y)], method = 'spearman')
+                data = tibble(x = seq(0, 2 * pi, length.out = 200),
+                              Corr = Spearman) %>%
+                    mutate(y = 0.5 + Corr / 2 * sin(x),
+                           x = 0.5 + Corr / 2 * cos(x))
+                
+                p <- ggplot(data, aes(x = x, y = y, fill = Corr)) +
+                    geom_polygon() + theme(axis.title = element_blank(),
+                                           panel.grid = element_blank()) +
+                    annotate(
+                        'text',
+                        x = 0.5,
+                        y = 0.5,
+                        label = paste("Corr:", round(unique(Spearman), 3), sep = '\n'),
+                        color = 'red'
+                    ) +
+                    scale_fill_gradient2(
+                        low = '#BCAF6FFF',
+                        high = '#00204DFF',
+                        mid = '#7C7B78FF',
+                        midpoint = 0,
+                        limits = c(-1, 1)
+                    ) + coord_cartesian(xlim = c(0, 1), ylim = c(0, 1))
+                
+                return(p)
+            }
+        ),
+        lower = list(
+            continuous = function(data, mapping, ...) {
+                p <- ggplot(data = data, mapping = mapping) +
+                    geom_hex(bins = 50, aes(fill = ..ndensity..)) +
+                    scale_fill_gradientn(
+                        'Density',
+                        colours = c(
+                            "#FFEA46FF",
+                            "#D3C164FF",
+                            "#A69D75FF",
+                            "#7C7B78FF",
+                            "#575C6DFF",
+                            "#233E6CFF",
+                            "#00204DFF"
+                        )
+                    ) +
+                    coord_cartesian(xlim = c(0, 1), ylim = c(0, 1)) +
+                    scale_x_continuous(breaks = c(0, 0.5, 1)) +
+                    scale_y_continuous(breaks = c(0, 0.5, 1)) +
+                    geom_abline(slope = 1,
+                                color = 'black',
+                                alpha = 0.5)
+                
+                return(p)
+            }
+        ),
+        legend = c(2, 1)
+    ) + theme(
+        legend.position = "right",
+        axis.text.x = element_text(angle = 45, hjust = 1)
+    ),
+    filename = file.path(
         opt$out,
-        opt$output_file_base_name,
-        '_spearman_correlation',
-        '.pdf'
-    )
-))
-suppressMessages( ggsave(
-    plot = ggpairs(scRT,diag = list(continuous =function(data, mapping, ...){
-        p <- ggplot(data,mapping)+
-            geom_density(aes(y=..density../max(..density..)),
-                         fill='grey')+
-            scale_x_continuous(breaks = c(0,0.5,1))+
-            scale_y_continuous(breaks = c(0,0.5,1))
-        return(p)
-    }),
-    upper = list(continuous =function(data, mapping, ...){
-        
-        Spearman=cor(data[as_label(mapping$x)],data[as_label(mapping$y)],method = 'spearman')
-        data=tibble(
-            x=seq(0,2*pi,length.out = 200),
-            Corr=Spearman
-        )%>%
-            mutate(y=0.5+Corr/2*sin(x),
-                   x=0.5+Corr/2*cos(x))
-        
-        p <- ggplot(data, aes(x = x, y = y, fill = Corr))+
-            geom_polygon() + theme(
-                axis.title = element_blank(),
-                panel.grid = element_blank()
-            ) +
-            annotate('text',x = 0.5,
-                     y = 0.5,
-                     label = paste("Corr:", round(unique(Spearman), 3), sep = '\n'),
-                     color = 'red') +
-            scale_fill_gradient2(
-                low = '#BCAF6FFF',
-                high = '#00204DFF',
-                mid = '#7C7B78FF',
-                midpoint = 0,
-                limits = c(-1, 1)
-            ) + coord_cartesian(xlim = c(0,1), ylim = c(0,1))
-        
-        return(p)
-    }),
-    lower = list(continuous =function(data, mapping, ...){
-        p <- ggplot(data = data, mapping = mapping) + 
-            geom_hex(bins=50,aes(fill=..ndensity..))+
-            scale_fill_gradientn('Density',colours =c("#FFEA46FF","#D3C164FF","#A69D75FF","#7C7B78FF","#575C6DFF","#233E6CFF","#00204DFF"))+
-            coord_cartesian(xlim = c(0,1),ylim = c(0,1))+
-            scale_x_continuous(breaks = c(0,0.5,1))+
-            scale_y_continuous(breaks = c(0,0.5,1))+
-            geom_abline(slope = 1,color='black',alpha=0.5)
-        
-        return(p)
-    }),legend = c(2,1))+ theme(legend.position = "right",
-                               axis.text.x = element_text(angle = 45,hjust = 1)),
-    filename =paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
-        '_pair_scatter_plot_RTs.pdf'
+        paste0(opt$output_file_base_name,
+               '_pair_scatter_plot_RTs.pdf')
     )
 ))
 
 print('done')
-

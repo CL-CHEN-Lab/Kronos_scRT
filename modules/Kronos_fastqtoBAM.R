@@ -1,16 +1,29 @@
-#!/usr/local/bin/Rscript
+#move function depending on OS
+file.move=function(from,to){
+    if(.Platform$OS.type=='unix'){
+    system(
+        paste('mv',from,to)
+    )
+    }else if(.Platform$OS.type=='windows'){
+        system(
+            paste('move',from,to)
+        )   
+    }
+}
 #parse input
-
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
-options(stringsAsFactors = FALSE)
+options(stringsAsFactors = FALSE,
+        dplyr.summarise.inform=FALSE,
+        warn = 1,
+        scipen = 999)
 
 option_list = list(
     make_option(
         c("-l", "--fastq_list"),
         type = "character",
         default = NULL,
-        help = "A table formatted in the following way: sam_file_basename\tFastq_1\tFastq_2(optional for PE sequencing). Compressed files are not allowed. Alternative to -O/-T/-b",
+        help = "A table formatted in the following way: sam_file_basename <TAB> Fastq_1 <TAB> Fastq_2(optional for PE sequencing). Compressed files are not allowed. Alternative to -O/-T/-b",
         metavar = "character"
     ),
     make_option(
@@ -52,7 +65,7 @@ option_list = list(
     make_option(
         c("-o", "--output_dir"),
         type = "character",
-        default = 'output/',
+        default = 'output',
         action = 'store',
         help = "Output folder. [default= %default]",
         metavar = "character"
@@ -119,14 +132,7 @@ suppressPackageStartupMessages(library(foreach, quietly = TRUE))
 
 options(scipen = 9999)
 
-
-# check inputs
-if (str_extract(opt$output_dir, '.$') != '/') {
-    opt$output_dir = paste0(opt$output_dir, '/')
-}
-
-
-#findpaths
+#find paths
 opt$path_to_trim_galore = Sys.which(opt$path_to_trim_galore)
 
 if (opt$path_to_trim_galore == '') {
@@ -157,43 +163,15 @@ No_trim_galore_report=str_detect(string = opt$trim_galore_extra_option,pattern =
 
 #create output directories
 if(!No_trim_galore_report){
-    system(
-        paste0(
-            'mkdir -p ',
-            opt$output_dir,
-            ' ',
-            opt$output_dir,
-            'trimmed ',
-            opt$output_dir,
-            'sorted_bam ',
-            opt$output_dir,
-            'delDup ',
-            opt$output_dir,
-            'MarkDuplicates_logs ',
-            opt$output_dir,
-            'Bowtie2_logs ',
-            opt$output_dir,
-            'TrimGalore_logs '
-        )
-    )    
+    
+    paths_to_create=file.path(opt$output_dir,c('trimmed ','sorted_bam','delDup','MarkDuplicates_logs','Bowtie2_logs','TrimGalore_logs'))
+    paths_to_create=lapply(paths_to_create, dir.create,recursive = T,showWarnings = F)
+   
 }else{
-    system(
-        paste0(
-            'mkdir -p ',
-            opt$output_dir,
-            ' ',
-            opt$output_dir,
-            'trimmed ',
-            opt$output_dir,
-            'sorted_bam ',
-            opt$output_dir,
-            'delDup ',
-            opt$output_dir,
-            'MarkDuplicates_logs ',
-            opt$output_dir,
-            'Bowtie2_logs '
-        )
-    )
+    
+    paths_to_create=file.path(opt$output_dir,c('trimmed ','sorted_bam','delDup','MarkDuplicates_logs','Bowtie2_logs'))
+    paths_to_create=lapply(paths_to_create, dir.create,recursive = T,showWarnings = F)
+    
 }
 
 
@@ -255,8 +233,9 @@ tmp=foreach(i = 1:length(opt$one),.combine = 'rbind',.packages = c('tidyverse','
                 ' ',
                 opt$one[i],
                 ' --output_dir ',
+                file.path(
                 opt$output_dir,
-                'trimmed/',
+                'trimmed'),
                 ' --path_to_cutadapt ',
                 opt$path_to_cutadapt,
                 ' ',
@@ -266,20 +245,18 @@ tmp=foreach(i = 1:length(opt$one),.combine = 'rbind',.packages = c('tidyverse','
         
         #move trim galore report if it exists 
         if (!No_trim_galore_report) {
-            system(
-                paste0(
-                    'mv ',
-                    opt$output_dir,
-                    'trimmed/',
-                    basename(opt$one[i]),
-                    '*.txt ',
-                    opt$output_dir,
-                    'TrimGalore_logs/'
-                )
+            file.move(
+                file.path(opt$output_dir,
+                          'trimmed', paste0(basename(opt$one[i]),
+                                            '*.txt ')),
+                file.path(opt$output_dir,
+                          'TrimGalore_logs')
             )
+
         }
+        
         file_basename = str_remove(basename(opt$one[i]), pattern = '.fastq$|.fq$')
-        input_bowtie = list.files(paste0(opt$output_dir, 'trimmed/'), pattern = file_basename)
+        input_bowtie = list.files(file.path(opt$output_dir, 'trimmed'), pattern = file_basename)
         
         if ('sam_file_basename' %in% names(opt)) {
             file_basename = opt$sam_file_basename[i]
@@ -289,23 +266,21 @@ tmp=foreach(i = 1:length(opt$one),.combine = 'rbind',.packages = c('tidyverse','
         suppressMessages(
             bowtie2(
                 bt2Index = opt$index,
-                samOutput = paste0(opt$output_dir, 'sorted_bam/', file_basename, '.sam'),
-                seq1 = paste0(opt$output_dir, 'trimmed/', input_bowtie),
-                ... = paste0('--met 60 --met-file ',opt$output_dir,
-                             'Bowtie2_logs/',file_basename,'.txt'),
+                samOutput = file.path(opt$output_dir, 'sorted_bam', paste0(file_basename, '.sam')),
+                seq1 = file.path(opt$output_dir, 'trimmed', input_bowtie),
+                ... = paste0('--met 60 --met-file ',file.path(opt$output_dir,
+                             'Bowtie2_logs',file_basename),'.txt'),
                 overwrite = TRUE
             )
         )
         
         #convert to BAM, sort and index 
-        asBam(paste0(opt$output_dir, 'sorted_bam/', file_basename, '.sam'))
-        system(paste0(
-            'rm ',
-            opt$output_dir,
-            'sorted_bam/',
-            file_basename,
-            '.sam'
-        ))
+        asBam(file.path(opt$output_dir, 'sorted_bam', paste0(file_basename, '.sam')))
+        file.remove(file.path(opt$output_dir,
+                              'sorted_bam',
+                              paste0(file_basename,
+                                     '.sam')))
+            
         
         #remove duplicates
         system(
@@ -314,29 +289,31 @@ tmp=foreach(i = 1:length(opt$one),.combine = 'rbind',.packages = c('tidyverse','
                 ' -jar ',
                 opt$path_to_picard,
                 ' MarkDuplicates I=',
-                opt$output_dir,
-                'sorted_bam/',
-                file_basename,
+                file.path(opt$output_dir,
+                'sorted_bam',
+                file_basename),
                 '.bam O=',
+                file.path(
                 opt$output_dir,
-                'delDup/',
-                file_basename,
+                'delDup',
+                file_basename),
                 "_delDupl.bam M=",
+                file.path(
                 opt$output_dir,
-                'MarkDuplicates_logs/',
-                file_basename,
+                'MarkDuplicates_logs',
+                file_basename),
                 "_delDupl.log REMOVE_DUPLICATES=true ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT USE_JDK_DEFLATER=true USE_JDK_INFLATER=true"
             )
         )
         
         
         if(!opt$keep_intermediate_files){
-            system(
-                paste('rm', 
-                      paste0(opt$output_dir,'sorted_bam/',file_basename, '* '),
-                      paste0(opt$output_dir, 'trimmed/', input_bowtie)
-                ))
-        }
+            
+            file_to_rm=list.files(file.path(opt$output_dir,'sorted_bam'),pattern = file_basename,full.names = T)
+            lapply(file_to_rm,file.remove)
+            file.remove(file.path(opt$output_dir, 'trimmed', input_bowtie))
+        
+            }
         
     } else {
     
@@ -349,12 +326,13 @@ tmp=foreach(i = 1:length(opt$one),.combine = 'rbind',.packages = c('tidyverse','
                 ' ',
                 opt$two[i],
                 ' --output_dir ',
-                opt$output_dir,
-                'trimmed/',
+                file.path(opt$output_dir,
+                          'trimmed'),
                 ' --path_to_cutadapt ',
                 opt$path_to_cutadapt,
                 ' ',
-                opt$trim_galore_extra_option, ' '
+                opt$trim_galore_extra_option,
+                ' '
                 
             )
         )
@@ -362,35 +340,26 @@ tmp=foreach(i = 1:length(opt$one),.combine = 'rbind',.packages = c('tidyverse','
 
         #move trim_galore_reports if it exists into final folder        
         if (!No_trim_galore_report) {
-            system(
-                paste0(
-                    'mv ',
-                    opt$output_dir,
-                    'trimmed/',
-                    basename(opt$one[i]),
-                    '*.txt ',
-                    opt$output_dir,
-                    'TrimGalore_logs/'
-                )
-            )
-            system(
-                paste0(
-                    'mv ',
-                    opt$output_dir,
-                    'trimmed/',
-                    basename(opt$two[i]),
-                    '*.txt ',
-                    opt$output_dir,
-                    'TrimGalore_logs/'
-                )
-            )
+            file.move(file.path(opt$output_dir,
+                                'trimmed',
+                                paste0(basename(opt$one[i]),
+                                '*.txt ')),
+                      file.path( opt$output_dir,
+                                 'TrimGalore_logs'))
+            file.move(file.path(opt$output_dir,
+                                'trimmed',
+                                paste0(basename(opt$two[i]),
+                                       '*.txt ')),
+                      file.path( opt$output_dir,
+                                 'TrimGalore_logs'))
+
         }
         
 
         file_basename_one = str_remove(basename(opt$one[i]),  pattern = '.fastq$|.fq$')
         file_basename_two = str_remove(basename(opt$two[i]),  pattern = '.fastq$|.fq$')
-        input_bowtie_1 = list.files(paste0(opt$output_dir, 'trimmed/'), pattern = file_basename_one)
-        input_bowtie_2 = list.files(paste0(opt$output_dir, 'trimmed/'), pattern = file_basename_two)
+        input_bowtie_1 = list.files(file.path(opt$output_dir, 'trimmed'), pattern = file_basename_one)
+        input_bowtie_2 = list.files(file.path(opt$output_dir, 'trimmed'), pattern = file_basename_two)
         
         if ('sam_file_basename' %in% names(opt)) {
             file_basename = opt$sam_file_basename[i]
@@ -402,24 +371,21 @@ tmp=foreach(i = 1:length(opt$one),.combine = 'rbind',.packages = c('tidyverse','
         suppressMessages(
             bowtie2(
                 bt2Index = opt$index,
-                samOutput = paste0(opt$output_dir, 'sorted_bam/', file_basename, '.sam'),
-                seq1 = paste0(opt$output_dir, 'trimmed/', input_bowtie_1),
-                seq2 = paste0(opt$output_dir, 'trimmed/', input_bowtie_2),
-                ... = paste0('--met 60 --met-file ',opt$output_dir,
-                             'Bowtie2_logs/',file_basename,'.txt'),
+                samOutput = paste0(file.path(opt$output_dir, 'sorted_bam', file_basename), '.sam'),
+                seq1 = file.path(opt$output_dir, 'trimmed', input_bowtie_1),
+                seq2 = file.path(opt$output_dir, 'trimmed', input_bowtie_2),
+                ... = paste0('--met 60 --met-file ',file.path(opt$output_dir,
+                             'Bowtie2_logs',file_basename),'.txt'),
                 overwrite = TRUE
             )
         )
         
         #convert to BAM, sort and index 
-        asBam(paste0(opt$output_dir, 'sorted_bam/', file_basename, '.sam'))
-        system(paste0(
-            'rm ',
-            opt$output_dir,
-            'sorted_bam/',
-            file_basename,
-            '.sam'
-        ))
+        asBam(paste0(file.path(opt$output_dir, 'sorted_bam', file_basename), '.sam'))
+        file.remove(file.path( opt$output_dir,
+                               'sorted_bam',
+                               paste0(file_basename,'.sam')))
+
         
         #remove duplicates
         system(
@@ -428,54 +394,52 @@ tmp=foreach(i = 1:length(opt$one),.combine = 'rbind',.packages = c('tidyverse','
                 ' -jar ',
                 opt$path_to_picard,
                 ' MarkDuplicates I=',
+                file.path(
                 opt$output_dir,
-                'sorted_bam/',
-                file_basename,
+                'sorted_bam',
+                file_basename),
                 '.bam O=',
+                file.path(
                 opt$output_dir,
-                'delDup/',
-                file_basename,
+                'delDup',
+                file_basename),
                 "_delDupl.bam M=",
+                file.path(
                 opt$output_dir,
-                'MarkDuplicates_logs/',
-                file_basename,
+                'MarkDuplicates_logs',
+                file_basename),
                 "_delDupl.log REMOVE_DUPLICATES=true ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT USE_JDK_DEFLATER=true USE_JDK_INFLATER=true"
             )
         )
         if(!opt$keep_intermediate_files){
-            system(
-                paste('rm', 
-                     paste0(opt$output_dir,'sorted_bam/',file_basename, '* '),
-                paste0(opt$output_dir, 'trimmed/', input_bowtie_1),
-                paste0(opt$output_dir, 'trimmed/', input_bowtie_2)
-            ))
+            
+            file_to_rm=list.files(file.path(opt$output_dir,'sorted_bam'),pattern = file_basename,full.names = T)
+            lapply(file_to_rm,file.remove)
+            file.remove(file.path(opt$output_dir, 'trimmed', input_bowtie_1))
+            file.remove(file.path(opt$output_dir, 'trimmed', input_bowtie_2))
+
         }
     }
     
     
-    read_tsv(paste0(opt$output_dir,
-             'MarkDuplicates_logs/',file_basename,'_delDupl.log'), skip = 6)%>%
+    read_tsv(paste0(file.path(opt$output_dir,
+             'MarkDuplicates_logs',file_basename),'_delDupl.log'), skip = 6)%>%
         mutate(LIBRARY=file_basename)
-    
-    
     
 }
 
-if(!opt$keep_intermediate_files){
-    system(
-        paste('rm -r', 
-              paste0(opt$output_dir,'sorted_bam/'),
-              paste0(opt$output_dir, 'trimmed/')
-        ))
+#remove extra folders
+if(!opt$keep_intermediate_files) {
+    unlink(x =file.path(opt$output_dir, c('sorted_bam', 'trimmed')),
+           recursive = T)
 }
 
 stopCluster(cl)
 
-if (file.exists(paste0(opt$output_dir,'Single_cells_reads_info.tsv'))){
-    tmp%>%write_tsv(paste0(opt$output_dir,'Single_cells_reads_info.tsv'), append = T)
+if (file.exists(file.path(opt$output_dir,'Single_cells_reads_info.tsv'))){
+    tmp%>%write_tsv(file.path(opt$output_dir,'Single_cells_reads_info.tsv'), append = T)
 }else{
-    tmp%>%write_tsv(paste0(opt$output_dir,'Single_cells_reads_info.tsv')) 
+    tmp%>%write_tsv(file.path(opt$output_dir,'Single_cells_reads_info.tsv')) 
 }
-
 
 print('done')

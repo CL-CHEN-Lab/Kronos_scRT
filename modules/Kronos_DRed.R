@@ -1,9 +1,10 @@
-#!/usr/local/bin/Rscript
 #parse input
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
-options(stringsAsFactors = FALSE)
-options(warn = 1, scipen = 999)
+options(stringsAsFactors = FALSE,
+        dplyr.summarise.inform=FALSE,
+        warn = 1,
+        scipen = 999)
 
 option_list = list(
     make_option(
@@ -17,7 +18,7 @@ option_list = list(
         c("--CNV_values"),
         type = "character",
         default = "B",
-        help = "What type of date to plot for the single cell traks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells)) [default= %default]",
+        help = "What type of data to plot for the single cell traks: ('B'=Binarized, 'CNV'=Copy number variation, 'log2'=log2(CNV_Cell/CNV_mean_G1/G2_cells)) [default= %default]",
         metavar = "character"
     ),
     make_option(
@@ -46,7 +47,7 @@ option_list = list(
         c("-c", "--cores"),
         type = "integer",
         default = 3,
-        help = "Numbers of cores to use [default= %default]",
+        help = "Number of cores to use [default= %default]",
         metavar = "integer"
     ),
     make_option(
@@ -103,7 +104,9 @@ suppressPackageStartupMessages(library(Rtsne, quietly = TRUE))
 suppressPackageStartupMessages(library(ade4, quietly = TRUE))
 suppressPackageStartupMessages(library(umap, quietly = TRUE))
 #output dir
-system(paste0('mkdir -p ', opt$out))
+if (!dir.exists(opt$out)) {
+    dir.create(opt$out, recursive = T)
+}
 
 #set plotting theme
 theme_set(theme_bw())
@@ -118,28 +121,30 @@ if (!'scCNV' %in% names(opt)) {
 
 opt$scCNV = str_split(opt$scCNV, ',')[[1]]
 
-if('order'%in% names(opt)){
+if ('order' %in% names(opt)) {
     opt$order = str_split(opt$order, ',')[[1]]
     
 }
 
 #load CNV files
-scCNV=foreach(i=1:length(opt$scCNV),.packages = 'tidyverse',.combine = 'rbind')%do%{
-    tmp=read_tsv(opt$scCNV[i],col_types = cols(chr='c'))
-    if('order'%in% names(opt)){
-        tmp%>%
-            mutate(
-                group=factor(group, levels=opt$order)
-            ) 
+scCNV = foreach(
+    i = 1:length(opt$scCNV),
+    .packages = 'tidyverse',
+    .combine = 'rbind'
+) %do% {
+    tmp = read_tsv(opt$scCNV[i], col_types = cols(chr = 'c'))
+    if ('order' %in% names(opt)) {
+        tmp %>%
+            mutate(group = factor(group, levels = opt$order))
         
-    }else{
+    } else{
         tmp
     }
 }
 
 # select chrs of interest
 # convert string into range
-Convert_to_range = Vectorize(function(x){
+Convert_to_range = Vectorize(function(x) {
     if (str_detect(x, ':')) {
         x = str_split(x, ':')[[1]]
         return(as.numeric(x[1]):as.numeric(x[2]))
@@ -148,91 +153,87 @@ Convert_to_range = Vectorize(function(x){
     }
 })
 
-chr_list = paste0(ifelse(opt$chr_prefix=='none','',opt$chr_prefix), unlist(Convert_to_range(str_split(opt$chr_range,',')[[1]])))
+chr_list = paste0(ifelse(opt$chr_prefix == 'none', '', opt$chr_prefix),
+                  unlist(Convert_to_range(str_split(opt$chr_range, ',')[[1]])))
 
 #filter chr and convert into factor
-scCNV=scCNV%>%
-    filter(chr %in% chr_list)%>%
+scCNV = scCNV %>%
+    filter(chr %in% chr_list) %>%
     mutate(chr = factor(x =  chr, levels = chr_list)) %>%
     drop_na()
 
 
-#create directory
-if (str_extract(opt$out, '.$') != '/') {
-    opt$out = paste0(opt$out, '/')
-}
-
-
-if(!opt$CNV_values %in% c('B','CNV','Log2','all')){
-    opt$CNV_values='B'
+if (!opt$CNV_values %in% c('B', 'CNV', 'Log2', 'all')) {
+    opt$CNV_values = 'B'
     warning('unrecognized CNV value to plot. Binarized tracks restored')
 }
 
 #store chr info
-chr=unique(scCNV$chr)
+chr = unique(scCNV$chr)
 
-scCNV=scCNV%>%
-    mutate(pos=paste0(chr,':',start,'-',end))%>%
+scCNV = scCNV %>%
+    mutate(pos = paste0(chr, ':', start, '-', end)) %>%
     dplyr::select(
         'pos',
         'Cell',
         'PercentageReplication',
         'basename',
         'group',
-        'data'=case_when(
-            opt$CNV_values=='B' ~ 'Rep',
-            opt$CNV_values=='CNV' ~ 'CN',
-            opt$CNV_values=='Log2' ~ 'CN_bg'
+        'data' = case_when(
+            opt$CNV_values == 'B' ~ 'Rep',
+            opt$CNV_values == 'CNV' ~ 'CN',
+            opt$CNV_values == 'Log2' ~ 'CN_bg'
         )
-    )%>%
-    mutate(data=as.numeric(data))%>%
-    spread(pos,data)
+    ) %>%
+    mutate(data = as.numeric(data)) %>%
+    spread(pos, data)
 
 #remove NA columns
-scCNV=scCNV[,colSums(is.na(scCNV)) == 0]
+scCNV = scCNV[, colSums(is.na(scCNV)) == 0]
 
-mat=scCNV[,-c(1:4)]
-scCNV=scCNV[,c(1:4)]
+mat = scCNV[, -c(1:4)]
+scCNV = scCNV[, c(1:4)]
 
-if(opt$CNV_values=='B') {
+if (opt$CNV_values == 'B') {
     if (opt$per_Chr) {
         # calculate distance per each chr
         cl = makeCluster(opt$cores)
         registerDoSNOW(cl)
         
         
-        results = foreach(C = chr,.packages = 'ade4',.inorder = T) %dopar% {
-            as.matrix(dist.binary(mat[, grepl(pattern = paste0(C, ':'), x = colnames(mat))], method = 2))
-            
-        }
+        results = foreach(C = chr,
+                          .packages = 'ade4',
+                          .inorder = T) %dopar% {
+                              as.matrix(dist.binary(mat[, grepl(pattern = paste0(C, ':'), x = colnames(mat))], method = 2))
+                              
+                          }
         
         stopCluster(cl)
         
-        names(results)=chr
+        names(results) = chr
         
     } else{
-        results=list()
-        results[['all Chr']]=as.matrix(dist.binary(mat, method = 2))
+        results = list()
+        results[['all Chr']] = as.matrix(dist.binary(mat, method = 2))
     }
-}else{
-    
+} else{
     if (opt$per_Chr) {
         # calculate distance per each chr
         cl = makeCluster(opt$cores)
         registerDoSNOW(cl)
         
         
-        results = foreach(C = chr,.inorder = T) %dopar% {
+        results = foreach(C = chr, .inorder = T) %dopar% {
             as.matrix(mat[, grepl(pattern = paste0(C, ':'), x = colnames(mat))])
         }
         
         stopCluster(cl)
         
-        names(results)=chr
+        names(results) = chr
         
     } else{
-        results=list()
-        results[['all Chr']]=as.matrix(mat)
+        results = list()
+        results[['all Chr']] = as.matrix(mat)
     }
     
 }
@@ -242,8 +243,12 @@ rm('mat')
 
 scCNV_umap = scCNV
 # TSNE
-if (!opt$UMAP){
-    scCNV=foreach(C = names(results),.packages = c('Rtsne','tidyverse'),.combine = 'rbind') %do% {    
+if (!opt$UMAP) {
+    scCNV = foreach(
+        C = names(results),
+        .packages = c('Rtsne', 'tidyverse'),
+        .combine = 'rbind'
+    ) %do% {
         Perplex = ceiling(nrow(results[[C]]) / 50)
         tsne <-
             Rtsne(
@@ -252,109 +257,180 @@ if (!opt$UMAP){
                 perplexity = ifelse(Perplex < 10, 10, Perplex),
                 check_duplicates = F,
                 theta = 0.25,
-                is_distance = opt$CNV_values=='B',
+                is_distance = opt$CNV_values == 'B',
                 verbose = F,
                 max_iter = 5000,
                 num_threads = opt$cores,
                 partial_pca = T
             )
         
-        scCNV%>%mutate(Chr=C,
-                       x=tsne$Y[,1],
-                       y=tsne$Y[,2])
+        scCNV %>% mutate(Chr = C,
+                         x = tsne$Y[, 1],
+                         y = tsne$Y[, 2])
     }
-    write_tsv(scCNV,paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
+    write_tsv(scCNV, paste0(
+        file.path(opt$out,
+                  opt$output_file_base_name),
         '_tsne.txt'
     ))
-    X=foreach(C = names(results),.packages = c('tidyverse'),.combine = 'rbind') %do% {
-        plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=group,shape=group),alpha=0.4,size=2)+xlab('TSNE1')+ylab('TSNE2')+facet_wrap(~Chr)
+    
+    X = foreach(
+        C = names(results),
+        .packages = c('tidyverse'),
+        .combine = 'rbind'
+    ) %do% {
+        plot = scCNV %>% filter(Chr == C) %>% ggplot() + geom_point(aes(x, y, color =
+                                                                            group, shape = group),
+                                                                    alpha = 0.4,
+                                                                    size = 2) + xlab('TSNE1') + ylab('TSNE2') + facet_wrap( ~ Chr)
         
         suppressMessages(ggsave(
-            plot = plot, dpi = 300,
-            filename = paste0(
-                opt$out,
-                opt$output_file_base_name,
-                '_',C,'_tsne_color_by_group.pdf'
-            )
+            plot = plot,
+            dpi = 300,
+            filename = paste(
+                file.path(opt$out,
+                          opt$output_file_base_name),
+                C,
+                'tsne_color_by_group.pdf',
+                sep = '_'
+            ),
+            device = cairo_pdf
         ))
         
-        plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=basename,shape=group),alpha=0.4,size=2)+xlab('TSNE1')+ylab('TSNE2')+facet_wrap(~Chr)
+        plot = scCNV %>% filter(Chr == C) %>% ggplot() + geom_point(aes(x, y, color =
+                                                                            basename, shape = group),
+                                                                    alpha = 0.4,
+                                                                    size = 2) + xlab('TSNE1') + ylab('TSNE2') + facet_wrap( ~ Chr)
         
         suppressMessages(ggsave(
-            plot = plot, dpi = 300,
-            filename = paste0(
-                opt$out,
-                opt$output_file_base_name,
-                '_',C,'_tsne_color_by_basename.pdf'
-            )
+            plot = plot,
+            dpi = 300,
+            filename = paste(
+                file.path(opt$out,
+                          opt$output_file_base_name),
+                C,
+                'tsne_color_by_basename.pdf',
+                sep = '_'
+            ),
+            device = cairo_pdf
         ))
         
-        plot=scCNV%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=PercentageReplication,shape=group),alpha=0.4,size=2)+scale_color_gradient2(low = "#FFEA46FF", mid = "#7C7B78FF", high = "#00204DFF",lim=c(0,1),midpoint = 0.5)+xlab('TSNE1')+ylab('TSNE2')+facet_wrap(~Chr)
+        plot = scCNV %>% filter(Chr == C) %>% ggplot() + geom_point(
+            aes(x, y, color = PercentageReplication, shape = group),
+            alpha = 0.4,
+            size = 2
+        ) + scale_color_gradient2(
+            low = "#FFEA46FF",
+            mid = "#7C7B78FF",
+            high = "#00204DFF",
+            lim = c(0, 1),
+            midpoint = 0.5
+        ) + xlab('TSNE1') + ylab('TSNE2') + facet_wrap( ~ Chr)
         suppressMessages(ggsave(
-            plot = plot, dpi = 300,
-            filename = paste0(
-                opt$out,
-                opt$output_file_base_name,
-                '_',C,'_tsne_color_by_rep_percentage.pdf'
-            )
+            plot = plot,
+            dpi = 300,
+            filename = paste(
+                file.path(opt$out,
+                          opt$output_file_base_name),
+                C,
+                'tsne_color_by_rep_percentage.pdf',
+                sep = '_'
+            ),
+            device = cairo_pdf
         ))
         C
     }
 }
 
 # UMAP
-if (!opt$TSNE){
-    scCNV_umap=foreach(C = names(results),.packages = c('umap','tidyverse'),.combine = 'rbind') %do% {    
-        if(opt$CNV_values=='B'){
+if (!opt$TSNE) {
+    scCNV_umap = foreach(
+        C = names(results),
+        .packages = c('umap', 'tidyverse'),
+        .combine = 'rbind'
+    ) %do% {
+        if (opt$CNV_values == 'B') {
             input_mat = 'dist'
-        }else{
+        } else{
             input_mat = "data"
         }
-        umap <- umap::umap(d = results[[C]], input = input_mat, random_state = opt$seed)
-        scCNV_umap%>%mutate(Chr=C,
-                            x=umap$layout[,1],
-                            y=umap$layout[,2])
+        umap <-
+            umap::umap(d = results[[C]],
+                       input = input_mat,
+                       random_state = opt$seed)
+        scCNV_umap %>% mutate(Chr = C,
+                              x = umap$layout[, 1],
+                              y = umap$layout[, 2])
     }
-    write_tsv(scCNV_umap,paste0(
-        opt$out,
-        '/',
-        opt$output_file_base_name,
+    write_tsv(scCNV_umap, paste0(
+        file.path(opt$out,
+                  opt$output_file_base_name),
         '_umap.txt'
     ))
-    X_umap=foreach(C = names(results),.packages = c('tidyverse'),.combine = 'rbind') %do% {
-        plot=scCNV_umap%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=group,shape=group),alpha=0.4,size=2)+xlab('UMAP1')+ylab('UMAP2')+facet_wrap(~Chr)
+    
+    X_umap = foreach(
+        C = names(results),
+        .packages = c('tidyverse'),
+        .combine = 'rbind'
+    ) %do% {
+        plot = scCNV_umap %>% filter(Chr == C) %>% ggplot() + geom_point(aes(x, y, color =
+                                                                                 group, shape = group),
+                                                                         alpha = 0.4,
+                                                                         size = 2) + xlab('UMAP1') + ylab('UMAP2') + facet_wrap( ~ Chr)
         
         suppressMessages(ggsave(
-            plot = plot, dpi = 300,
-            filename = paste0(
-                opt$out,
-                opt$output_file_base_name,
-                '_',C,'_umap_color_by_group.pdf'
-            )
+            plot = plot,
+            dpi = 300,
+            filename = paste(
+                file.path(opt$out,
+                          opt$output_file_base_name),
+                C,
+                'umap_color_by_group.pdf',
+                sep = '_'
+            ),
+            device = cairo_pdf
         ))
         
-        plot=scCNV_umap%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=basename,shape=group),alpha=0.4,size=2)+xlab('UMAP1')+ylab('UMAP2')+facet_wrap(~Chr)
+        plot = scCNV_umap %>% filter(Chr == C) %>% ggplot() + geom_point(aes(x, y, color =
+                                                                                 basename, shape = group),
+                                                                         alpha = 0.4,
+                                                                         size = 2) + xlab('UMAP1') + ylab('UMAP2') + facet_wrap( ~ Chr)
         
         suppressMessages(ggsave(
-            plot = plot, dpi = 300,
-            filename = paste0(
-                opt$out,
-                opt$output_file_base_name,
-                '_',C,'_umap_color_by_basename.pdf'
-            )
+            plot = plot,
+            dpi = 300,
+            filename = paste(
+                file.path(opt$out,
+                          opt$output_file_base_name),
+                C,
+                'umap_color_by_basename.pdf',
+                sep = '_'
+            ),
+            device = cairo_pdf
         ))
         
-        plot=scCNV_umap%>%filter(Chr==C)%>%ggplot()+geom_point(aes(x,y,color=PercentageReplication,shape=group),alpha=0.4,size=2)+scale_color_gradient2(low = "#FFEA46FF", mid = "#7C7B78FF", high = "#00204DFF",lim=c(0,1),midpoint = 0.5)+xlab('UMAP1')+ylab('UMAP2')+facet_wrap(~Chr)
+        plot = scCNV_umap %>% filter(Chr == C) %>% ggplot() + geom_point(
+            aes(x, y, color = PercentageReplication, shape = group),
+            alpha = 0.4,
+            size = 2
+        ) + scale_color_gradient2(
+            low = "#FFEA46FF",
+            mid = "#7C7B78FF",
+            high = "#00204DFF",
+            lim = c(0, 1),
+            midpoint = 0.5
+        ) + xlab('UMAP1') + ylab('UMAP2') + facet_wrap( ~ Chr)
         suppressMessages(ggsave(
-            plot = plot, dpi = 300,
-            filename = paste0(
-                opt$out,
-                opt$output_file_base_name,
-                '_',C,'_umap_color_by_rep_percentage.pdf'
-            )
+            plot = plot,
+            dpi = 300,
+            filename = paste(
+                file.path(opt$out,
+                          opt$output_file_base_name),
+                C,
+                'umap_color_by_rep_percentage.pdf',
+                sep = '_'
+            ),
+            device = cairo_pdf
         ))
         C
     }

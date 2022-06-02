@@ -1,15 +1,17 @@
-#!/usr/local/bin/Rscript
 #parse input
 suppressPackageStartupMessages(library(optparse, quietly = TRUE))
 
-options(stringsAsFactors = FALSE)
+options(stringsAsFactors = FALSE,
+        dplyr.summarise.inform=FALSE,
+        warn = 1,
+        scipen = 999)
 
 option_list = list(
     make_option(
         c("-R", "--RefGenome"),
         type = "character",
         default = NULL,
-        help = "Fasta file of genome of interst",
+        help = "Fasta file of genome of interest",
         metavar = "character"
     ),
     make_option(
@@ -31,7 +33,7 @@ option_list = list(
     make_option(
         c("-o", "--output_dir"),
         type = "character",
-        default = 'output/',
+        default = 'output',
         action = 'store',
         help = "Output folder. [default= %default]",
         metavar = "character"
@@ -71,7 +73,7 @@ option_list = list(
         c("-d","--dir_indexed_bam"),
         type = "character",
         action = 'store',
-        help = "If provided parameters will be automatically estimated from the data.",
+        help = "If provided, parameters will be automatically estimated from the data.",
         metavar = "character"
     ),
     make_option(
@@ -79,7 +81,7 @@ option_list = list(
       type = "double",
       default = 1.5,
       action = 'store',
-      help = "Maximum mappability for a bin to be considered in the analisys  [default= %default]",
+      help = "Maximum mappability for a bin to be considered in the analysis  [default= %default]",
       metavar = "double"
     ),
     make_option(
@@ -87,7 +89,7 @@ option_list = list(
       type = "double",
       action = 'store',
       default = 0.8,
-      help = "Minimum mappability for a bin to be considered in the analisys  [default= %default]",
+      help = "Minimum mappability for a bin to be considered in the analysis  [default= %default]",
       metavar = "double"
     ),
     make_option(
@@ -146,11 +148,9 @@ suppressPackageStartupMessages( library(GenomicRanges, quietly = TRUE))
 options(scipen = 9999)
 
 # create output directory
-if (str_extract(opt$output_dir,'.$')!='/'){
-    opt$output_dir=paste0(opt$output_dir,'/')
+if(!dir.exists(opt$output_dir)){
+  dir.create(opt$output_dir,recursive = T)
 }
-
-system(paste0('mkdir -p ', opt$output_dir))
 
 # check inputs
 if(!"RefGenome" %in% names(opt)){
@@ -194,15 +194,12 @@ if(is.na(opt$bin_size)){
 #loading reference fa
 reference=readDNAStringSet(opt$RefGenome)
 
-#exstimate paramenters
+#estimate parameters
 cl=makeCluster(opt$cores)
 registerDoSNOW(cl)
 
 if ('dir_indexed_bam' %in% names(opt)){
-    if (str_extract(opt$dir_indexed_bam,'.$')!='/'){
-        opt$dir_indexed_bam=paste0(opt$dir_indexed_bam,'/')
-    }
-    #sample 30 files (if available) to exstimate parameters
+    #sample 30 files (if available) to estimate parameters
     list=list.files(opt$dir_indexed_bam,pattern = 'bam$')
 
     if(length(list) > 30 ){
@@ -210,7 +207,7 @@ if ('dir_indexed_bam' %in% names(opt)){
     }
 
     parameters=foreach(i=list,.combine = 'rbind',.packages = 'Rsamtools')%dopar%{
-        sapply(scanBam(paste0(opt$dir_indexed_bam,i),param=ScanBamParam(what=c('isize','qwidth')))[[1]],
+        sapply(scanBam(file.path(opt$dir_indexed_bam,i),param=ScanBamParam(what=c('isize','qwidth')))[[1]],
                 function(x) median(abs(x),na.rm = T))
     }
 
@@ -244,7 +241,7 @@ Convert_to_range = Vectorize(function(x){
 chr_list = paste0(ifelse(opt$chr_prefix=='none','',opt$chr_prefix), unlist(Convert_to_range(str_split(opt$chr_range,',')[[1]])))
 chr_list = chr_list[chr_list %in% unique(names(reference))]
 
-# Identify regins in which the sequence is known
+# Identify regions in which the sequence is known
 find_known_sequences = function(x) {
     library(tidyverse)
     y = str_locate_all(x, '.[TACG]+')
@@ -261,7 +258,7 @@ recover_and_mutate = function(simulated_reads, Chr_reference,errorRate=opt$error
     #convert characters into int
     REF_mutated=utf8ToInt(as.character(Chr_reference[[1]]))
 
-    # applies mutation
+    # apply mutation
     mutate_sequence=Vectorize(function(Base){
 
         bases=c(65,67,84,71)
@@ -412,9 +409,9 @@ genome.Chromsizes = foreach(
         #save fastq files
         reshape_and_save(
             simulated_reads_1,
-            file = paste0(
+            file = paste0(file.path(
                 opt$output_dir,
-                basename(opt$index),'_',
+                basename(opt$index)),'_',
                 Chr,
                 '_simulated_reads_1.fq'
             ),
@@ -423,9 +420,9 @@ genome.Chromsizes = foreach(
         )
         reshape_and_save(
             simulated_reads_2,
-            file = paste0(
+            file = paste0(file.path(
                 opt$output_dir,
-                basename(opt$index),'_',
+                basename(opt$index)),'_',
                 Chr,
                 '_simulated_reads_2.fq'
             ),
@@ -437,9 +434,9 @@ genome.Chromsizes = foreach(
         #save fastq file
         reshape_and_save(
             simulated_reads,
-            file = paste0(
+            file = paste0(file.path(
                 opt$output_dir,
-                basename(opt$index),'_',
+                basename(opt$index)),'_',
                 Chr,
                 '_simulated_reads.fq'
             ),
@@ -456,59 +453,96 @@ genome.Chromsizes
 stopCluster(cl)
 
 if(opt$paired_ends){
-    #merge files
-    system(paste0('cat ',
-        opt$output_dir,basename(opt$index),
-        '_*_simulated_reads_2.fq > ', opt$output_dir,
-        basename(opt$index),
-        '_simulated_reads_2.fq; cat ',
-        opt$output_dir,basename(opt$index),
-        '_*_simulated_reads_1.fq > ', opt$output_dir,
-        basename(opt$index),
-        '_simulated_reads_1.fq'
-    ))
-    system(paste0('rm ',opt$output_dir, basename(opt$index),'_*_simulated_reads_1.fq'))
-    system(paste0('rm ',opt$output_dir, basename(opt$index),'_*_simulated_reads_2.fq'))
-    #align with bowtie2
-    bowtie2(
-        bt2Index = opt$index,
-        samOutput = paste0(opt$output_dir, basename(opt$index), '_simulated_reads.sam'),
-        seq1 = paste0(opt$output_dir, basename(opt$index), '_simulated_reads_1.fq'),
-        seq2 = paste0(opt$output_dir, basename(opt$index), '_simulated_reads_2.fq'),
-        ... = paste0('--phred33 --ignore-quals -p ', opt$cores),
-        overwrite=TRUE
-    )
+  
+  #create new file
+  
+  Reads1 = file.path(opt$output_dir, paste0(basename(opt$index),
+                                     '_simulated_reads_1.fq'))
+  file.create(Reads1)
+  
+  Reads2 = file.path(opt$output_dir, paste0(basename(opt$index),
+                                     '_simulated_reads_2.fq'))
+  file.create(Reads2)
+  
+  #combine files
+  trash = foreach::foreach(Chr = chr_list) %do% {
+    ReadsTMP1 = file.path(opt$output_dir,
+                          paste0(
+                            basename(opt$index),
+                            '_',
+                            Chr,
+                            '_simulated_reads_1.fq'
+                          ))
+    ReadsTMP2 = file.path(opt$output_dir,
+                          paste0(
+                            basename(opt$index),
+                            '_',
+                            Chr,
+                            '_simulated_reads_2.fq'
+                          ))
+    
+    file.append(Reads1, ReadsTMP1)
+    file.append(Reads2, ReadsTMP2)
+    
+    # remove from hd simulated_reads.fq
+    file.remove(ReadsTMP1)
+    file.remove(ReadsTMP2)
+  }
+  rm('trash')
+  
+  #align with bowtie2
+  Rbowtie2::bowtie2(
+    bt2Index = opt$index,
+    samOutput = file.path(opt$output_dir, paste0(
+      basename(opt$index), '_simulated_reads.sam'
+    )),
+    seq1 = Reads1,
+    seq2 = Reads2,
+    ... = paste0('--phred33 --ignore-quals -p ', opt$cores),
+    overwrite = TRUE
+  )
 
     # remove from hd simulated_reads.fq
-    system(paste0('rm ',opt$output_dir, basename(opt$index),'_simulated_reads_1.fq'))
-    system(paste0('rm ',opt$output_dir, basename(opt$index),'_simulated_reads_2.fq'))
-
+  file.remove(Reads1)
+  file.remove(Reads2)
+  
 }else{
     #merge files
-    system(paste0('cat ',
-                  opt$output_dir,basename(opt$index),
-                  '_*_simulated_reads.fq > ', opt$output_dir,
-                  basename(opt$index),
-                  '_simulated_reads.fq'
-    ))
+    Reads = file.path(opt$output_dir, paste0(basename(opt$index),
+                                              '_simulated_reads.fq'))
+    file.create(Reads)
+    
+    trash = foreach::foreach(Chr = chr_list) %do% {
+      ReadsTMP = file.path(opt$output_dir,
+                           paste0(
+                             basename(opt$index),
+                             '_',
+                             Chr,
+                             '_simulated_reads.fq'
+                           ))
+      
+      file.append(Reads, ReadsTMP)
+      
+      # remove from hd simulated_reads.fq
+      file.remove(ReadsTMP)
+    }
 
-    system(paste0('rm ',opt$output_dir, basename(opt$index),'_*_simulated_reads.fq'))
     #align with bowtie2
     suppressMessages(bowtie2(
         bt2Index = opt$index,
-        samOutput = paste0(opt$output_dir, basename(opt$index), '_simulated_reads.sam'),
-        seq1 = paste0(opt$output_dir, basename(opt$index), '_simulated_reads.fq'),
+        samOutput = paste0(file.path(opt$output_dir, basename(opt$index)), '_simulated_reads.sam'),
+        seq1 = Reads,
         ... = paste0('--phred33 --ignore-quals -p ', opt$cores),
         overwrite=TRUE
     ))
 
     # remove from hd simulated_reads.fq
-    system(paste0('rm ',opt$output_dir, basename(opt$index),'_simulated_reads.fq'))
+    file.remove(Reads)
 }
 
 # calculate bins
-dir.bam<-asBam( paste0(opt$output_dir, basename(opt$index), '_simulated_reads.sam'))
-system(paste0('rm ',opt$output_dir, basename(opt$index),'_simulated_reads.sam'))
+dir.bam<-asBam( paste0(file.path(opt$output_dir, basename(opt$index)), '_simulated_reads.sam'))
+file.remove(paste0(file.path(opt$output_dir, basename(opt$index)),'_simulated_reads.sam'))
 
 if(opt$paired_ends){
     param1 <- ScanBamParam(what=c('rname','pos','isize','mapq'),
@@ -529,7 +563,7 @@ if(opt$paired_ends){
             `colnames<-`(c('chr', 'pos', 'read'))
     )%>%
         drop_na()
-    #parameter used to estiamte mappability th
+    #parameter used to estimate mappability th
     theoretical_reads = opt$bin_size/(opt$fragment_size)
 
 }else{
@@ -542,7 +576,7 @@ if(opt$paired_ends){
         select('rname', 'pos', 'read')%>%
         `colnames<-`(c('chr', 'pos','read'))
 
-    #parameter used to estiamte mappability th
+    #parameter used to estimate mappability th
     theoretical_reads = opt$bin_size/opt$reads_size
 
 }
@@ -604,7 +638,9 @@ bins=bins%>%
     select(chr,start,end,mappability,mappability_th)
 
 #delete file
-system(paste0('rm ',opt$output_dir, basename(opt$index), '_simulated_reads.bam*'))
+dir.bam=list.files(path = dirname(dir.bam),pattern = basename(dir.bam),full.names = T)
+tmp=sapply(dir.bam,file.remove)
+rm('tmp')
 
 #calculate gc % peer bin
 cl=makeCluster(opt$cores)
@@ -657,8 +693,8 @@ if('black_list' %in% names(opt)){
   }
 
 
-#write bisns with info
-write_tsv(bins, paste0(opt$output_dir, basename(opt$index),'_',
+#write bins with info
+write_tsv(bins, paste0(file.path(opt$output_dir, basename(opt$index)),'_',
                        BS, '_bins_',
                        opt$coverage,'X_coverage_',
                        opt$reads_size,'bp_reads_',
