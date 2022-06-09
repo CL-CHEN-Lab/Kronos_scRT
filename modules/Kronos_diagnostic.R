@@ -172,7 +172,7 @@ if(opt$correct==F){
     data=data%>%
         mutate(Type= case_when(
             coverage_per_1Mbp < opt$min_n_reads*median_ploidy_not_noisy ~ 'Low Coverage',
-            ploidy_confidence < 2 & ploidy_confidence!=-100 ~ 'Low Ployidy confidence',
+            ploidy_confidence < 2 & ploidy_confidence!=-100 ~ 'Low ploidy confidence',
             mean_ploidy < median_ploidy_not_noisy / 1.5 ~ 'Too low ploidy compared to G1/G2-phase pool',
             mean_ploidy > median_ploidy_not_noisy * 2 ~ 'Too high ploidy compared to G1/G2-phase pool',
             T ~ Type
@@ -184,7 +184,7 @@ if(opt$correct==F){
         scale_color_manual(
             values = c(
                 'Low Coverage' = "#ff7949",
-                'Low Ployidy confidence' = "#70001e",
+                'Low ploidy confidence' = "#70001e",
                 'Too low ploidy compared to G1/G2-phase pool' = "#01e7ab",
                 'Too high ploidy compared to G1/G2-phase pool' ="#a7001b",
                 'G1/G2-phase cells' = "#005095",
