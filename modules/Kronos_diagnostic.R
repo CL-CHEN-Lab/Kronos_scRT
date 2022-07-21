@@ -65,7 +65,7 @@ option_list = list(
         c("-c", "--cores"),
         type = "integer",
         default = 3,
-        help = "Numbers of parallel jobs to run [default= %default] ",
+        help = "Number of parallel jobs to run [default= %default] ",
         metavar = "integer"
     ),
     make_option(

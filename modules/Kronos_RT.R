@@ -89,7 +89,7 @@ option_list = list(
         metavar = "character"
     ),
     make_option(
-        c("-B", "--binsSize"),
+        c("-B", "--binSize"),
         type = "character",
         default = '500Kb',
         help = "RT resolution (supports units) [default= %default] ",
@@ -99,7 +99,7 @@ option_list = list(
         c("-c", "--cores"),
         type = "integer",
         default = 3,
-        help = "Numbers of parallel jobs to run [default= %default]",
+        help = "Number of parallel jobs to run [default= %default]",
         metavar = "integer"
     ),
     make_option(
@@ -364,8 +364,8 @@ if ('referenceRT' %in% names(opt)) {
 }
 
 # convert binsize to numeric
-extract_unit = str_extract(opt$binsSize, pattern = '.{2}$')
-resolution = as.numeric(str_remove(opt$binsSize, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]")) * case_when(
+extract_unit = str_extract(opt$binSize, pattern = '.{2}$')
+resolution = as.numeric(str_remove(opt$binSize, "[Bb][Pp]|[Kk][Bb]|[Mm][Bb]")) * case_when(
     grepl(x = extract_unit, pattern =  '[Kk][Bb]') ~ 1000,
     grepl(x = extract_unit, pattern = '[Mm][Bb]') ~ 1000000,
     grepl(x = extract_unit, pattern = '[Bp][Pp]') ~ 1,
@@ -378,15 +378,15 @@ if (any(is.na(resolution))) {
 
 # prepare name file
 if (grepl(x = extract_unit, pattern =  '[0-9][0-9]')) {
-    n_of_zeros = str_length(str_extract(opt$binsSize, '0{1,10}$'))
-    opt$binsSize = case_when(
-        is.na(n_of_zeros) ~ paste0(opt$binsSize, 'bp'),
-        n_of_zeros < 3 ~ paste0(opt$binsSize, 'bp'),
-        n_of_zeros < 6 ~ paste0(str_remove(opt$binsSize, '0{3}$'), 'Kb'),
-        n_of_zeros >= 6 ~ paste0(str_remove(opt$binsSize, '0{6}$'), 'Mp')
+    n_of_zeros = str_length(str_extract(opt$binSize, '0{1,10}$'))
+    opt$binSize = case_when(
+        is.na(n_of_zeros) ~ paste0(opt$binSize, 'bp'),
+        n_of_zeros < 3 ~ paste0(opt$binSize, 'bp'),
+        n_of_zeros < 6 ~ paste0(str_remove(opt$binSize, '0{3}$'), 'Kb'),
+        n_of_zeros >= 6 ~ paste0(str_remove(opt$binSize, '0{6}$'), 'Mp')
     )
 } else{
-    opt$binsSize = opt$binsSize
+    opt$binSize = opt$binSize
 }
 
 #create directory
@@ -839,7 +839,7 @@ if(opt$extract_G1_G2_cells){
                 opt$out,
                 opt$output_file_base_name),
                 '_G1_G2_single_cells_CNV_',
-                opt$binsSize,
+                opt$binSize,
                 '.tsv'
             ),
             delim = '\t',
@@ -885,7 +885,7 @@ if ('referenceRT' %in% names(opt)) {
             opt$out,
             opt$output_file_base_name),
             '_reference_replication_timing_',
-            opt$binsSize,
+            opt$binSize,
             '.tsv'
         ),
         delim = '\t',
@@ -960,7 +960,7 @@ saveRDS(object = results,
 selcol <- colorRampPalette(brewer.pal(12, "Set3"))
 color = colorRampPalette(colors = c("#00204DFF","#233E6CFF","#575C6DFF","#7C7B78FF","#A69D75FF","#D3C164FF","#FFEA46FF"))
 
-color_basebanes = selcol(length(unique(basename_n)))
+color_basenames = selcol(length(unique(basename_n)))
 
 jpeg(
     paste0(file.path(
@@ -980,8 +980,8 @@ heatmap.2(
     col = color(100),
     density.info =  'density',
     key.title = 'Simple matching coefficient',
-    RowSideColors = color_basebanes[as.numeric(basename_n)],
-    ColSideColors = color_basebanes[as.numeric(basename_n)],
+    RowSideColors = color_basenames[as.numeric(basename_n)],
+    ColSideColors = color_basenames[as.numeric(basename_n)],
     labRow = FALSE,
     labCol = FALSE
 )
@@ -1009,7 +1009,7 @@ saveRDS(object = results,
         )
 )
 
-color_basebanes = selcol(length(unique(basename_n)))
+color_basenames = selcol(length(unique(basename_n)))
 
 jpeg(
     paste0(file.path(
@@ -1029,8 +1029,8 @@ heatmap.2(
     col = color(100),
     density.info =  'density',
     key.title = 'Simple matching coefficient',
-    RowSideColors = color_basebanes[as.numeric(basename_n)],
-    ColSideColors = color_basebanes[as.numeric(basename_n)],
+    RowSideColors = color_basenames[as.numeric(basename_n)],
+    ColSideColors = color_basenames[as.numeric(basename_n)],
     labRow = FALSE,
     labCol = FALSE
 )
@@ -1095,7 +1095,7 @@ write_delim(
         opt$out,
         opt$output_file_base_name),
         '_single_cells_CNV_',
-        opt$binsSize,
+        opt$binSize,
         '.tsv'
     ),
     delim = '\t',
@@ -1150,7 +1150,7 @@ plot = rep_percentage %>%
 
 suppressMessages(ggsave(
     plot = plot,
-    filename = paste0(file.path( 
+    filename = paste0(file.path(
         opt$out,
         opt$output_file_base_name),
         '_percentage_of_replicating_cells_used_for_RT_calculation.pdf'
@@ -1219,11 +1219,11 @@ scRT=scRT%>%
 
 write_delim(
     x = scRT,
-    file = paste0(file.path( 
+    file = paste0(file.path(
         opt$out,
         opt$output_file_base_name),
         '_calculated_replication_timing_',
-        opt$binsSize,
+        opt$binSize,
         '.tsv'
     ),
     delim = '\t',
@@ -1390,7 +1390,7 @@ if (opt$plot) {
 
                 suppressMessages(ggsave(
                     plot,
-                    filename = paste0(file.path( 
+                    filename = paste0(file.path(
                         opt$out,
                         'regions',
                         opt$output_file_base_name),
@@ -1616,7 +1616,7 @@ if (opt$plot) {
                 plot = plot + facet_wrap(~ group)
                 suppressMessages(ggsave(
                     plot,
-                    filename = paste0(file.path( 
+                    filename = paste0(file.path(
                         opt$out,
                         'regions',
                         opt$output_file_base_name),
@@ -1650,7 +1650,7 @@ if ('referenceRT' %in% names(opt)) {
 }
 
 pdf(
-    paste0(file.path( 
+    paste0(file.path(
         opt$out,
         opt$output_file_base_name),
         '_RT_distribution_plot.pdf'
@@ -1686,7 +1686,7 @@ if (length(unique(RTs$group)) != 1) {
 
     suppressMessages( ggsave(
         plot = plot,
-        filename =paste0(file.path( 
+        filename =paste0(file.path(
             opt$out,
             opt$output_file_base_name),
             '_correlation_plot_RTs.pdf'
@@ -1744,7 +1744,7 @@ if (length(unique(RTs$group)) != 1) {
                        }),legend = c(2,1))+ theme(legend.position = "right",
                                                   axis.text.x = element_text(angle = 45,hjust = 1)),
         filename =paste0(
-          file.path( 
+          file.path(
             opt$out,
             opt$output_file_base_name),
             '_paired_density_plot_RTs.pdf'
@@ -1776,7 +1776,7 @@ x %>%
     ungroup()%>%
     dplyr::select(-RT)%>%
     write_tsv(
-        paste0(file.path( 
+        paste0(file.path(
             opt$out,
             opt$output_file_base_name),
             '_scRT_variability.tsv'
@@ -1990,7 +1990,7 @@ if (opt$Var_against_reference) {
         ungroup()%>%
         dplyr::select(-RT)%>%
         write_tsv(
-            paste0(file.path( 
+            paste0(file.path(
                 opt$out,
                 opt$output_file_base_name),
                 '_scRT_variability_on_reference.tsv'
