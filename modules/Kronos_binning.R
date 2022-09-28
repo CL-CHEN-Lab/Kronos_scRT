@@ -668,7 +668,7 @@ if('black_list' %in% names(opt)){
         stop('Blacklist file does not exit')
     }else if( ncol(
         tryCatch(expr = read_tsv(opt$black_list,n_max = 0,col_types = col()),error= function(x) tibble())
-    )!=3){
+    )<3){
         stop('Blacklist file does not have the right format')
     }
 
